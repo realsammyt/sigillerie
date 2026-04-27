@@ -6,7 +6,7 @@ workspace_path: I:/GithubI/claude/sigillerie
 
 owner: realsammyt
 created: 2026-04-27
-status: phase-2-complete
+status: phase-3-complete
 
 # Build phases — see _planning/SIGILLERIE-REPO-PLAN.md §4
 phases:
@@ -34,9 +34,17 @@ phases:
       - demos/d9-discovery-walkthrough/ (19 files, ~88 KB, 3 differentiated logo SVGs)
   - id: 3
     name: Producer rebuild + EN docs
-    status: pending
+    status: completed
     duration_estimate: 2-3 weeks (parallel sub-agents)
     golden_test: tests/golden/phase-3-producer-parity.test.js
+    completed_at: 2026-04-27
+    artifacts:
+      - 21 modes/producer/*.md docs translated EN-canonical (P3W1+W2)
+      - 8 assets/ code components re-implemented (P3W3): animations.jsx, deck_stage.js, deck_index.html, design_canvas.jsx, frames/{ios,android,macos_window,browser_window}.jsx
+      - 7 scripts/ build tools (P3W4): render-video.js, add-music.sh, convert-formats.sh, export_deck_pdf.mjs, export_deck_pptx.mjs, html2pptx.js, verify.py
+    deferred:
+      - 3d 24 showcase PNG snapshots (low priority, defer to Phase 11 polish)
+      - 3e producer-parity smoke test (requires user-side validation on Titan RTX)
   - id: 4
     name: 3D Track A + render pipeline
     status: pending
@@ -106,7 +114,7 @@ checkpoints:
   - id: C3
     name: Producer parity
     when: end-of-phase-3
-    status: pending
+    status: awaiting-user-review
   - id: C4
     name: First 3D MP4
     when: end-of-phase-4
