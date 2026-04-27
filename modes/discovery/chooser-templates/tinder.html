@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sigillerie · Moodboard Pass</title>
+<style>
+  :root {
+    --bg: #FAFAF7;
+    --ink: #1F1A14;
+    --ink-soft: #5A5048;
+    --rule: #E6DFD2;
+    --card: #FFFFFE;
+    --keep: #2E6B3A;
+    --reject: #8B2E2E;
+    --flinch: #B85C2E;
+    --focus: #B85C2E;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: clamp(14px, 1.5vw, 15px);
+    line-height: 1.5;
+    padding: clamp(16px, 4vw, 40px) clamp(16px, 4vw, 40px) 120px clamp(16px, 4vw, 40px);
+    min-height: 100vh;
+  }
+  header.page {
+    max-width: 1280px;
+    margin: 0 auto clamp(16px, 2vw, 28px) auto;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 14px;
+  }
+  header.page h1 {
+    font-family: ui-serif, Georgia, "Source Serif Pro", serif;
+    font-weight: 500;
+    font-size: clamp(22px, 3vw, 30px);
+    margin: 0 0 4px 0;
+    letter-spacing: -0.01em;
+  }
+  header.page p {
+    margin: 0;
+    color: var(--ink-soft);
+    font-size: clamp(13px, 1.4vw, 14px);
+  }
+  header.page kbd {
+    background: #EFE9DC;
+    border: 1px solid var(--rule);
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+  }
+  main.grid {
+    max-width: 1280px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: clamp(10px, 1.4vw, 16px);
+  }
+  .ref {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.08s ease, border-color 0.15s ease;
+    position: relative;
+  }
+  .ref:focus-within {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+  .ref[data-state="kept"]     { border-color: var(--keep);   border-width: 2px; }
+  .ref[data-state="rejected"] { opacity: 0.45; }
+  .ref[data-state="flinch"]   { border-color: var(--flinch); border-width: 2px; }
+  .thumb {
+    aspect-ratio: 1 / 1;
+    background: #EFE9DC;
+    background-size: cover;
+    background-position: center;
+    display: block;
+  }
+  .thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .meta {
+    font-size: 10px;
+    color: var(--ink-soft);
+    padding: 6px 8px 0 8px;
+    font-family: ui-monospace, monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .meta a {
+    color: inherit;
+    text-decoration: underline dotted;
+  }
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0;
+    border-top: 1px solid var(--rule);
+    margin-top: 6px;
+  }
+  .actions button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    padding: 8px 0;
+    cursor: pointer;
+    font-size: 16px;
+    font-family: inherit;
+    color: var(--ink);
+    border-right: 1px solid var(--rule);
+    transition: background 0.1s ease;
+  }
+  .actions button:last-child { border-right: 0; }
+  .actions button:hover { background: #F2EDE0; }
+  .actions button:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: -2px;
+  }
+  .ref[data-state="kept"]     .btn-keep   { background: #DCEAD8; color: var(--keep); }
+  .ref[data-state="rejected"] .btn-reject { background: #EAD8D8; color: var(--reject); }
+  .ref[data-state="flinch"]   .btn-flinch { background: #EFD9C8; color: var(--flinch); }
+  .flinch-input {
+    display: none;
+    border-top: 1px solid var(--rule);
+    padding: 8px;
+    background: #FBF5EC;
+  }
+  .ref[data-state="flinch"] .flinch-input { display: block; }
+  .flinch-input label {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+    margin-bottom: 4px;
+  }
+  .flinch-input input {
+    width: 100%;
+    border: 1px solid var(--rule);
+    background: var(--bg);
+    padding: 6px 8px;
+    font: inherit;
+    font-size: 12px;
+    color: var(--ink);
+    border-radius: 2px;
+  }
+  .flinch-input input:focus {
+    outline: 2px solid var(--focus);
+    outline-offset: 0;
+  }
+  .flinch-input input.required {
+    border-color: var(--reject);
+    background: #FBECEC;
+  }
+  footer.summary {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--ink);
+    color: var(--bg);
+    padding: 12px clamp(16px, 4vw, 40px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    z-index: 10;
+    border-top: 1px solid #000;
+    flex-wrap: wrap;
+  }
+  .counts {
+    display: flex;
+    gap: 16px;
+    font-family: ui-monospace, monospace;
+    font-size: 13px;
+    flex-wrap: wrap;
+  }
+  .counts .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .counts .pill .num {
+    font-size: 16px;
+    color: #FFF;
+  }
+  .counts .pill .lbl {
+    color: #BBB4A6;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 11px;
+  }
+  .done {
+    appearance: none;
+    border: 1px solid var(--bg);
+    background: var(--bg);
+    color: var(--ink);
+    font: inherit;
+    font-weight: 500;
+    padding: 10px 22px;
+    cursor: pointer;
+    border-radius: 2px;
+  }
+  .done:hover { background: #FFF; }
+  .done:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 3px;
+  }
+  .done:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--ink);
+    color: var(--bg);
+    padding: 10px 16px;
+    border-radius: 2px;
+    font-size: 13px;
+    border: 1px solid var(--bg);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    max-width: 90vw;
+    text-align: center;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  @media (max-width: 480px) {
+    main.grid {
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    }
+  }
+</style>
+</head>
+<body>
+
+<header class="page">
+  <h1>Pass through. Keep five. Flinch on one.</h1>
+  <p>Keys: <kbd>K</kbd> keep · <kbd>R</kbd> reject · <kbd>F</kbd> flinch · <kbd>Arrows</kbd> move · <kbd>Enter</kbd> on Done submits.</p>
+</header>
+
+<main class="grid" id="grid" role="list" aria-label="Moodboard references"></main>
+
+<footer class="summary" role="contentinfo">
+  <div class="counts" aria-live="polite">
+    <span class="pill"><span class="num" id="c-kept">0</span><span class="lbl">kept</span></span>
+    <span class="pill"><span class="num" id="c-rejected">0</span><span class="lbl">rejected</span></span>
+    <span class="pill"><span class="num" id="c-flinch">0</span><span class="lbl">flinch</span></span>
+    <span class="pill"><span class="num" id="c-pending">0</span><span class="lbl">pending</span></span>
+  </div>
+  <button id="done" class="done" type="button" aria-label="Submit picks">Done</button>
+</footer>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+// Agent overwrites this block at runtime.
+const REFS = [
+  { id: 1,  lane: 'direct',        src: 'moodboard/01-direct/01.jpg',        source_url: 'https://example.com/1',  license: 'fair use' },
+  { id: 2,  lane: 'direct',        src: 'moodboard/01-direct/02.jpg',        source_url: 'https://example.com/2',  license: 'fair use' },
+  { id: 3,  lane: 'direct',        src: 'moodboard/01-direct/03.jpg',        source_url: 'https://example.com/3',  license: 'fair use' },
+  { id: 4,  lane: 'direct',        src: 'moodboard/01-direct/04.jpg',        source_url: 'https://example.com/4',  license: 'fair use' },
+  { id: 5,  lane: 'aspirational',  src: 'moodboard/02-aspirational/01.jpg',  source_url: 'https://example.com/5',  license: 'fair use' },
+  { id: 6,  lane: 'aspirational',  src: 'moodboard/02-aspirational/02.jpg',  source_url: 'https://example.com/6',  license: 'fair use' },
+  { id: 7,  lane: 'aspirational',  src: 'moodboard/02-aspirational/03.jpg',  source_url: 'https://example.com/7',  license: 'fair use' },
+  { id: 8,  lane: 'aspirational',  src: 'moodboard/02-aspirational/04.jpg',  source_url: 'https://example.com/8',  license: 'fair use' },
+  { id: 9,  lane: 'aspirational',  src: 'moodboard/02-aspirational/05.jpg',  source_url: 'https://example.com/9',  license: 'fair use' },
+  { id: 10, lane: 'philosophy',    src: 'moodboard/03-philosophy/01.jpg',    source_url: 'https://example.com/10', license: 'CC' },
+  { id: 11, lane: 'philosophy',    src: 'moodboard/03-philosophy/02.jpg',    source_url: 'https://example.com/11', license: 'CC' },
+  { id: 12, lane: 'philosophy',    src: 'moodboard/03-philosophy/03.jpg',    source_url: 'https://example.com/12', license: 'CC' },
+  { id: 13, lane: 'philosophy',    src: 'moodboard/03-philosophy/04.jpg',    source_url: 'https://example.com/13', license: 'CC' },
+  { id: 14, lane: 'direct',        src: 'moodboard/01-direct/05.jpg',        source_url: 'https://example.com/14', license: 'fair use' },
+  { id: 15, lane: 'philosophy',    src: 'moodboard/03-philosophy/05.jpg',    source_url: 'https://example.com/15', license: 'CC' }
+];
+
+// ---- state ----
+const state = new Map(); // id -> { status: 'pending'|'kept'|'rejected'|'flinch', reason: '' }
+REFS.forEach(r => state.set(r.id, { status: 'pending', reason: '' }));
+
+// ---- helpers ----
+function el(tag, attrs, ...kids) {
+  const node = document.createElement(tag);
+  if (attrs) {
+    for (const [k, v] of Object.entries(attrs)) {
+      if (k === 'class') node.className = v;
+      else if (k === 'style') node.setAttribute('style', v);
+      else if (k.startsWith('on')) node.addEventListener(k.slice(2), v);
+      else if (v === true) node.setAttribute(k, '');
+      else if (v !== false && v != null) node.setAttribute(k, v);
+    }
+  }
+  for (const kid of kids) {
+    if (kid == null) continue;
+    if (typeof kid === 'string') node.appendChild(document.createTextNode(kid));
+    else node.appendChild(kid);
+  }
+  return node;
+}
+
+function host(url) {
+  try { return new URL(url).hostname.replace(/^www\./, ''); }
+  catch (_) { return ''; }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ---- render ----
+function renderRef(ref) {
+  const card = el('article', {
+    class: 'ref',
+    role: 'listitem',
+    tabindex: '0',
+    'data-id': ref.id,
+    'data-state': 'pending',
+    'aria-label': 'Reference ' + ref.id + ', lane ' + ref.lane
+  });
+
+  const thumb = el('div', { class: 'thumb' });
+  if (ref.src) {
+    const img = el('img', { src: ref.src, alt: 'Reference ' + ref.id, loading: 'lazy' });
+    img.addEventListener('error', () => {
+      thumb.style.background = '#EFE9DC';
+      thumb.removeChild(img);
+      thumb.appendChild(el('div', {
+        style: 'display:flex;align-items:center;justify-content:center;height:100%;font-family:ui-monospace,monospace;font-size:11px;color:#5A5048;text-align:center;padding:8px;'
+      }, '#' + ref.id + ' ' + ref.lane));
+    });
+    thumb.appendChild(img);
+  } else {
+    thumb.appendChild(el('div', {
+      style: 'display:flex;align-items:center;justify-content:center;height:100%;font-family:ui-monospace,monospace;font-size:11px;color:#5A5048;'
+    }, '#' + ref.id));
+  }
+  card.appendChild(thumb);
+
+  card.appendChild(el('div', { class: 'meta' },
+    el('span', null, ref.lane || ''),
+    ref.source_url
+      ? el('a', { href: ref.source_url, target: '_blank', rel: 'noreferrer noopener' }, host(ref.source_url) || 'src')
+      : el('span', null, ref.license || '')
+  ));
+
+  const actions = el('div', { class: 'actions' });
+  actions.appendChild(el('button', {
+    class: 'btn-keep', type: 'button', 'aria-label': 'Keep reference ' + ref.id, title: 'Keep (K)',
+    onclick: (e) => { e.stopPropagation(); setState(ref.id, 'kept'); }
+  }, 'thumbs up'));
+  actions.appendChild(el('button', {
+    class: 'btn-reject', type: 'button', 'aria-label': 'Reject reference ' + ref.id, title: 'Reject (R)',
+    onclick: (e) => { e.stopPropagation(); setState(ref.id, 'rejected'); }
+  }, 'thumbs down'));
+  actions.appendChild(el('button', {
+    class: 'btn-flinch', type: 'button', 'aria-label': 'Flinch on reference ' + ref.id, title: 'Flinch (F)',
+    onclick: (e) => { e.stopPropagation(); setState(ref.id, 'flinch'); }
+  }, 'star'));
+  card.appendChild(actions);
+
+  // Inline reason input for flinch.
+  const flinchWrap = el('div', { class: 'flinch-input' });
+  const reasonId = 'reason-' + ref.id;
+  flinchWrap.appendChild(el('label', { for: reasonId }, 'Why does this flinch? Required.'));
+  const input = el('input', {
+    id: reasonId, type: 'text',
+    placeholder: 'looks like every other AI startup',
+    'data-id': ref.id,
+    'aria-required': 'true'
+  });
+  input.addEventListener('input', (e) => {
+    const s = state.get(ref.id);
+    s.reason = e.target.value;
+    e.target.classList.toggle('required', !e.target.value.trim());
+    updateCounts();
+  });
+  input.addEventListener('keydown', (e) => { e.stopPropagation(); });
+  flinchWrap.appendChild(input);
+  card.appendChild(flinchWrap);
+
+  return card;
+}
+
+function setState(id, status) {
+  const s = state.get(id);
+  if (!s) return;
+  s.status = status;
+  if (status !== 'flinch') s.reason = '';
+  const card = document.querySelector('.ref[data-id="' + id + '"]');
+  if (card) {
+    card.setAttribute('data-state', status);
+    if (status === 'flinch') {
+      const inp = card.querySelector('input');
+      if (inp) setTimeout(() => inp.focus(), 60);
+    }
+  }
+  updateCounts();
+}
+
+function updateCounts() {
+  let kept = 0, rejected = 0, flinch = 0, pending = 0;
+  for (const s of state.values()) {
+    if (s.status === 'kept') kept++;
+    else if (s.status === 'rejected') rejected++;
+    else if (s.status === 'flinch') flinch++;
+    else pending++;
+  }
+  document.getElementById('c-kept').textContent = kept;
+  document.getElementById('c-rejected').textContent = rejected;
+  document.getElementById('c-flinch').textContent = flinch;
+  document.getElementById('c-pending').textContent = pending;
+}
+
+// ---- submit ----
+async function submit() {
+  const kept = [], rejected = [], flinch = [];
+  for (const [id, s] of state.entries()) {
+    if (s.status === 'kept') kept.push(id);
+    else if (s.status === 'rejected') rejected.push(id);
+    else if (s.status === 'flinch') {
+      if (!s.reason || !s.reason.trim()) {
+        const card = document.querySelector('.ref[data-id="' + id + '"]');
+        const inp = card && card.querySelector('input');
+        if (inp) { inp.classList.add('required'); inp.focus(); }
+        showToast('Flinch needs a reason. Card #' + id + '.');
+        return;
+      }
+      flinch.push({ id, reason: s.reason.trim() });
+    }
+  }
+  const payload = {
+    phase: 2,
+    kept,
+    rejected,
+    flinch,
+    timestamp: new Date().toISOString()
+  };
+  const body = JSON.stringify(payload);
+  let posted = false;
+  try {
+    const res = await fetch('http://127.0.0.1:7717/discovery-pending-choice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body
+    });
+    if (res.ok) posted = true;
+  } catch (_) { /* fall through */ }
+  if (posted) {
+    showToast('Saved. ' + kept.length + ' kept, ' + flinch.length + ' flinch.');
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(body);
+    showToast('No local helper. Picks copied to clipboard. Paste in chat.');
+  } catch (_) {
+    showToast('Copy failed. Picks: ' + body);
+  }
+}
+
+// ---- keyboard ----
+function focusedCard() {
+  const a = document.activeElement;
+  if (!a) return null;
+  if (a.classList && a.classList.contains('ref')) return a;
+  return a.closest && a.closest('.ref');
+}
+
+function moveFocus(dir) {
+  const cards = Array.from(document.querySelectorAll('.ref'));
+  if (!cards.length) return;
+  const cur = focusedCard();
+  let idx = cur ? cards.indexOf(cur) : -1;
+  if (dir === 'next') idx = Math.min(cards.length - 1, idx + 1);
+  if (dir === 'prev') idx = Math.max(0, idx - 1);
+  if (dir === 'down' || dir === 'up') {
+    // Approximate row jump using grid column count.
+    const grid = document.getElementById('grid');
+    const gridStyle = getComputedStyle(grid);
+    const cols = gridStyle.gridTemplateColumns.split(' ').length || 1;
+    idx = dir === 'down'
+      ? Math.min(cards.length - 1, (idx < 0 ? 0 : idx) + cols)
+      : Math.max(0, (idx < 0 ? 0 : idx) - cols);
+  }
+  if (idx < 0) idx = 0;
+  cards[idx].focus();
+}
+
+document.addEventListener('keydown', (e) => {
+  // Ignore when typing in an input.
+  if (e.target && e.target.tagName === 'INPUT') return;
+
+  const k = (e.key || '').toLowerCase();
+  if (k === 'arrowright') { e.preventDefault(); moveFocus('next'); return; }
+  if (k === 'arrowleft')  { e.preventDefault(); moveFocus('prev'); return; }
+  if (k === 'arrowdown')  { e.preventDefault(); moveFocus('down'); return; }
+  if (k === 'arrowup')    { e.preventDefault(); moveFocus('up');   return; }
+
+  if (e.target && e.target.id === 'done' && k === 'enter') {
+    e.preventDefault(); submit(); return;
+  }
+
+  const card = focusedCard();
+  if (!card) return;
+  const id = parseInt(card.getAttribute('data-id'), 10);
+  if (k === 'k') { e.preventDefault(); setState(id, 'kept'); }
+  else if (k === 'r') { e.preventDefault(); setState(id, 'rejected'); }
+  else if (k === 'f') { e.preventDefault(); setState(id, 'flinch'); }
+});
+
+// ---- mount ----
+(function mount() {
+  const grid = document.getElementById('grid');
+  REFS.forEach(r => grid.appendChild(renderRef(r)));
+  document.getElementById('done').addEventListener('click', submit);
+  updateCounts();
+})();
+</script>
+</body>
+</html>
