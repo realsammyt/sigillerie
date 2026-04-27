@@ -1,0 +1,134 @@
+name: sigillerie
+description: AI design studio — Discovery + Producer + 3D + data viz + knowledge graph + generative audio
+repo: github.com/realsammyt/sigillerie
+local_path: I:/GithubI/claude/sigillerie/repo
+workspace_path: I:/GithubI/claude/sigillerie
+
+owner: realsammyt
+created: 2026-04-27
+status: phase-1-bootstrap
+
+# Build phases — see _planning/SIGILLERIE-REPO-PLAN.md §4
+phases:
+  - id: 1
+    name: Bootstrap + English SKILL.md
+    status: in_progress
+    duration_estimate: 2-3 days
+    golden_test: tests/golden/phase-1-skill-loads.test.js
+  - id: 2
+    name: Discovery core
+    status: pending
+    duration_estimate: 1.5-2 weeks
+    golden_test: tests/golden/phase-2-vellum-dry-run.test.js
+  - id: 3
+    name: Producer rebuild + EN docs
+    status: pending
+    duration_estimate: 2-3 weeks (parallel sub-agents)
+    golden_test: tests/golden/phase-3-producer-parity.test.js
+  - id: 4
+    name: 3D Track A + render pipeline
+    status: pending
+    duration_estimate: 2 weeks
+    golden_test: tests/golden/phase-4-holo-ui-render.test.js
+  - id: 5
+    name: model-viewer + AR
+    status: pending
+    duration_estimate: 1 week
+    golden_test: tests/golden/phase-5-ar-routing.test.js
+  - id: 6
+    name: Track B + R3F WebXR
+    status: pending
+    duration_estimate: 2 weeks
+    golden_test: tests/golden/phase-6-webxr-vision-pro.test.js
+  - id: 7
+    name: Spatial frames + audio capture
+    status: pending
+    duration_estimate: 1 week
+    golden_test: tests/golden/phase-7-spatial-audio.test.js
+  - id: 8
+    name: Generative Audio capability
+    status: pending
+    duration_estimate: 1.5-2 weeks
+    golden_test: tests/golden/phase-8-brand-audio-regen.test.js
+  - id: 9
+    name: Data Viz capability
+    status: pending
+    duration_estimate: 2 weeks
+    golden_test: tests/golden/phase-9-csv-to-pdf.test.js
+  - id: 10
+    name: Knowledge Graph capability
+    status: pending
+    duration_estimate: 2 weeks
+    golden_test: tests/golden/phase-10-agent-os-dogfood.test.js
+  - id: 11
+    name: Polish + critique + evals
+    status: pending
+    duration_estimate: 1 week
+    golden_test: tests/golden/phase-11-cross-capability.test.js
+
+# Quality gates per harness plan §4
+gates:
+  - id: G1
+    name: Lint
+    runs: scripts/run-gates.mjs --gate=lint
+  - id: G2
+    name: Caveman
+    runs: scripts/run-gates.mjs --gate=caveman
+  - id: G3
+    name: Run
+    runs: scripts/run-gates.mjs --gate=run
+  - id: G4
+    name: Critique
+    runs: scripts/run-gates.mjs --gate=critique
+
+# Checkpoints — user approval required
+checkpoints:
+  - id: C1
+    name: Plan lock
+    when: before-phase-1
+    status: passed
+  - id: C2
+    name: Discovery dry run
+    when: end-of-phase-2
+    status: pending
+  - id: C3
+    name: Producer parity
+    when: end-of-phase-3
+    status: pending
+  - id: C4
+    name: First 3D MP4
+    when: end-of-phase-4
+    status: pending
+  - id: C5
+    name: AR works on real phones
+    when: end-of-phase-5
+    status: pending
+  - id: C6
+    name: First spatial demo
+    when: end-of-phase-6
+    status: pending
+  - id: C7
+    name: First runtime audio MP4
+    when: end-of-phase-8
+    status: pending
+  - id: C8
+    name: First viz delivery
+    when: end-of-phase-9
+    status: pending
+  - id: C9
+    name: agent-os swarm dogfood
+    when: end-of-phase-10
+    status: pending
+  - id: C10
+    name: v1 lock
+    when: end-of-phase-11
+    status: pending
+
+# Linked specs (workspace-only, not in repo)
+specs:
+  master_plan: ../_planning/SIGILLERIE-REPO-PLAN.md
+  discovery: ../_planning/DISCOVERY-STUDIO-MODE.md
+  build_harness: ../_planning/SIGILLERIE-BUILD-HARNESS.md
+  data_viz: ../_research/DATA-VIZ-CAPABILITY.md
+  knowledge_graph: ../_research/KNOWLEDGE-GRAPH-CAPABILITY.md
+  generative_audio: ../_research/GENERATIVE-AUDIO-CAPABILITY.md

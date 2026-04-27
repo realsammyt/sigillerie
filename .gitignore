@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.local
+*.tmp
+*.cache
+_temp/
+.archon/cache/
+.archon/runtime/
+audio-license.local.json
+
+# generated assets that ship with seeds (keep) vs user-private regens (ignore)
+assets/audio/sigillerie-default/.local-regen/
+assets/<*-brand>/audio/.local-regen/

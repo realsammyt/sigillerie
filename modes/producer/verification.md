@@ -1,0 +1,9 @@
+---
+name: verification
+description: TODO Phase 3 — translate from huashu, English-canonical re-author
+status: stub
+---
+
+# verification
+
+Phase 3 will populate this. See _planning/SIGILLERIE-REPO-PLAN.md §5.

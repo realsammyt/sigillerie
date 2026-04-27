@@ -1,0 +1,33 @@
+{
+  "name": "sigillerie",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI design studio for Claude Code: Discovery + Producer + 3D + data viz + knowledge graph + generative audio",
+  "license": "SEE LICENSE",
+  "author": "realsammyt",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/realsammyt/sigillerie.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node scripts/run-all-golden-tests.mjs",
+    "test:lint": "node scripts/run-gates.mjs --gate=lint",
+    "test:caveman": "node scripts/run-gates.mjs --gate=caveman",
+    "test:run": "node scripts/run-gates.mjs --gate=run",
+    "test:critique": "node scripts/run-gates.mjs --gate=critique",
+    "verify": "python scripts/verify.py",
+    "render": "node scripts/render-video.js",
+    "seed-audio": "node scripts/seed-audio-library.mjs",
+    "archon-sync": "bash scripts/archon-sync.sh"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0",
+    "pdf-lib": "^1.17.1",
+    "pptxgenjs": "^3.12.0",
+    "sharp": "^0.33.0"
+  },
+  "devDependencies": {}
+}

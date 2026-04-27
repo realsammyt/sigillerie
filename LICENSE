@@ -1,0 +1,56 @@
+Sigillerie · Personal Use License (modeled on huashu-design)
+
+Copyright © 2026 realsammyt (Tyler Sammy)
+
+PERSONAL USE — FREE AND UNRESTRICTED
+
+You are free to use Sigillerie and its outputs for personal use, including:
+- Studying, research, and education
+- Creating things for yourself
+- Writing articles, blog posts, social-media content
+- Side projects and personal experiments
+- Personal portfolio or showcase work
+
+No request needed. Use it.
+
+COMMERCIAL USE — REQUIRES WRITTEN AUTHORIZATION
+
+Any company, team, or for-profit organization integrating this skill into a
+product, external service, or client deliverable must obtain written
+authorization from the maintainer first. This includes but is not limited to:
+
+- Using the skill as part of internal company tooling
+- Using skill outputs as the primary creative method for external deliverables
+- Building a commercial product on top of the skill
+- Using the skill in paid client projects
+- Embedding generated assets into commercial properties without separate
+  asset-level licensing
+
+Commercial licensing contact: github.com/realsammyt (DM via GitHub).
+
+THIRD-PARTY ASSETS
+
+Sigillerie generates audio assets via Stability AI (Stable Audio 2.5) and
+ElevenLabs Sound Effects. Default seeded library is for personal-use
+prototyping only. For commercial work, run scripts/seed-audio-library.mjs
+with your own API keys on a tier permitting commercial output. Each generated
+asset records license metadata in audio-license.json — keep this file with
+the assets for audit purposes.
+
+LINEAGE
+
+This skill is a derivative inspired work informed by alchaincyf/huashu-design
+(花叔Design). The original author retains rights over the original work.
+Sigillerie's documentation and code are independent re-authoring; no upstream
+files are copied. Nonetheless, attribution is given in README.md and the
+spirit of the upstream license posture is preserved here.
+
+NO WARRANTY
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+IN THE SOFTWARE.
