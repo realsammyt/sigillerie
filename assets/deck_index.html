@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Deck · Sigillerie multi-file aggregator</title>
+<!--
+  deck_index.html, Sigillerie multi-file slide aggregator.
+
+  Pattern: every slide is its own self-contained HTML file under slides/.
+  This file iframes them one at a time. Per-slide CSS/JS is fully isolated.
+
+  Why this over single-file deck_stage.js:
+    - one CSS bug breaks one slide, not the whole deck
+    - any slide can be opened directly (file://...slides/05.html) for verify
+    - parallel agents can build different slides with zero merge conflict
+    - scales fine to 30+ slides; aggregator only mounts one iframe live
+
+  HOW TO AUTHOR A DECK:
+    1. copy this file into your deck root, keep filename index.html if you like
+    2. drop slide HTMLs into slides/ next to it
+    3. edit window.DECK_MANIFEST below, list files in display order
+    4. each slide HTML owns its own width/height/scale; aggregator only sizes
+       the iframe to the viewport
+    5. optional: add data-duration-sec attribute on the slide's root <html>
+       to override recording cadence (default 5s)
+
+  KEYBOARD:
+    -> / Space / n   next
+    <-               prev
+    Home / End       first / last
+    f                fullscreen toggle (also hides chrome)
+    p                print (browser print dialog)
+
+  MODES:
+    - normal:    one iframe, swapped on nav
+    - recording: window.__recording = true → auto-advance for screen capture
+    - print:     beforeprint builds full iframe stack, one slide per A4 page
+-->
+
+<!-- ======================================================== -->
+<!-- EDIT BELOW. List every slide in order.                   -->
+<!-- ======================================================== -->
+<script>
+  window.DECK_MANIFEST = [
+    { file: "slides/01-cover.html",   label: "Cover" },
+    { file: "slides/02-quote.html",   label: "Opening Quote" },
+    { file: "slides/03-intro.html",   label: "Self-intro" },
+    // keep adding. file path is relative to this file. label feeds the counter.
+  ];
+
+  // recording cadence fallback when the slide HTML does not declare its own
+  window.DECK_RECORD_DEFAULT_SEC = 5;
+</script>
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: #0a0a0a;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #fff;
+  }
+
+  /* live stage. iframe fills viewport; child page does its own scaling. */
+  #stage {
+    position: fixed;
+    inset: 0;
+    background: #000;
+  }
+  #frame {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+    background: #fff;
+  }
+  /* hidden prefetch frame, never visible */
+  #prefetch {
+    position: fixed;
+    width: 1px; height: 1px;
+    left: -9999px; top: -9999px;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* counter chip, bottom-right */
+  .counter {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+    z-index: 100;
+    user-select: none;
+    opacity: 0.75;
+    transition: opacity 0.15s;
+    backdrop-filter: blur(6px);
+  }
+  .counter:hover { opacity: 1; }
+  .counter .label {
+    color: rgba(255, 255, 255, 0.65);
+    margin-left: 8px;
+  }
+
+  /* hover edge zones, clickable nav. quiet by default. */
+  .nav-zone {
+    position: fixed;
+    top: 0; bottom: 0;
+    width: 12%;
+    cursor: pointer;
+    z-index: 50;
+  }
+  .nav-zone.left { left: 0; }
+  .nav-zone.right { right: 0; }
+  .nav-zone .hint {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px; height: 40px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .nav-zone.left .hint { left: 18px; }
+  .nav-zone.right .hint { right: 18px; }
+  .nav-zone:hover .hint { opacity: 1; }
+
+  /* loading veil while iframe swaps */
+  .veil {
+    position: fixed;
+    inset: 0;
+    background: #0a0a0a;
+    z-index: 30;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s;
+  }
+  .veil.on { opacity: 1; }
+
+  /* hide all aggregator chrome on demand (f key, recording, print) */
+  body.bare .counter,
+  body.bare .nav-zone { display: none !important; }
+
+  /* print stack: one iframe per slide, each one A4 page */
+  .print-stack { display: none; }
+  @media print {
+    @page { size: 1920px 1080px; margin: 0; }
+    html, body {
+      background: #fff;
+      overflow: visible;
+      height: auto;
+    }
+    #stage, .counter, .nav-zone, .veil { display: none !important; }
+    .print-stack { display: block; }
+    .print-stack iframe {
+      width: 100%;
+      height: 100vh;
+      border: 0;
+      display: block;
+      page-break-after: always;
+      break-after: page;
+    }
+    .print-stack iframe:last-child {
+      page-break-after: auto;
+      break-after: auto;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <iframe id="frame" src="about:blank" allow="autoplay; fullscreen"></iframe>
+</div>
+<iframe id="prefetch" src="about:blank" aria-hidden="true"></iframe>
+
+<div class="nav-zone left"  id="navL"><div class="hint">&lsaquo;</div></div>
+<div class="nav-zone right" id="navR"><div class="hint">&rsaquo;</div></div>
+<div class="counter" id="counter">1 / 1</div>
+<div class="veil" id="veil"></div>
+
+<!-- print-only stack, populated on beforeprint, cleared on afterprint -->
+<div class="print-stack" id="printStack"></div>
+
+<script>
+(function () {
+  const deck = window.DECK_MANIFEST || [];
+  const recordDefault = window.DECK_RECORD_DEFAULT_SEC || 5;
+  const storageKey = 'sigillerie-deck-' + location.pathname;
+
+  const stage    = document.getElementById('stage');
+  const frame    = document.getElementById('frame');
+  const prefetch = document.getElementById('prefetch');
+  const counter  = document.getElementById('counter');
+  const veil     = document.getElementById('veil');
+  const printStack = document.getElementById('printStack');
+
+  let current = 0;
+  let recordingTimer = null;
+
+  if (!deck.length) {
+    counter.textContent = 'empty MANIFEST';
+    return;
+  }
+
+  // swap iframe to slide idx. show veil while loading to mask flash.
+  function show(idx) {
+    if (idx < 0 || idx >= deck.length) return;
+    current = idx;
+    const item = deck[idx];
+
+    veil.classList.add('on');
+    frame.onload = () => {
+      veil.classList.remove('on');
+      schedulePrefetch(idx + 1);
+    };
+    // assign src; about:blank fallback if slide errors out network-side
+    frame.src = item.file;
+
+    counter.innerHTML =
+      (idx + 1) + ' / ' + deck.length +
+      '<span class="label">' + escapeHtml(item.label || '') + '</span>';
+
+    try { localStorage.setItem(storageKey, String(idx)); } catch (_) {}
+
+    const hashWant = '#' + (idx + 1);
+    if (location.hash !== hashWant) {
+      history.replaceState(null, '', hashWant);
+    }
+  }
+
+  // warm browser cache for the next slide so nav feels instant
+  function schedulePrefetch(nextIdx) {
+    if (nextIdx < 0 || nextIdx >= deck.length) return;
+    // small delay so it does not contend with current iframe boot
+    setTimeout(() => {
+      try { prefetch.src = deck[nextIdx].file; } catch (_) {}
+    }, 250);
+  }
+
+  function next() { show(Math.min(current + 1, deck.length - 1)); }
+  function prev() { show(Math.max(current - 1, 0)); }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  // keyboard. ignore when child iframe owns focus and types into its own input.
+  document.addEventListener('keydown', (e) => {
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    switch (e.key) {
+      case 'ArrowRight':
+      case ' ':
+      case 'n':
+      case 'N':
+        e.preventDefault(); next(); break;
+      case 'ArrowLeft':
+        e.preventDefault(); prev(); break;
+      case 'Home':
+        e.preventDefault(); show(0); break;
+      case 'End':
+        e.preventDefault(); show(deck.length - 1); break;
+      case 'f':
+      case 'F':
+        e.preventDefault(); toggleFullscreen(); break;
+      case 'p':
+      case 'P':
+        e.preventDefault(); window.print(); break;
+    }
+  });
+
+  function toggleFullscreen() {
+    document.body.classList.toggle('bare');
+    if (!document.fullscreenElement) {
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+    }
+  }
+
+  document.getElementById('navL').addEventListener('click', prev);
+  document.getElementById('navR').addEventListener('click', next);
+
+  // hash deep-link. external #N navigation respected.
+  window.addEventListener('hashchange', () => {
+    const m = location.hash.match(/^#(\d+)$/);
+    if (m) {
+      const i = parseInt(m[1], 10) - 1;
+      if (i !== current && i >= 0 && i < deck.length) show(i);
+    }
+  });
+
+  // pick initial slide: hash > localStorage > 0
+  let initial = 0;
+  const hashMatch = location.hash.match(/^#(\d+)$/);
+  if (hashMatch) {
+    initial = Math.min(Math.max(parseInt(hashMatch[1], 10) - 1, 0), deck.length - 1);
+  } else {
+    try {
+      const v = parseInt(localStorage.getItem(storageKey), 10);
+      if (!isNaN(v) && v >= 0 && v < deck.length) initial = v;
+    } catch (_) {}
+  }
+  show(initial);
+
+  // ── PRINT ──────────────────────────────────────────────────
+  // build a full iframe stack so the browser prints every slide.
+  // each iframe forced to one A4 page via @media print rules above.
+  window.addEventListener('beforeprint', () => {
+    printStack.innerHTML = '';
+    deck.forEach(item => {
+      const f = document.createElement('iframe');
+      f.src = item.file;
+      f.setAttribute('loading', 'eager');
+      printStack.appendChild(f);
+    });
+  });
+  window.addEventListener('afterprint', () => {
+    printStack.innerHTML = '';
+  });
+
+  // ── RECORDING ──────────────────────────────────────────────
+  // when window.__recording = true (set externally before load, or via
+  // postMessage), auto-advance. cadence read from each slide's
+  // <html data-duration-sec="N"> if present, else recordDefault.
+  function startRecording() {
+    document.body.classList.add('bare');
+    show(0);
+    stepRecording();
+  }
+  function stepRecording() {
+    clearTimeout(recordingTimer);
+    let secs = recordDefault;
+    try {
+      const doc = frame.contentDocument;
+      const root = doc && doc.documentElement;
+      const v = root && parseFloat(root.getAttribute('data-duration-sec'));
+      if (!isNaN(v) && v > 0) secs = v;
+    } catch (_) { /* cross-origin; keep default */ }
+
+    recordingTimer = setTimeout(() => {
+      if (current < deck.length - 1) {
+        next();
+        // re-arm after the new iframe loads
+        frame.addEventListener('load', stepRecording, { once: true });
+      } else {
+        window.__recordingDone = true;
+      }
+    }, secs * 1000);
+  }
+
+  // honor flag set before this script ran
+  if (window.__recording === true) {
+    // wait for first iframe to load before kicking the loop
+    frame.addEventListener('load', startRecording, { once: true });
+  }
+  // allow late activation: parent posts {type:'deck:record'}
+  window.addEventListener('message', (e) => {
+    const d = e && e.data;
+    if (!d || typeof d !== 'object') return;
+    if (d.type === 'deck:record' && !recordingTimer) {
+      window.__recording = true;
+      startRecording();
+    }
+    if (d.type === 'deck:goto' && typeof d.index === 'number') {
+      show(d.index);
+    }
+  });
+
+  // expose tiny API for tooling (Playwright capture, etc.)
+  window.deck = {
+    show, next, prev,
+    get current() { return current; },
+    get length() { return deck.length; },
+    manifest: deck
+  };
+})();
+</script>
+
+</body>
+</html>
