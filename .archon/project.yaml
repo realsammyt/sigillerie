@@ -6,20 +6,32 @@ workspace_path: I:/GithubI/claude/sigillerie
 
 owner: realsammyt
 created: 2026-04-27
-status: phase-1-bootstrap
+status: phase-2-complete
 
 # Build phases — see _planning/SIGILLERIE-REPO-PLAN.md §4
 phases:
   - id: 1
     name: Bootstrap + English SKILL.md
-    status: in_progress
+    status: completed
     duration_estimate: 2-3 days
     golden_test: tests/golden/phase-1-skill-loads.test.js
+    completed_at: 2026-04-27
   - id: 2
     name: Discovery core
-    status: pending
+    status: completed
     duration_estimate: 1.5-2 weeks
     golden_test: tests/golden/phase-2-vellum-dry-run.test.js
+    completed_at: 2026-04-27
+    artifacts:
+      - modes/discovery/pipeline.md (221 lines)
+      - modes/discovery/intake-questions.md (123 lines)
+      - modes/discovery/moodboard-sources.md (134 lines)
+      - modes/discovery/direction-library.md (158 lines)
+      - modes/discovery/asset-pathways.md (278 lines)
+      - modes/discovery/voice-frameworks/{mailchimp,atlassian,three-axis}.md
+      - modes/discovery/chooser-templates/{3up,tinder}.html
+      - modes/discovery/canvas-template.html (938 lines)
+      - demos/d9-discovery-walkthrough/ (19 files, ~88 KB, 3 differentiated logo SVGs)
   - id: 3
     name: Producer rebuild + EN docs
     status: pending
@@ -90,7 +102,7 @@ checkpoints:
   - id: C2
     name: Discovery dry run
     when: end-of-phase-2
-    status: pending
+    status: awaiting-user-review
   - id: C3
     name: Producer parity
     when: end-of-phase-3
