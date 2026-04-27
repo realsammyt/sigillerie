@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vellum · Phase 2 · Moodboard pass (replay)</title>
+<style>
+  :root {
+    --bg: #FAF7F0;
+    --ink: #1B1614;
+    --ink-soft: #6E6862;
+    --rule: #EFE9DD;
+    --card: #FFFFFE;
+    --keep: #2E6B3A;
+    --reject: #8B2E2E;
+    --flinch: #9A4B3D;
+    --focus: #9A4B3D;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    padding: 32px 32px 120px;
+  }
+  header.page {
+    max-width: 1280px;
+    margin: 0 auto 24px;
+    border-bottom: 0.5px solid var(--ink-soft);
+    padding-bottom: 14px;
+  }
+  header.page h1 {
+    font-family: "Source Serif Pro", Georgia, serif;
+    font-weight: 500;
+    font-size: 28px;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  header.page p { margin: 0; color: var(--ink-soft); font-size: 13px; }
+  header.page .replay-banner {
+    display: inline-block;
+    background: var(--ink);
+    color: var(--bg);
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    border-radius: 2px;
+    margin-bottom: 8px;
+  }
+  main.grid {
+    max-width: 1280px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 14px;
+  }
+  .ref {
+    background: var(--card);
+    border: 0.5px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .ref[data-state="kept"]     { border-color: var(--keep);   border-width: 2px; }
+  .ref[data-state="rejected"] { opacity: 0.42; }
+  .ref[data-state="flinch"]   { border-color: var(--flinch); border-width: 2px; }
+  .thumb {
+    aspect-ratio: 1 / 1;
+    background: var(--rule);
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+    text-align: center;
+    padding: 8px;
+  }
+  .meta {
+    font-size: 10px;
+    color: var(--ink-soft);
+    padding: 6px 8px 0;
+    font-family: ui-monospace, monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .state {
+    padding: 8px;
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-top: 0.5px solid var(--rule);
+    margin-top: 4px;
+  }
+  .state[data-state="kept"]     { color: var(--keep); }
+  .state[data-state="rejected"] { color: var(--reject); }
+  .state[data-state="flinch"]   { color: var(--flinch); font-weight: 600; }
+  .reason {
+    padding: 0 8px 8px;
+    font-size: 11px;
+    color: var(--flinch);
+    font-style: italic;
+  }
+  footer.summary {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--ink);
+    color: var(--bg);
+    padding: 12px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    z-index: 10;
+    flex-wrap: wrap;
+  }
+  .counts {
+    display: flex;
+    gap: 16px;
+    font-family: ui-monospace, monospace;
+    font-size: 13px;
+  }
+  .counts .pill { display: inline-flex; align-items: center; gap: 6px; }
+  .counts .pill .num { font-size: 16px; color: #FFF; }
+  .counts .pill .lbl { color: #BBB4A6; text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<header class="page">
+  <span class="replay-banner">replay · phase complete</span>
+  <h1>Pass through. Keep five. Flinch on one.</h1>
+  <p>Vellum · 15 references across 3 lanes (direct competitors / aspirational / philosophy).
+     Result captured below: 5 kept, 9 rejected, 1 flinch on Pocket-2024.</p>
+</header>
+
+<main class="grid" id="grid"></main>
+
+<footer class="summary">
+  <div class="counts">
+    <span class="pill"><span class="num">5</span><span class="lbl">kept</span></span>
+    <span class="pill"><span class="num">9</span><span class="lbl">rejected</span></span>
+    <span class="pill"><span class="num">1</span><span class="lbl">flinch</span></span>
+    <span class="pill"><span class="num">0</span><span class="lbl">pending</span></span>
+  </div>
+  <span style="font-family:ui-monospace,monospace;font-size:11px;color:#BBB4A6">
+    submitted 2026-04-27 09:28:47 → discovery.json#moodboard
+  </span>
+</footer>
+
+<script>
+const REFS = [
+  { id: 1,  lane: "direct",        label: "Pocket 2024",                state: "flinch", reason: "loud orange, gamified, anti-calm" },
+  { id: 2,  lane: "direct",        label: "Instapaper default",         state: "rejected" },
+  { id: 3,  lane: "direct",        label: "Feedly overload",            state: "rejected" },
+  { id: 4,  lane: "direct",        label: "Matter app, quiet view",     state: "kept" },
+  { id: 5,  lane: "aspirational",  label: "Arc Browser easels",         state: "rejected" },
+  { id: 6,  lane: "aspirational",  label: "Readwise streaks",           state: "rejected" },
+  { id: 7,  lane: "aspirational",  label: "Readwise Reader, clean",     state: "kept" },
+  { id: 8,  lane: "aspirational",  label: "iA Writer, paper view",      state: "kept" },
+  { id: 9,  lane: "philosophy",    label: "Pentagram MIT Press",        state: "rejected" },
+  { id: 10, lane: "philosophy",    label: "Hara, Designing Design",     state: "kept" },
+  { id: 11, lane: "philosophy",    label: "Field.io, British Council",  state: "rejected" },
+  { id: 12, lane: "philosophy",    label: "Active Theory, NASA",        state: "rejected" },
+  { id: 13, lane: "philosophy",    label: "iA Writer typography",       state: "rejected" },
+  { id: 14, lane: "philosophy",    label: "Takram, Fabricated City",    state: "rejected" },
+  { id: 15, lane: "philosophy",    label: "MUJI, Atsumi Tea spread",    state: "kept" }
+];
+
+function el(tag, attrs, ...kids) {
+  const n = document.createElement(tag);
+  if (attrs) for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") n.className = v;
+    else if (k === "data-state") n.setAttribute("data-state", v);
+    else if (v !== false && v != null) n.setAttribute(k, v);
+  }
+  for (const k of kids) {
+    if (k == null) continue;
+    n.appendChild(typeof k === "string" ? document.createTextNode(k) : k);
+  }
+  return n;
+}
+
+const grid = document.getElementById("grid");
+for (const r of REFS) {
+  const card = el("article", { class: "ref", "data-state": r.state });
+  card.appendChild(el("div", { class: "thumb" }, "#" + r.id + "  " + r.label));
+  card.appendChild(el("div", { class: "meta" },
+    el("span", null, r.lane),
+    el("span", null, "ref " + r.id)
+  ));
+  card.appendChild(el("div", { class: "state", "data-state": r.state }, r.state));
+  if (r.reason) card.appendChild(el("div", { class: "reason" }, '"' + r.reason + '"'));
+  grid.appendChild(card);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Vellum · Logo (white version, for dark backgrounds)
+  Same construction as logo.svg. Ink inverted to paper, mark lifted to a paler warm grey.
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 240 80"
+     width="240" height="80"
+     role="img" aria-label="Vellum wordmark, white version">
+  <rect width="240" height="80" fill="#1B1614"/>
+  <g transform="translate(80, 22)">
+    <path d="M 0 18 Q 12 -2, 28 12"
+          fill="none"
+          stroke="#BBB4A6"
+          stroke-width="1.25"
+          stroke-linecap="round"/>
+  </g>
+  <text x="120" y="62"
+        font-family="'Inter', -apple-system, 'Helvetica Neue', system-ui, sans-serif"
+        font-weight="300"
+        font-size="16"
+        letter-spacing="3.6"
+        text-anchor="middle"
+        fill="#FAF7F0">vellum</text>
+</svg>

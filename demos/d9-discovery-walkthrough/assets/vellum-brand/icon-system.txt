@@ -1,0 +1,16 @@
+Lucide@0.469.0
+https://lucide.dev
+
+Pick rationale (Phase 4, iconography slot):
+Hara-Whitespace direction defaults to Lucide thin or Phosphor light.
+Picked Lucide thin (1.25 stroke) over Phosphor light because the existing
+type-stack already runs on a thin-weight register (Inter Light wordmark,
+Source Serif 500 display), and stroke-weight harmony beats glyph-count.
+
+Use rules:
+- 1.25 stroke weight (the default thin Lucide variant)
+- 18px and 24px sizes only, no 16px (too crowded with our tracking)
+- icons never carry color, they take currentColor from --ink or --accent-quiet
+- never substitute a custom icon mid-flow; if Lucide doesn't have it,
+  re-write the affordance to use one Lucide already ships
+- pair every icon with a text label until usability research says otherwise

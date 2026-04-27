@@ -1,0 +1,117 @@
+{
+  "note": "URL list for the 15 moodboard references that would have been fetched in a real Discovery run. Not fetched in this demo. License field is the verdict the agent would have logged after checking each source.",
+  "captured_at": "2026-04-27T09:21:14Z",
+  "lanes": {
+    "01-direct": [
+      {
+        "id": 1,
+        "label": "Pocket 2024 marketing site",
+        "url": "https://getpocket.com",
+        "license": "fair use, marketing screenshot",
+        "rationale_for_pull": "category default. user named Pocket-adjacent feel as anti-brand."
+      },
+      {
+        "id": 2,
+        "label": "Instapaper default reading view",
+        "url": "https://www.instapaper.com",
+        "license": "fair use, product screenshot",
+        "rationale_for_pull": "named in intake anti-brands as 'Instapaper-circa-2012' aesthetic"
+      },
+      {
+        "id": 3,
+        "label": "Feedly dashboard",
+        "url": "https://feedly.com",
+        "license": "fair use, product screenshot",
+        "rationale_for_pull": "saved-for-later overload UI, the problem Vellum kills"
+      },
+      {
+        "id": 4,
+        "label": "Matter app reading view",
+        "url": "https://hq.getmatter.app",
+        "license": "fair use, product screenshot",
+        "rationale_for_pull": "closest contemporary peer, quiet reading surface"
+      }
+    ],
+    "02-aspirational": [
+      {
+        "id": 5,
+        "label": "Arc Browser easels",
+        "url": "https://arc.net",
+        "license": "fair use, marketing screenshot",
+        "rationale_for_pull": "adjacent productivity tool, design-first audience"
+      },
+      {
+        "id": 6,
+        "label": "Readwise streaks",
+        "url": "https://readwise.io",
+        "license": "fair use, marketing screenshot",
+        "rationale_for_pull": "aspirational adjacent but tests the streak anti-pattern"
+      },
+      {
+        "id": 7,
+        "label": "Readwise Reader clean view",
+        "url": "https://readwise.io/read",
+        "license": "fair use, product screenshot",
+        "rationale_for_pull": "the cleanest reading surface in this peer set"
+      },
+      {
+        "id": 8,
+        "label": "iA Writer paper view",
+        "url": "https://ia.net/writer",
+        "license": "fair use, marketing screenshot",
+        "rationale_for_pull": "platonic reading-as-paper. Reichenstein lineage."
+      }
+    ],
+    "03-philosophy": [
+      {
+        "id": 9,
+        "label": "Pentagram, MIT Press redesign",
+        "url": "https://www.pentagram.com/work/mit-press-2-0",
+        "license": "fair use, agency portfolio image",
+        "rationale_for_pull": "School 1 anchor for differentiation rule"
+      },
+      {
+        "id": 10,
+        "label": "Hara, Designing Design book spread",
+        "url": "https://www.lars-mueller-publishers.com/designing-design",
+        "license": "fair use, book spread photograph",
+        "rationale_for_pull": "School 3 anchor, the canonical Hara reference"
+      },
+      {
+        "id": 11,
+        "label": "Field.io, British Council install",
+        "url": "https://field.io/project/british-council",
+        "license": "fair use, agency portfolio image",
+        "rationale_for_pull": "School 2 anchor, control row for kinetic differentiation"
+      },
+      {
+        "id": 12,
+        "label": "Active Theory, NASA Prospect",
+        "url": "https://activetheory.net/work/nasa-prospect",
+        "license": "fair use, agency portfolio image",
+        "rationale_for_pull": "School 2, WebGL extreme"
+      },
+      {
+        "id": 13,
+        "label": "iA Writer typography reference",
+        "url": "https://ia.net/topics/the-typography-of-ia-writer",
+        "license": "fair use, blog illustration",
+        "rationale_for_pull": "School 1, iA Content-First, the kept-type reference"
+      },
+      {
+        "id": 14,
+        "label": "Takram, Fabricated City",
+        "url": "https://takram.com/projects/fabricated-city",
+        "license": "fair use, agency portfolio image",
+        "rationale_for_pull": "School 3 alt, soft-tech speculative"
+      },
+      {
+        "id": 15,
+        "label": "MUJI, Atsumi Tea spread (Hara art direction)",
+        "url": "https://www.muji.com/jp/about/found-muji",
+        "license": "fair use, brand campaign image",
+        "rationale_for_pull": "palette source-of-truth. extracted via chroma.js k=5."
+      }
+    ]
+  }
+}

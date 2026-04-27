@@ -1,0 +1,226 @@
+{
+  "schema_version": "1.0",
+  "brand": "Vellum",
+  "locale": "en",
+  "started_at": "2026-04-27T09:14:08Z",
+  "completed_at": "2026-04-27T09:59:44Z",
+  "current_phase": 6,
+  "intake": {
+    "product": "calm reading app for biologists, web first",
+    "audience": "biologists at dawn, pre-coffee",
+    "problem": "distraction, plus the performative reading-app energy that has crept across the category",
+    "vibe_words": ["calm", "technical", "irreverent"],
+    "anti_brands": ["bookworm clichés", "gamified reading apps", "generic Kindle clones"],
+    "first_surface": "web reading app",
+    "inferred_fields": []
+  },
+  "moodboard": {
+    "kept": [
+      "moodboard/03-philosophy/07-muji-atsumi-tea.jpg",
+      "moodboard/03-philosophy/02-hara-designing-design-spread.jpg",
+      "moodboard/02-aspirational/03-readwise-reader-clean.png",
+      "moodboard/02-aspirational/05-ia-writer-paper.png",
+      "moodboard/01-direct/04-matter-app-quiet.png"
+    ],
+    "rejected": [
+      "moodboard/01-direct/01-pocket-2024.png",
+      "moodboard/01-direct/02-instapaper-default.png",
+      "moodboard/01-direct/03-feedly-overload.png",
+      "moodboard/02-aspirational/01-arc-browser-easels.png",
+      "moodboard/02-aspirational/02-readwise-streaks.png",
+      "moodboard/03-philosophy/01-pentagram-mit-press.jpg",
+      "moodboard/03-philosophy/03-fieldio-british-council.jpg",
+      "moodboard/03-philosophy/04-active-theory-nasa.png",
+      "moodboard/03-philosophy/05-iA-writer-typography.png",
+      "moodboard/03-philosophy/06-takram-fabricated-city.png"
+    ],
+    "flinch": [
+      {
+        "image": "moodboard/01-direct/01-pocket-2024.png",
+        "reason": "loud orange, gamified, anti-calm. exact opposite of the intent."
+      }
+    ]
+  },
+  "directions": {
+    "shortlist": [
+      {
+        "philosophy": "Kenya Hara, Eastern Minimalism",
+        "school": 3,
+        "label": "safe",
+        "rationale": "vibe-words map directly; flinch was loud-color, this row anchors on white-space",
+        "rendered_at": "choosers/phase-3-directions.html#A"
+      },
+      {
+        "philosophy": "iA, Information Architecture (Content-First)",
+        "school": 1,
+        "label": "stretch",
+        "rationale": "calm + technical reads as typographic system, not motion. iA Writer is in moodboard kept list",
+        "rendered_at": "choosers/phase-3-directions.html#B"
+      },
+      {
+        "philosophy": "Sagmeister, Visceral",
+        "school": 4,
+        "label": "curveball",
+        "rationale": "irreverent vibe-word pulls toward School 4. controlled risk: user can reject explicitly. cross-school differentiation rule satisfied (rows 3, 1, 4)",
+        "rendered_at": "choosers/phase-3-directions.html#C"
+      }
+    ],
+    "chosen": "Kenya Hara, Eastern Minimalism",
+    "mix": "A grid + B's typography",
+    "mix_parsed": {
+      "grid_from": "A (Hara)",
+      "typography_from": "B (iA)",
+      "palette_from": "A (Hara, moodboard-extracted)",
+      "voice_from": "intake (three-axis)"
+    }
+  },
+  "assets": {
+    "logo": {
+      "chosen": "assets/vellum-brand/logo-option-b.svg",
+      "copied_to": "assets/vellum-brand/logo.svg",
+      "source": "Claude SVG direct output, hand-tuned",
+      "prompt": "single open arc above lowercase 'vellum' wordmark in Inter Light, tracked open at 3.6em, warm grey ink on warm paper, Hara-Whitespace direction",
+      "alternatives": [
+        {"file": "assets/vellum-brand/logo-option-a.svg", "school": "Pentagram-Typographic IA"},
+        {"file": "assets/vellum-brand/logo-option-c.svg", "school": "Sagmeister-Visceral"}
+      ],
+      "collision_check": {
+        "tineye": "no match above 0.6 similarity",
+        "brandmark_db": "no match",
+        "passed": true
+      }
+    },
+    "palette": {
+      "chosen": "assets/vellum-brand/palette.css",
+      "tokens": "assets/vellum-brand/palette.json",
+      "source": "extracted from moodboard image #7 (MUJI Atsumi Tea spread) via chroma.js k-means k=5",
+      "alternatives": [
+        {"option": "B", "source": "Khroma seeded with calm,technical,irreverent", "rejected_reason": "generic warm-startup palette, no provenance"},
+        {"option": "C", "source": "Hara philosophy default from direction-library.md", "rejected_reason": "user wanted moodboard anchoring per asset-pathways anti-pattern rule"}
+      ]
+    },
+    "typography": {
+      "chosen": "Source Serif Pro + Inter + JetBrains Mono",
+      "license": "SIL OFL 1.1 across all three families",
+      "stack_file": "assets/vellum-brand/type-stack.css",
+      "source": "Typewolf editorial reference, filtered to OFL registry",
+      "alternatives": [
+        {"option": "B", "pairing": "Newsreader + Geist + Geist Mono", "rejected_reason": "Geist reads too tech-marketing for biologists"},
+        {"option": "C", "pairing": "Crimson Pro + IBM Plex Sans + IBM Plex Mono", "rejected_reason": "IBM Plex carries enterprise fingerprint"}
+      ],
+      "cjk_fallback_listed": true
+    },
+    "iconography": {
+      "chosen": "Lucide",
+      "version": "0.469.0",
+      "weight": "thin (1.25 stroke)",
+      "rationale": "Hara default offers Lucide thin or Phosphor light. Lucide thin paired with Inter Light keeps stroke-weight harmony.",
+      "file": "assets/vellum-brand/icon-system.txt"
+    },
+    "product_imagery": {
+      "status": "gap",
+      "files": [],
+      "note": "biologist-hands-with-paper hero shot needs real photography. Discovery never hallucinates real-product imagery."
+    },
+    "ui_screenshots": {
+      "status": "gap",
+      "files": [],
+      "note": "no product yet. Mock once Phase 1 of build exists. Producer mode can render mock UI in chosen direction's style on request."
+    },
+    "voice": {
+      "framework": "three-axis (sigillerie native)",
+      "scores": {"formality": 0, "seriousness": -1, "warmth": 1},
+      "card": "assets/vellum-brand/voice.md",
+      "source": "intake vibe-words (calm, technical, irreverent) mapped through three-axis.md vibe→axis table, with one nudge: warmth from -1 to +1 to keep humanity vs clinical",
+      "alternatives": [
+        {"option": "A", "framework": "Mailchimp voice/tone matrix", "rejected_reason": "voice-fixed/tone-shifts pattern is heavy for a small indie brand"},
+        {"option": "B", "framework": "Atlassian voice principles", "rejected_reason": "B2B credibility tilt doesn't match biologist-at-dawn audience"}
+      ]
+    },
+    "audio_brand": {
+      "status": "deferred",
+      "reason": "first surface is a web reading app; audio not on roadmap. Re-open with --audio flag if podcast-listen or kiosk surface ships."
+    }
+  },
+  "gaps": [
+    {
+      "asset": "biologist-hands-with-paper.jpg",
+      "severity": "high",
+      "next_action": "user must commission or shoot. real biologist hands holding a printed paper, available light, no styling. producer mode refuses final delivery until this lands."
+    },
+    {
+      "asset": "product-hero.png",
+      "severity": "high",
+      "next_action": "user must shoot or commission once a real device frame is available. AI gen forbidden per asset-pathways.md generation-vs-acquisition rule."
+    },
+    {
+      "asset": "ui-home.png",
+      "severity": "medium",
+      "next_action": "producer mode can mock once Phase 1 of build exists. ship with watermark in draft."
+    },
+    {
+      "asset": "ui-reader.png",
+      "severity": "medium",
+      "next_action": "producer mode can mock once reader UI wireframes exist."
+    },
+    {
+      "asset": "ui-library.png",
+      "severity": "medium",
+      "next_action": "producer mode can mock once library view wireframes exist."
+    }
+  ],
+  "events": [
+    {"ts": "2026-04-27T09:14:08Z", "phase": 1, "action": "discovery started", "artifact": "discovery.json"},
+    {"ts": "2026-04-27T09:14:42Z", "phase": 1, "action": "Q1 product captured", "value": "calm reading app for biologists"},
+    {"ts": "2026-04-27T09:15:31Z", "phase": 1, "action": "Q2 audience captured", "value": "biologists at dawn, pre-coffee"},
+    {"ts": "2026-04-27T09:16:18Z", "phase": 1, "action": "Q3 problem captured", "value": "distraction, performative reading apps"},
+    {"ts": "2026-04-27T09:17:02Z", "phase": 1, "action": "Q4 vibe-words captured", "value": ["calm", "technical", "irreverent"]},
+    {"ts": "2026-04-27T09:17:55Z", "phase": 1, "action": "Q5 anti-brands captured", "value": ["bookworm clichés", "gamified reading apps", "generic Kindle clones"]},
+    {"ts": "2026-04-27T09:18:34Z", "phase": 1, "action": "Q6 first surface captured", "value": "web reading app"},
+    {"ts": "2026-04-27T09:18:41Z", "phase": 1, "action": "locale captured", "value": "en"},
+    {"ts": "2026-04-27T09:19:02Z", "phase": 1, "action": "intake complete, transition 1->2 unblocked", "artifact": "discovery.json#intake"},
+    {"ts": "2026-04-27T09:21:14Z", "phase": 2, "action": "moodboard pulled, 15 references across 3 lanes", "artifact": "moodboard/"},
+    {"ts": "2026-04-27T09:21:18Z", "phase": 2, "action": "tinder chooser rendered", "artifact": "choosers/phase-2-moodboard.html"},
+    {"ts": "2026-04-27T09:28:47Z", "phase": 2, "action": "user kept 5, rejected 9, flinched on 1", "artifact": "moodboard/"},
+    {"ts": "2026-04-27T09:28:51Z", "phase": 2, "action": "flinch logged", "value": "Pocket-2024: loud orange, gamified, anti-calm"},
+    {"ts": "2026-04-27T09:29:08Z", "phase": 2, "action": "transition 2->3 unblocked, ≥5 kept and 1 flinch logged", "artifact": "discovery.json#moodboard"},
+    {"ts": "2026-04-27T09:32:12Z", "phase": 3, "action": "shortlist composed: rows 3, 1, 4 per cross-school rule", "artifact": "discovery.json#directions.shortlist"},
+    {"ts": "2026-04-27T09:32:48Z", "phase": 3, "action": "3up chooser rendered with safe/stretch/curveball labels", "artifact": "choosers/phase-3-directions.html"},
+    {"ts": "2026-04-27T09:36:23Z", "phase": 3, "action": "user picked A with mix: A grid + B's typography", "value": "Kenya Hara + iA typography"},
+    {"ts": "2026-04-27T09:36:31Z", "phase": 3, "action": "mix parsed into per-asset overrides", "artifact": "discovery.json#directions.mix_parsed"},
+    {"ts": "2026-04-27T09:36:40Z", "phase": 3, "action": "transition 3->4 unblocked", "artifact": "discovery.json#directions"},
+    {"ts": "2026-04-27T09:39:55Z", "phase": 4, "slot": "logo", "action": "3 logo options rendered, hand-built SVG (Pentagram, Hara, Sagmeister)", "artifact": "assets/vellum-brand/logo-option-{a,b,c}.svg"},
+    {"ts": "2026-04-27T09:40:02Z", "phase": 4, "slot": "logo", "action": "collision check passed", "artifact": "discovery.json#assets.logo.collision_check"},
+    {"ts": "2026-04-27T09:40:18Z", "phase": 4, "slot": "logo", "action": "3up chooser rendered for logo", "artifact": "choosers/phase-4-logo.html"},
+    {"ts": "2026-04-27T09:43:52Z", "phase": 4, "slot": "logo", "action": "user picked B (Hara)", "artifact": "assets/vellum-brand/logo-option-b.svg"},
+    {"ts": "2026-04-27T09:43:58Z", "phase": 4, "slot": "logo", "action": "chosen copied to logo.svg, white version generated", "artifact": "assets/vellum-brand/logo.svg, logo-white.svg"},
+    {"ts": "2026-04-27T09:46:11Z", "phase": 4, "slot": "palette", "action": "3 palette options offered (moodboard-extracted, Khroma, philosophy default)", "artifact": "assets/vellum-brand/palette-option-{a,b,c}.css"},
+    {"ts": "2026-04-27T09:47:24Z", "phase": 4, "slot": "palette", "action": "user picked moodboard-extracted (option A)", "artifact": "assets/vellum-brand/palette.css"},
+    {"ts": "2026-04-27T09:49:33Z", "phase": 4, "slot": "typography", "action": "3 type pairings offered from Typewolf editorial filter", "artifact": "choosers/phase-4-type.html"},
+    {"ts": "2026-04-27T09:50:48Z", "phase": 4, "slot": "typography", "action": "user picked Source Serif Pro + Inter + JetBrains Mono", "artifact": "assets/vellum-brand/type-stack.css"},
+    {"ts": "2026-04-27T09:51:09Z", "phase": 4, "slot": "iconography", "action": "Lucide thin chosen (Hara default rule)", "artifact": "assets/vellum-brand/icon-system.txt"},
+    {"ts": "2026-04-27T09:52:41Z", "phase": 4, "slot": "voice", "action": "three-axis card generated, scores 0/-1/+1", "artifact": "assets/vellum-brand/voice.md"},
+    {"ts": "2026-04-27T09:53:08Z", "phase": 4, "slot": "voice", "action": "user accepted card, no nudges", "artifact": "assets/vellum-brand/voice.md"},
+    {"ts": "2026-04-27T09:53:22Z", "phase": 4, "slot": "audio_brand", "action": "deferred to v2, first surface is web reading app", "artifact": "discovery.json#assets.audio_brand"},
+    {"ts": "2026-04-27T09:53:31Z", "phase": 4, "slot": "product_imagery", "action": "marked gap, severity high, no real biologist photography on file", "artifact": "discovery.json#gaps[0]"},
+    {"ts": "2026-04-27T09:53:44Z", "phase": 4, "slot": "ui_screenshots", "action": "marked gap, severity medium, product not built yet", "artifact": "discovery.json#gaps[2-4]"},
+    {"ts": "2026-04-27T09:53:51Z", "phase": 4, "action": "all required slots resolved (chosen or gap), transition 4->5 unblocked", "artifact": "discovery.json#assets"},
+    {"ts": "2026-04-27T09:55:02Z", "phase": 5, "action": "brand-spec.md written from chosen assets", "artifact": "brand-spec.md"},
+    {"ts": "2026-04-27T09:55:48Z", "phase": 5, "action": "schema validation passed: logo paths exist, palette has provenance, type stack has license", "artifact": "brand-spec.md"},
+    {"ts": "2026-04-27T09:55:55Z", "phase": 5, "action": "transition 5->6 unblocked", "artifact": "brand-spec.md"},
+    {"ts": "2026-04-27T09:58:12Z", "phase": 6, "action": "gaps list finalized, 2 high / 3 medium", "artifact": "discovery.json#gaps"},
+    {"ts": "2026-04-27T09:59:31Z", "phase": 6, "action": "discovery-canvas.html re-rendered with full timeline", "artifact": "discovery-canvas.html"},
+    {"ts": "2026-04-27T09:59:44Z", "phase": 6, "action": "hand-off complete, producer mode can read brand-spec.md", "artifact": "brand-spec.md"}
+  ],
+  "summary": {
+    "wall_clock_minutes": 45,
+    "agent_turns": 52,
+    "image_gens": 0,
+    "web_searches": 6,
+    "phases_completed": 6,
+    "logo_options_built": 3,
+    "logo_options_visually_distinct": true,
+    "high_severity_gaps": 2,
+    "medium_severity_gaps": 3
+  }
+}

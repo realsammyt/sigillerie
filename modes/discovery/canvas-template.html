@@ -1,0 +1,938 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Discovery Canvas</title>
+<style>
+  :root {
+    --bg: #FAFAF7;
+    --ink: #1F1A14;
+    --ink-soft: #5C5347;
+    --line: #E6E1D6;
+    --rule: #D8D2C2;
+    --warm: #C8763A;
+    --warm-soft: #F0E2D0;
+    --green: #6B8B4F;
+    --green-soft: #DCE5C9;
+    --grey: #BDB6A6;
+    --grey-soft: #ECE8DC;
+    --red: #B5482E;
+    --red-soft: #F2D9CF;
+    --shadow: 0 1px 0 rgba(31,26,20,0.06), 0 12px 28px -16px rgba(31,26,20,0.18);
+    --serif: Iowan Old Style, "Apple Garamond", Georgia, "Source Serif Pro", Cambria, serif;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--rule); }
+  a:hover { text-decoration-color: var(--warm); }
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 36px 28px 64px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 40px;
+  }
+  @media (max-width: 880px) {
+    .wrap { grid-template-columns: 1fr; padding: 24px 18px 48px; gap: 28px; }
+    aside.gaps { order: 2; }
+  }
+
+  header.brand {
+    grid-column: 1 / -1;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 22px;
+    margin-bottom: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 18px 28px;
+  }
+  header.brand h1 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: clamp(34px, 6vw, 56px);
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  header.brand .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-left: auto;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    font-family: var(--mono);
+    font-size: 11px;
+    background: #fff;
+    color: var(--ink);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .pill.locale { background: var(--warm-soft); border-color: #E5CDB1; }
+  .pill.phase  { background: var(--green-soft); border-color: #C9D6A8; }
+  .subtitle {
+    grid-column: 1 / -1;
+    font-family: var(--serif);
+    font-style: italic;
+    color: var(--ink-soft);
+    margin: 0 0 24px;
+    font-size: 16px;
+  }
+
+  /* timeline */
+  main.timeline { display: flex; flex-direction: column; gap: 16px; position: relative; }
+  main.timeline::before {
+    content: "";
+    position: absolute;
+    left: 22px;
+    top: 12px;
+    bottom: 12px;
+    width: 1px;
+    background: var(--rule);
+  }
+  @media (max-width: 540px) {
+    main.timeline::before { left: 14px; }
+  }
+
+  .phase {
+    position: relative;
+    padding-left: 56px;
+  }
+  @media (max-width: 540px) { .phase { padding-left: 38px; } }
+
+  .phase .dot {
+    position: absolute;
+    left: 12px;
+    top: 14px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid var(--rule);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-soft);
+  }
+  @media (max-width: 540px) { .phase .dot { left: 4px; } }
+  .phase[data-status="complete"] .dot { background: var(--green); border-color: var(--green); color: #fff; }
+  .phase[data-status="current"]  .dot { background: var(--warm);  border-color: var(--warm);  color: #fff; box-shadow: 0 0 0 4px var(--warm-soft); }
+  .phase[data-status="pending"]  .dot { background: #fff; border-color: var(--rule); }
+
+  .phase .card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    transition: border-color 120ms ease;
+  }
+  .phase:focus-within .card { border-color: var(--warm); }
+
+  .phase summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    outline: none;
+  }
+  .phase summary::-webkit-details-marker { display: none; }
+  .phase summary:focus-visible { box-shadow: inset 0 0 0 2px var(--warm); border-radius: 10px; }
+  .phase .num {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-soft);
+    width: 36px;
+    flex: none;
+  }
+  .phase .name {
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 500;
+    flex: 1;
+    margin: 0;
+  }
+  .phase .status {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+  .phase[data-status="complete"] .status { background: var(--green-soft); color: #3F5230; }
+  .phase[data-status="current"]  .status { background: var(--warm-soft);  color: #7A471F; }
+  .phase[data-status="pending"]  .status { background: var(--grey-soft);  color: var(--ink-soft); }
+  .phase .duration { font-family: var(--mono); font-size: 11px; color: var(--ink-soft); }
+  .phase .chev {
+    width: 10px; height: 10px;
+    border-right: 1.5px solid var(--ink-soft);
+    border-bottom: 1.5px solid var(--ink-soft);
+    transform: rotate(45deg);
+    transition: transform 160ms ease;
+    margin-right: 4px;
+  }
+  details[open] > summary .chev { transform: rotate(-135deg); margin-top: 4px; }
+
+  .body {
+    padding: 4px 20px 22px 20px;
+    border-top: 1px dashed var(--rule);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .body h3 {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-soft);
+    margin: 8px 0 6px;
+    font-weight: 500;
+  }
+  .body h3.choose { color: var(--warm); }
+
+  .qa { display: grid; grid-template-columns: 180px 1fr; gap: 4px 16px; font-size: 14px; }
+  .qa dt { color: var(--ink-soft); font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; padding-top: 4px; }
+  .qa dd { margin: 0; padding: 0 0 8px; border-bottom: 1px dotted var(--rule); }
+  .qa dd .inferred-flag { font-size: 11px; color: var(--warm); margin-left: 6px; cursor: help; }
+  @media (max-width: 540px) { .qa { grid-template-columns: 1fr; } .qa dd { padding-bottom: 12px; } }
+
+  .pick {
+    background: var(--green-soft);
+    border-left: 3px solid var(--green);
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    font-size: 14px;
+  }
+  .pick .label { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #3F5230; display: block; margin-bottom: 2px; }
+  .pick.mix { background: var(--warm-soft); border-left-color: var(--warm); }
+  .pick.mix .label { color: #7A471F; }
+
+  details.alts { margin-top: 4px; }
+  details.alts summary {
+    list-style: none;
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 6px 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  details.alts summary::-webkit-details-marker { display: none; }
+  details.alts summary::before {
+    content: "+";
+    width: 14px; height: 14px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    line-height: 1;
+  }
+  details.alts[open] summary::before { content: "−"; }
+  details.alts ul { margin: 6px 0 0; padding: 0 0 0 20px; font-size: 13px; color: var(--ink-soft); }
+  details.alts li { margin: 2px 0; }
+
+  /* moodboard grid */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 8px;
+  }
+  .grid .thumb {
+    aspect-ratio: 1 / 1;
+    background: var(--grey-soft) center/cover no-repeat;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    position: relative;
+    overflow: hidden;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--ink-soft);
+    padding: 6px;
+    word-break: break-all;
+    line-height: 1.2;
+  }
+  .grid .thumb.flinch { border: 2px solid var(--red); }
+  .grid .thumb.flinch::after {
+    content: "flinch";
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: var(--red);
+    color: #fff;
+    font-size: 9px;
+    text-align: center;
+    padding: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* direction cards */
+  .dirs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 720px) { .dirs { grid-template-columns: 1fr; } }
+  .dir {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px;
+    background: #fff;
+    position: relative;
+  }
+  .dir.chosen { border-color: var(--green); background: var(--green-soft); }
+  .dir .tag { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); }
+  .dir h4 { font-family: var(--serif); font-size: 17px; margin: 4px 0 6px; font-weight: 500; }
+  .dir p { font-size: 13px; color: var(--ink-soft); margin: 0; }
+  .dir.chosen .check {
+    position: absolute; top: 8px; right: 10px;
+    font-family: var(--mono); font-size: 10px;
+    background: var(--green); color: #fff;
+    padding: 2px 6px; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+
+  /* assets */
+  .assets { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .asset {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .asset .label { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); }
+  .asset .preview {
+    height: 90px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 6px;
+  }
+  .asset .preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .asset .file { font-family: var(--mono); font-size: 11px; word-break: break-all; }
+  .asset .source { font-size: 12px; color: var(--ink-soft); font-style: italic; }
+  .asset .swatches { display: flex; width: 100%; height: 100%; border-radius: 3px; overflow: hidden; }
+  .asset .swatches span { flex: 1; }
+  .asset .type-sample { font-family: var(--serif); font-size: 22px; line-height: 1; text-align: center; }
+  .asset .type-sample small { font-family: var(--sans); font-size: 11px; display: block; color: var(--ink-soft); margin-top: 4px; }
+  .asset .voice-quote { font-family: var(--serif); font-style: italic; font-size: 13px; color: var(--ink); padding: 0 4px; text-align: center; }
+  .status-gap   { color: var(--red);   font-weight: 600; }
+  .status-good  { color: var(--green); font-weight: 600; }
+  .status-mid   { color: var(--warm);  font-weight: 600; }
+
+  .summary-block {
+    background: var(--bg);
+    border: 1px dashed var(--rule);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .summary-block .field { display: block; font-family: var(--mono); font-style: normal; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); margin-bottom: 4px; }
+
+  /* sidebar */
+  aside.gaps {
+    position: sticky;
+    top: 24px;
+    align-self: start;
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: 10px;
+    padding: 18px;
+    box-shadow: var(--shadow);
+    font-size: 14px;
+  }
+  aside.gaps h2 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 20px;
+    margin: 0 0 12px;
+  }
+  aside.gaps .row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 0;
+    border-top: 1px dotted var(--rule);
+  }
+  aside.gaps .row:first-of-type { border-top: 0; padding-top: 0; }
+  aside.gaps .row .top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  aside.gaps .asset-name { font-family: var(--mono); font-size: 12px; }
+  aside.gaps .severity {
+    font-family: var(--mono); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 2px 6px; border-radius: 3px;
+  }
+  .sev-high   { background: var(--red-soft);   color: #6E2B19; }
+  .sev-medium { background: var(--warm-soft);  color: #7A471F; }
+  .sev-low    { background: var(--grey-soft);  color: var(--ink-soft); }
+  aside.gaps .next { color: var(--ink-soft); font-size: 13px; }
+  aside.gaps .empty { color: var(--ink-soft); font-style: italic; }
+
+  footer.handoff {
+    grid-column: 1 / -1;
+    margin-top: 36px;
+    padding-top: 22px;
+    border-top: 1px solid var(--rule);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px 28px;
+    align-items: baseline;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  footer.handoff a { font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+  footer.handoff .stamp { margin-left: auto; font-family: var(--serif); font-style: italic; }
+
+  .source-note { font-size: 11px; color: var(--ink-soft); font-family: var(--mono); }
+
+  /* print */
+  @media print {
+    @page { size: A3; margin: 18mm; }
+    body { background: #fff; }
+    .wrap { display: block; max-width: none; padding: 0; }
+    aside.gaps { position: static; box-shadow: none; page-break-inside: avoid; margin-top: 24px; }
+    .phase .card { box-shadow: none; page-break-inside: avoid; }
+    details, details.alts { /* expand all for paper */ }
+    details:not([open]) > *:not(summary) { display: revert !important; }
+    details.alts > summary::before { display: none; }
+    .phase summary { cursor: default; }
+    footer.handoff a { color: var(--ink); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap" id="root">
+  <header class="brand">
+    <h1 id="brand-name">Brand</h1>
+    <div class="meta">
+      <span class="pill locale" id="locale-pill">EN</span>
+      <span class="pill phase" id="phase-pill">PHASE 1 / 6</span>
+      <span id="started-at">started ,</span>
+    </div>
+  </header>
+  <p class="subtitle" id="subtitle">Provisional. Built in 45 minutes. Expected to evolve.</p>
+
+  <main class="timeline" id="timeline" role="list" aria-label="Discovery phases"></main>
+
+  <aside class="gaps" id="gaps" aria-label="Gaps and next actions">
+    <h2>Gaps</h2>
+    <div id="gaps-body"><p class="empty">No gaps logged.</p></div>
+  </aside>
+
+  <footer class="handoff">
+    <a href="./brand-spec.md">brand-spec.md</a>
+    <a href="./discovery.json">discovery.json</a>
+    <a href="#" id="producer-link">hand off to producer mode</a>
+    <span class="stamp" id="stamp">discovery-canvas · v1</span>
+  </footer>
+</div>
+
+<script>
+// ---------- embedded fallback fixture (Vellum, from pipeline.md) ----------
+const FALLBACK = {
+  schema_version: "1.0",
+  brand: "Vellum",
+  locale: "en",
+  started_at: "2026-04-27T14:02:11Z",
+  current_phase: 6,
+  intake: {
+    product: "calm reading app, iOS first, distraction-free long-form",
+    audience: "knowledge workers who hoard articles and never read them",
+    problem: "saved-for-later piles that breed guilt and never get read",
+    vibe_words: ["calm", "literary", "patient"],
+    anti_brands: ["Pocket", "Instapaper-circa-2012"],
+    first_surface: "app",
+    inferred_fields: []
+  },
+  moodboard: {
+    kept: [
+      "moodboard/03-philosophy/02-hara-muji-spread.jpg",
+      "moodboard/02-aspirational/04-readwise-reader.png",
+      "moodboard/01-direct/03-matter-app-hero.png",
+      "moodboard/03-philosophy/05-iA-writer-typography.png",
+      "moodboard/02-aspirational/01-arc-browser-easels.png"
+    ],
+    rejected: [
+      "moodboard/01-direct/01-pocket-2024.png",
+      "moodboard/01-direct/02-instapaper-default.png"
+    ],
+    flinch: [
+      {image: "moodboard/01-direct/01-pocket-2024.png", reason: "loud orange, gamified, anti-calm"}
+    ]
+  },
+  directions: {
+    shortlist: [
+      {philosophy: "Kenya Hara, Eastern Minimalism", rationale: "vibe-words map directly; flinch was loud-color, this row anchors on white-space", rendered_at: "choosers/phase-3-directions.html#A"},
+      {philosophy: "iA, Information Architecture", rationale: "literary + patient → typographic system, not motion-led", rendered_at: "choosers/phase-3-directions.html#B"},
+      {philosophy: "Field.io, Motion Poetics", rationale: "control row; user can reject motion-led explicitly", rendered_at: "choosers/phase-3-directions.html#C"}
+    ],
+    chosen: "Kenya Hara, Eastern Minimalism",
+    mix: "A grid + B's typography"
+  },
+  assets: {
+    logo: {
+      chosen: "assets/vellum-brand/logo-option-a.svg",
+      source: "Recraft SVG vector",
+      prompt: "minimal serif wordmark 'Vellum', single-stroke V ligature, ivory ground",
+      alternatives: ["logo-option-b.svg", "logo-option-c.svg"]
+    },
+    palette: {
+      chosen: "assets/vellum-brand/palette.css",
+      source: "extracted from moodboard image #2 (Hara MUJI spread)",
+      swatches: ["#F5F1E8", "#1F1A14", "#A89F8A", "#6B5C3F", "#C8763A"],
+      alternatives: ["palette-khroma.css", "palette-philosophy-default.css"]
+    },
+    typography: {
+      chosen: "Söhne Buch + Source Serif Pro + JetBrains Mono",
+      license: "Söhne commercial / OFL / OFL",
+      sample: "Aa",
+      alternatives: ["Inter + Crimson Pro", "Geist + Newsreader"]
+    },
+    iconography: {chosen: "Phosphor"},
+    product_imagery: {
+      status: "rendered",
+      files: ["assets/vellum-brand/product-hero.png"]
+    },
+    ui_screenshots: {
+      status: "mocked",
+      files: ["assets/vellum-brand/ui-home.png", "assets/vellum-brand/ui-reader.png", "assets/vellum-brand/ui-library.png"]
+    },
+    voice: {
+      framework: "Atlassian voice principles",
+      card: "assets/vellum-brand/voice.md",
+      sample: "Read what you saved. No streaks. No badges. The article waits."
+    }
+  },
+  gaps: [
+    {asset: "real-device-photography", severity: "medium", next_action: "user shoots iPhone-in-hand once TestFlight build exists"}
+  ],
+  events: [
+    {ts: "2026-04-27T14:08:44Z", phase: 1, action: "intake complete"},
+    {ts: "2026-04-27T14:21:02Z", phase: 2, action: "kept 5, flinched Pocket-2024"},
+    {ts: "2026-04-27T14:34:18Z", phase: 3, action: "chose Hara, mix B typography"},
+    {ts: "2026-04-27T14:51:09Z", phase: 4, action: "logo: chose A"},
+    {ts: "2026-04-27T14:53:40Z", phase: 4, action: "palette: chose moodboard-extracted"}
+  ]
+};
+
+const PHASE_NAMES = [
+  null,
+  "Intake",
+  "Reference and Moodboard",
+  "Direction Shortlist",
+  "Asset Build",
+  "Brand Spec",
+  "Hand-off"
+];
+
+const INTAKE_LABELS = {
+  product: "What is it",
+  audience: "Who is it for",
+  problem: "What it kills",
+  vibe_words: "Three vibe words",
+  anti_brands: "What it is not",
+  first_surface: "Where it ships first"
+};
+
+const ASSET_LABELS = {
+  logo: "Logo",
+  palette: "Palette",
+  typography: "Typography",
+  iconography: "Icons",
+  product_imagery: "Product imagery",
+  ui_screenshots: "UI screenshots",
+  voice: "Voice and tone"
+};
+
+// ---------- helpers ----------
+function esc(s) {
+  if (s == null) return "";
+  return String(s).replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+function fmtDate(iso) {
+  if (!iso) return ",";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, {dateStyle: "medium", timeStyle: "short"});
+  } catch { return iso; }
+}
+function durationBetween(aISO, bISO) {
+  if (!aISO || !bISO) return null;
+  const ms = new Date(bISO) - new Date(aISO);
+  if (!isFinite(ms) || ms <= 0) return null;
+  const min = Math.round(ms / 60000);
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60), m = min % 60;
+  return `${h}h ${m}m`;
+}
+function isImage(path) {
+  return /\.(svg|png|jpe?g|gif|webp|avif)$/i.test(path || "");
+}
+
+// ---------- timeline render ----------
+function statusFor(d, n) {
+  const cur = d.current_phase || 1;
+  if (n < cur) return "complete";
+  if (n === cur) return "current";
+  return "pending";
+}
+
+function eventsForPhase(d, n) {
+  return (d.events || []).filter(e => e.phase === n);
+}
+
+function phaseDuration(d, n) {
+  const evs = eventsForPhase(d, n);
+  if (evs.length < 2) return null;
+  return durationBetween(evs[0].ts, evs[evs.length - 1].ts);
+}
+
+function renderIntake(intake) {
+  if (!intake) return `<p class="empty">No intake yet.</p>`;
+  const inferred = new Set(intake.inferred_fields || []);
+  const rows = Object.keys(INTAKE_LABELS).map(k => {
+    let v = intake[k];
+    if (Array.isArray(v)) v = v.join(", ");
+    const flag = inferred.has(k)
+      ? `<span class="inferred-flag" title="Inferred from public sources, not user-stated" aria-label="inferred">(i) inferred</span>`
+      : "";
+    return `<dt>${esc(INTAKE_LABELS[k])}</dt><dd>${esc(v || ",")}${flag}</dd>`;
+  }).join("");
+  return `<dl class="qa">${rows}</dl>`;
+}
+
+function renderMoodboard(mb) {
+  if (!mb) return `<p class="empty">No moodboard yet.</p>`;
+  const flinchSet = new Set((mb.flinch || []).map(f => f.image));
+  const flinchReason = {};
+  (mb.flinch || []).forEach(f => { flinchReason[f.image] = f.reason; });
+  const cells = (mb.kept || []).map(p => {
+    const name = p.split("/").pop();
+    return `<a class="thumb" href="${esc(p)}" target="_blank" rel="noopener" title="${esc(p)}" style="background-image: url('${esc(p)}')"><span>${esc(name)}</span></a>`;
+  }).join("") + (mb.flinch || []).map(f => {
+    const name = f.image.split("/").pop();
+    return `<a class="thumb flinch" href="${esc(f.image)}" target="_blank" rel="noopener" title="${esc(f.reason)}" style="background-image: url('${esc(f.image)}')"><span>${esc(name)}</span></a>`;
+  }).join("");
+  const rejected = (mb.rejected || []).filter(r => !flinchSet.has(r));
+  const altList = rejected.length
+    ? `<details class="alts"><summary>${rejected.length} rejected</summary><ul>${rejected.map(r => `<li><a href="${esc(r)}" target="_blank" rel="noopener">${esc(r)}</a></li>`).join("")}</ul></details>`
+    : "";
+  const flinchNote = (mb.flinch || []).length
+    ? `<p class="source-note">flinch: ${(mb.flinch || []).map(f => esc(f.reason)).join(" · ")}</p>`
+    : "";
+  return `
+    <h3>Kept (${(mb.kept || []).length}) and flinches</h3>
+    <div class="grid">${cells}</div>
+    ${flinchNote}
+    ${altList}
+  `;
+}
+
+function renderDirections(dirs) {
+  if (!dirs || !dirs.shortlist) return `<p class="empty">No directions yet.</p>`;
+  const chosen = dirs.chosen || "";
+  const mix = dirs.mix;
+  const cards = dirs.shortlist.map((d, i) => {
+    const letter = String.fromCharCode(65 + i);
+    const isChosen = d.philosophy === chosen;
+    return `
+      <div class="dir ${isChosen ? "chosen" : ""}">
+        ${isChosen ? `<span class="check">chosen</span>` : ""}
+        <span class="tag">[${letter}] ${esc((d.philosophy || "").split(",")[1] || "")}</span>
+        <h4>${esc((d.philosophy || "").split(",")[0])}</h4>
+        <p>${esc(d.rationale || "")}</p>
+        ${d.rendered_at ? `<p class="source-note"><a href="${esc(d.rendered_at)}" target="_blank" rel="noopener">view lookbook</a></p>` : ""}
+      </div>
+    `;
+  }).join("");
+  const mixBlock = mix
+    ? `<div class="pick mix"><span class="label">Mix</span>${esc(mix)}</div>`
+    : (chosen ? `<div class="pick"><span class="label">Picked</span>${esc(chosen)}</div>` : "");
+  return `
+    <h3 class="choose">Choose-point: A / B / C / mix</h3>
+    <div class="dirs">${cards}</div>
+    ${mixBlock}
+  `;
+}
+
+function renderAssetCard(key, a) {
+  if (!a) return "";
+  const label = ASSET_LABELS[key] || key;
+  let preview = "";
+  let file = "";
+  let source = "";
+  let alts = a.alternatives || a.files || [];
+
+  switch (key) {
+    case "logo": {
+      file = a.chosen || ",";
+      source = a.source ? `${a.source}` : "";
+      preview = isImage(file)
+        ? `<a href="${esc(file)}" target="_blank" rel="noopener"><img src="${esc(file)}" alt="logo preview" onerror="this.style.display='none'; this.parentElement.innerHTML += '<span class=&quot;source-note&quot;>logo</span>'"></a>`
+        : `<span class="source-note">logo</span>`;
+      break;
+    }
+    case "palette": {
+      file = a.chosen || ",";
+      source = a.source || "";
+      const sw = a.swatches && a.swatches.length
+        ? a.swatches
+        : ["#F5F1E8", "#1F1A14", "#A89F8A", "#6B5C3F", "#C8763A"];
+      preview = `<div class="swatches">${sw.map(c => `<span style="background:${esc(c)}" title="${esc(c)}"></span>`).join("")}</div>`;
+      break;
+    }
+    case "typography": {
+      file = a.chosen || ",";
+      source = a.license ? `license: ${a.license}` : "";
+      preview = `<div class="type-sample">${esc(a.sample || "Aa")}<small>${esc((a.chosen || "").split("+")[0].trim())}</small></div>`;
+      break;
+    }
+    case "iconography": {
+      file = a.chosen || ",";
+      source = "icon family";
+      preview = `<div class="type-sample" style="font-family: var(--mono); font-size: 16px;">${esc(a.chosen || ",")}</div>`;
+      break;
+    }
+    case "product_imagery":
+    case "ui_screenshots": {
+      const status = a.status || "gap";
+      const cls = status === "gap" ? "status-gap" : (status === "user-provided" || status === "captured" ? "status-good" : "status-mid");
+      const first = (a.files || [])[0];
+      file = first || `(${status})`;
+      source = `<span class="${cls}">${esc(status)}</span>`;
+      preview = first && isImage(first)
+        ? `<a href="${esc(first)}" target="_blank" rel="noopener"><img src="${esc(first)}" alt="${esc(label)} preview" onerror="this.style.display='none'"></a>`
+        : `<span class="source-note">${esc(status)}</span>`;
+      alts = (a.files || []).slice(1);
+      break;
+    }
+    case "voice": {
+      file = a.card || ",";
+      source = a.framework ? `framework: ${a.framework}` : "";
+      preview = `<div class="voice-quote">${esc(a.sample || "voice card")}</div>`;
+      break;
+    }
+    default:
+      file = a.chosen || JSON.stringify(a);
+  }
+
+  const fileLink = file && file !== "," && !file.startsWith("(")
+    ? `<a class="file" href="${esc(file)}" target="_blank" rel="noopener">${esc(file)}</a>`
+    : `<span class="file">${esc(file)}</span>`;
+
+  const altsBlock = (alts && alts.length)
+    ? `<details class="alts"><summary>${alts.length} alternative${alts.length === 1 ? "" : "s"}</summary><ul>${alts.map(x => `<li>${esc(x)}</li>`).join("")}</ul></details>`
+    : "";
+
+  return `
+    <div class="asset">
+      <span class="label">${esc(label)}</span>
+      <div class="preview">${preview}</div>
+      ${fileLink}
+      ${source ? `<span class="source">${source}</span>` : ""}
+      ${altsBlock}
+    </div>
+  `;
+}
+
+function renderAssets(assets) {
+  if (!assets) return `<p class="empty">No assets yet.</p>`;
+  const order = ["logo", "palette", "typography", "iconography", "product_imagery", "ui_screenshots", "voice"];
+  return `
+    <h3>Picked assets</h3>
+    <div class="assets">
+      ${order.map(k => renderAssetCard(k, assets[k])).join("")}
+    </div>
+  `;
+}
+
+function renderSpec(d) {
+  return `
+    <h3>Brand spec</h3>
+    <div class="summary-block">
+      <span class="field">summary</span>
+      ${esc(d.brand)}, ${esc((d.intake && d.intake.product) || "")}.
+      Direction: ${esc((d.directions && d.directions.chosen) || ",")}.
+      Voice: ${esc((d.assets && d.assets.voice && d.assets.voice.framework) || ",")}.
+    </div>
+    <p><a href="./brand-spec.md">open brand-spec.md</a></p>
+  `;
+}
+
+function renderHandoff(d) {
+  const gaps = d.gaps || [];
+  const high = gaps.filter(g => g.severity === "high").length;
+  const med  = gaps.filter(g => g.severity === "medium").length;
+  const low  = gaps.filter(g => g.severity === "low").length;
+  const ok = gaps.length === 0;
+  return `
+    <h3>Hand-off</h3>
+    <div class="summary-block">
+      ${ok
+        ? `Spec is clean. Producer mode can ship.`
+        : `${high} high · ${med} medium · ${low} low. Producer mode reads gaps before shipping.`}
+    </div>
+    <p><a href="#" onclick="alert('Switch to producer mode with: /produce ${esc(d.brand)}'); return false;">hand off to producer mode</a></p>
+  `;
+}
+
+function renderPhaseBody(n, d) {
+  switch (n) {
+    case 1: return renderIntake(d.intake);
+    case 2: return renderMoodboard(d.moodboard);
+    case 3: return renderDirections(d.directions);
+    case 4: return renderAssets(d.assets);
+    case 5: return renderSpec(d);
+    case 6: return renderHandoff(d);
+    default: return "";
+  }
+}
+
+function renderTimeline(d) {
+  const root = document.getElementById("timeline");
+  const cur = d.current_phase || 1;
+  let html = "";
+  for (let n = 1; n <= 6; n++) {
+    const status = statusFor(d, n);
+    const dur = phaseDuration(d, n);
+    const open = (status === "current" || status === "complete") ? "open" : "";
+    html += `
+      <details class="phase" data-status="${status}" data-phase="${n}" ${open} role="listitem">
+        <summary tabindex="0" aria-label="Phase ${n}, ${PHASE_NAMES[n]}, ${status}">
+          <span class="dot" aria-hidden="true">${status === "complete" ? "✓" : n}</span>
+          <span class="num">PHASE ${n}</span>
+          <h2 class="name">${esc(PHASE_NAMES[n])}</h2>
+          <span class="status">${status}</span>
+          ${dur ? `<span class="duration">${esc(dur)}</span>` : ""}
+          <span class="chev" aria-hidden="true"></span>
+        </summary>
+        <div class="body">${renderPhaseBody(n, d)}</div>
+      </details>
+    `;
+  }
+  root.innerHTML = html;
+  hookKeyboardNav();
+}
+
+function renderHeader(d) {
+  document.getElementById("brand-name").textContent = d.brand || "Untitled";
+  document.title = `${d.brand || "Discovery"} · Discovery Canvas`;
+  document.getElementById("locale-pill").textContent = (d.locale || "en").toUpperCase();
+  document.getElementById("phase-pill").textContent = `PHASE ${d.current_phase || 1} / 6`;
+  document.getElementById("started-at").textContent = "started " + fmtDate(d.started_at);
+}
+
+function renderGaps(d) {
+  const body = document.getElementById("gaps-body");
+  const gaps = d.gaps || [];
+  if (!gaps.length) {
+    body.innerHTML = `<p class="empty">No gaps logged. Producer mode can ship.</p>`;
+    return;
+  }
+  body.innerHTML = gaps.map(g => `
+    <div class="row">
+      <div class="top">
+        <span class="asset-name">${esc(g.asset)}</span>
+        <span class="severity sev-${esc(g.severity || "low")}">${esc(g.severity || "low")}</span>
+      </div>
+      <span class="next">${esc(g.next_action || "")}</span>
+    </div>
+  `).join("");
+}
+
+function renderAll(d) {
+  renderHeader(d);
+  renderTimeline(d);
+  renderGaps(d);
+  document.getElementById("subtitle").textContent =
+    d.current_phase >= 6
+      ? `Provisional. Built in ${(d.events && d.events.length) || "a few"} steps. Expected to evolve.`
+      : `In progress. Phase ${d.current_phase || 1} of 6.`;
+  document.getElementById("stamp").textContent =
+    `discovery-canvas · v${d.schema_version || "1.0"} · ${(d.events || []).length} events`;
+}
+
+// ---------- keyboard navigation ----------
+function hookKeyboardNav() {
+  const summaries = Array.from(document.querySelectorAll(".phase > summary"));
+  summaries.forEach((s, i) => {
+    s.addEventListener("keydown", e => {
+      if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+        e.preventDefault();
+        const next = summaries[Math.min(i + 1, summaries.length - 1)];
+        next && next.focus();
+      } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+        e.preventDefault();
+        const prev = summaries[Math.max(i - 1, 0)];
+        prev && prev.focus();
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        summaries[0] && summaries[0].focus();
+      } else if (e.key === "End") {
+        e.preventDefault();
+        summaries[summaries.length - 1] && summaries[summaries.length - 1].focus();
+      }
+      // Enter / Space toggle is native on summary; no override needed.
+    });
+  });
+}
+
+// ---------- bootstrap ----------
+async function boot() {
+  let data = null;
+  try {
+    const res = await fetch("./discovery.json", {cache: "no-store"});
+    if (res.ok) {
+      data = await res.json();
+    }
+  } catch (err) {
+    // file:// or no discovery.json, fall through to fixture
+  }
+  if (!data) {
+    data = FALLBACK;
+    const sub = document.getElementById("subtitle");
+    sub.textContent = "Demo data. No discovery.json found alongside this page.";
+  }
+  renderAll(data);
+}
+
+boot();
+</script>
+</body>
+</html>

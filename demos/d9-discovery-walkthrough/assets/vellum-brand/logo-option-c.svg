@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Vellum · Logo Option C
+  School: Experimental Avant-Garde (Sagmeister / Carson lineage)
+  Posture: hand-cut feel, torn-paper top edge, letterforms misaligned on the baseline,
+  one letter rotated, a rust-orange accent block bleeding off the right margin.
+  The page boundary is part of the composition.
+  Why this was offered: Vellum's vibe-word "irreverent" wanted a controlled risk option.
+  Why it was rejected: too loud for biologists at dawn, the torn-paper energy reads
+  as a music magazine, not a reading app. Curveball that didn't land.
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 240 80"
+     width="240" height="80"
+     role="img" aria-label="Vellum wordmark, Option C, experimental">
+  <rect width="240" height="80" fill="#FAF7F0"/>
+
+  <!-- Torn-paper top edge: irregular polyline running across the canvas -->
+  <path d="M 0 14 L 12 9 L 24 13 L 38 7 L 52 12 L 66 6 L 80 11 L 96 5 L 112 10 L 128 4
+           L 144 9 L 160 3 L 174 8 L 190 5 L 206 10 L 222 6 L 240 11 L 240 0 L 0 0 Z"
+        fill="#EFE9DD"/>
+
+  <!-- Rust accent block bleeding off the right edge, the visceral move -->
+  <rect x="206" y="34" width="44" height="22" fill="#9A4B3D"/>
+
+  <!-- Letterforms, hand-placed, slight rotations, baseline ignored -->
+  <g font-family="'Source Serif Pro', 'Source Serif', Georgia, serif"
+     font-weight="600"
+     fill="#1B1614">
+    <text x="14" y="58" font-size="40" transform="rotate(-2 14 58)">V</text>
+    <text x="40" y="62" font-size="38">e</text>
+    <text x="62" y="56" font-size="40" transform="rotate(3 62 56)">l</text>
+    <text x="78" y="60" font-size="38">l</text>
+    <text x="98" y="54" font-size="42" transform="rotate(-4 98 54)">u</text>
+    <text x="132" y="60" font-size="38" fill="#FAF7F0">m</text>
+  </g>
+
+  <!-- Hand stamp, the irreverent tic -->
+  <text x="172" y="76"
+        font-family="ui-monospace, 'JetBrains Mono', monospace"
+        font-size="7"
+        fill="#6E6862"
+        transform="rotate(-3 172 76)">read slow.</text>
+
+  <!-- A single rough scratch through one letter, the Sagmeister hand -->
+  <path d="M 60 38 Q 70 42, 82 38" fill="none" stroke="#1B1614"
+        stroke-width="0.8" stroke-linecap="round" opacity="0.55"/>
+</svg>

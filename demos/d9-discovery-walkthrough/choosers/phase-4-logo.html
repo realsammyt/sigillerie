@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vellum · Phase 4 · Logo (replay)</title>
+<style>
+  :root {
+    --bg: #FAF7F0;
+    --ink: #1B1614;
+    --ink-soft: #6E6862;
+    --rule: #EFE9DD;
+    --card: #FFFFFE;
+    --accent: #9A4B3D;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    padding: 40px;
+  }
+  header.page {
+    max-width: 1280px;
+    margin: 0 auto 32px;
+    border-bottom: 0.5px solid var(--ink-soft);
+    padding-bottom: 16px;
+  }
+  header.page .replay-banner {
+    display: inline-block;
+    background: var(--ink);
+    color: var(--bg);
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    border-radius: 2px;
+    margin-bottom: 8px;
+  }
+  header.page h1 {
+    font-family: "Source Serif Pro", Georgia, serif;
+    font-weight: 500;
+    font-size: 30px;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  header.page p { margin: 0; color: var(--ink-soft); font-size: 14px; max-width: 60ch; }
+  main.grid {
+    max-width: 1280px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+    gap: 28px;
+  }
+  .card {
+    background: var(--card);
+    border: 0.5px solid var(--ink-soft);
+    border-radius: 4px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: relative;
+  }
+  .card.chosen { border-color: var(--ink); border-width: 1.5px; }
+  .card.chosen::after {
+    content: "chosen";
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: var(--accent);
+    color: var(--bg);
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    border-radius: 2px;
+  }
+  .card header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    border-bottom: 0.5px solid var(--rule);
+    padding-bottom: 12px;
+  }
+  .letter {
+    font-family: "Source Serif Pro", Georgia, serif;
+    font-size: 40px;
+    line-height: 1;
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .name {
+    font-family: "Source Serif Pro", Georgia, serif;
+    font-size: 18px;
+    margin: 0;
+    font-weight: 500;
+    flex: 1;
+  }
+  .school-tag {
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    background: var(--rule);
+    padding: 3px 8px;
+    border-radius: 2px;
+  }
+  .logo-frame {
+    border: 0.5px solid var(--rule);
+    background: var(--bg);
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 140px;
+  }
+  .logo-frame object {
+    width: 100%;
+    max-width: 240px;
+    height: 80px;
+    pointer-events: none;
+  }
+  .meta {
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .meta .row { display: flex; gap: 8px; }
+  .meta .k { width: 80px; }
+  .rationale {
+    font-size: 13px;
+    color: var(--ink-soft);
+    border-top: 0.5px dashed var(--rule);
+    padding-top: 12px;
+    line-height: 1.5;
+  }
+  footer.page {
+    max-width: 1280px;
+    margin: 32px auto 0;
+    border-top: 0.5px solid var(--rule);
+    padding-top: 16px;
+    color: var(--ink-soft);
+    font-size: 12px;
+    font-family: ui-monospace, monospace;
+  }
+</style>
+</head>
+<body>
+
+<header class="page">
+  <span class="replay-banner">replay · phase complete</span>
+  <h1>Three logo options. Pick one.</h1>
+  <p>Vellum · per direction-library.md cross-school differentiation. Three schools, three
+     hand-built SVGs. Collision check passed on all three. Picked B (Hara).</p>
+</header>
+
+<main class="grid">
+
+  <article class="card">
+    <header>
+      <span class="letter">A</span>
+      <h2 class="name">Pentagram · serif wordmark</h2>
+      <span class="school-tag">school 1</span>
+    </header>
+    <div class="logo-frame">
+      <object type="image/svg+xml" data="../assets/vellum-brand/logo-option-a.svg" aria-label="Logo option A"></object>
+    </div>
+    <div class="meta">
+      <div class="row"><span class="k">school</span><span>Information Architecture</span></div>
+      <div class="row"><span class="k">moves</span><span>tight tracking, hairline rule, mono metadata</span></div>
+      <div class="row"><span class="k">file</span><span>logo-option-a.svg</span></div>
+    </div>
+    <p class="rationale">Authoritative. Editorial. Reads as magazine masthead. Honest for a reading app, but leans confident-not-quiet. Pre-coffee biologists wanted breath, not declaration.</p>
+  </article>
+
+  <article class="card chosen">
+    <header>
+      <span class="letter">B</span>
+      <h2 class="name">Hara · arc + lowercase mark</h2>
+      <span class="school-tag">school 3</span>
+    </header>
+    <div class="logo-frame">
+      <object type="image/svg+xml" data="../assets/vellum-brand/logo-option-b.svg" aria-label="Logo option B, chosen"></object>
+    </div>
+    <div class="meta">
+      <div class="row"><span class="k">school</span><span>Eastern Minimalism</span></div>
+      <div class="row"><span class="k">moves</span><span>single open arc, Inter Light tracked open, breath-having</span></div>
+      <div class="row"><span class="k">file</span><span>logo-option-b.svg → logo.svg</span></div>
+    </div>
+    <p class="rationale">The arc reads as a page edge curling, a thumb under a spine, or a sunrise just barely cresting. Ambiguity is the point. Negative space carries the weight. Whitespace defends against the flinch.</p>
+  </article>
+
+  <article class="card">
+    <header>
+      <span class="letter">C</span>
+      <h2 class="name">Sagmeister · torn paper</h2>
+      <span class="school-tag">school 4</span>
+    </header>
+    <div class="logo-frame">
+      <object type="image/svg+xml" data="../assets/vellum-brand/logo-option-c.svg" aria-label="Logo option C"></object>
+    </div>
+    <div class="meta">
+      <div class="row"><span class="k">school</span><span>Experimental Avant-Garde</span></div>
+      <div class="row"><span class="k">moves</span><span>torn top edge, rotated letterforms, rust block bleeding off margin</span></div>
+      <div class="row"><span class="k">file</span><span>logo-option-c.svg</span></div>
+    </div>
+    <p class="rationale">Curveball. The "irreverent" vibe-word offered the route. Reads as music magazine, not reading app. Too loud for the audience. Rejected.</p>
+  </article>
+
+</main>
+
+<footer class="page">
+  picked: B (Hara) · 2026-04-27 09:43:52 · collision check passed → discovery.json#assets.logo
+</footer>
+
+</body>
+</html>

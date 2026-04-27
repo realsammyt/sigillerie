@@ -1,0 +1,95 @@
+/*
+ * Vellum · type stack
+ * Direction: Kenya Hara, Eastern Minimalism, with iA-Content-First typography mix
+ * Provenance: pairing from Typewolf editorial reference, filtered to OFL / SIL.
+ *
+ * Display: Source Serif Pro (SIL OFL 1.1)
+ * Body:    Inter (SIL OFL 1.1)
+ * Mono:    JetBrains Mono (SIL OFL 1.1)
+ *
+ * CJK fallback families listed even though intake.locale = "en", so a future
+ * zh fork inherits a working stack without re-discovery. Order matters:
+ * Latin family first, CJK companion second, system fallback last.
+ *
+ * Sizing: golden-ratio scale anchored at 16px body. Reading line length 66ch.
+ */
+
+/* Display: long-form headers, hero type, the moments where type carries weight */
+:root {
+  --font-display:
+    "Source Serif Pro",
+    "Source Serif",
+    "Source Han Serif SC",
+    "Noto Serif CJK SC",
+    Georgia,
+    "Times New Roman",
+    serif;
+
+  --font-body:
+    "Inter",
+    -apple-system,
+    "Helvetica Neue",
+    "Source Han Sans SC",
+    "Noto Sans CJK SC",
+    "PingFang SC",
+    system-ui,
+    sans-serif;
+
+  --font-mono:
+    "JetBrains Mono",
+    "Source Code Pro",
+    "Sarasa Mono SC",
+    ui-monospace,
+    "SFMono-Regular",
+    Menlo,
+    monospace;
+
+  /* Golden-ratio scale, body anchored at 16px */
+  --type-xs:    0.75rem;   /* 12px, captions, metadata */
+  --type-sm:    0.875rem;  /* 14px, secondary */
+  --type-base:  1rem;      /* 16px, body */
+  --type-md:    1.25rem;   /* 20px, section labels */
+  --type-lg:    1.618rem;  /* 26px, sub-headers */
+  --type-xl:    2.618rem;  /* 42px, page headers */
+  --type-2xl:   4.236rem;  /* 68px, hero */
+
+  --leading-body:  1.6;
+  --leading-tight: 1.2;
+  --tracking-display: -0.012em;
+  --tracking-body:    0;
+  --tracking-caps:    0.04em;
+
+  --measure: 66ch;
+}
+
+html { font-size: 16px; }
+body {
+  font-family: var(--font-body);
+  font-size: var(--type-base);
+  line-height: var(--leading-body);
+  color: var(--ink);
+  background: var(--paper);
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-display);
+}
+
+h1 { font-size: var(--type-xl); }
+h2 { font-size: var(--type-lg); }
+h3 { font-size: var(--type-md); }
+
+code, pre, kbd { font-family: var(--font-mono); font-size: 0.9em; }
+
+p, li { max-width: var(--measure); }
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--accent-quiet);
+}

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://schemas.styledictionary.com/v3/style-dictionary-tokens.json",
+  "brand": "Vellum",
+  "direction": "Kenya Hara, Eastern Minimalism",
+  "provenance": "moodboard image #7, MUJI Atsumi Tea spread, k-means k=5",
+  "color": {
+    "paper": {
+      "value": "#FAF7F0",
+      "type": "color",
+      "description": "Warm off-white. Body color. ~80% of any composition.",
+      "role": "surface-primary"
+    },
+    "ink": {
+      "value": "#1B1614",
+      "type": "color",
+      "description": "Warm black. Only type color. No greys for body copy.",
+      "role": "text-primary"
+    },
+    "accent-quiet": {
+      "value": "#6E6862",
+      "type": "color",
+      "description": "Warm grey. Secondary text and hairline rules only.",
+      "role": "text-secondary"
+    },
+    "accent-rare": {
+      "value": "#9A4B3D",
+      "type": "color",
+      "description": "Rust orange. Cap at 5% of composition. One element max.",
+      "role": "accent",
+      "usage_cap": 0.05
+    },
+    "surface-secondary": {
+      "value": "#EFE9DD",
+      "type": "color",
+      "description": "Slightly darker tone. Cards, elevated panels.",
+      "role": "surface-elevated"
+    }
+  },
+  "no_go": ["#FFFFFF", "#000000", "saturated blues", "saturated greens"],
+  "flinch_anchor": "Pocket-2024 orange (#EF4056). The chosen rust reads warm, not loud."
+}

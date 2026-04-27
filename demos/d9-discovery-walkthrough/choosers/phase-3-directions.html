@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vellum · Phase 3 · Direction shortlist (replay)</title>
+<style>
+  :root {
+    --bg: #FAF7F0;
+    --ink: #1B1614;
+    --ink-soft: #6E6862;
+    --rule: #EFE9DD;
+    --card: #FFFFFE;
+    --accent: #9A4B3D;
+    --focus: #9A4B3D;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    padding: 40px;
+    min-height: 100vh;
+  }
+  header.page {
+    max-width: 1280px;
+    margin: 0 auto 32px;
+    border-bottom: 0.5px solid var(--ink-soft);
+    padding-bottom: 16px;
+  }
+  header.page .replay-banner {
+    display: inline-block;
+    background: var(--ink);
+    color: var(--bg);
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    border-radius: 2px;
+    margin-bottom: 8px;
+  }
+  header.page h1 {
+    font-family: "Source Serif Pro", Georgia, serif;
+    font-weight: 500;
+    font-size: 30px;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  header.page p { margin: 0; color: var(--ink-soft); font-size: 14px; max-width: 60ch; }
+  main.grid {
+    max-width: 1280px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+    gap: 28px;
+  }
+  .card {
+    background: var(--card);
+    border: 0.5px solid var(--ink-soft);
+    border-radius: 4px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 480px;
+    position: relative;
+  }
+  .card.chosen {
+    border-color: var(--ink);
+    border-width: 1.5px;
+  }
+  .card.chosen::after {
+    content: "chosen";
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: var(--accent);
+    color: var(--bg);
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    border-radius: 2px;
+  }
+  .card header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    border-bottom: 0.5px solid var(--rule);
+    padding-bottom: 12px;
+  }
+  .letter {
+    font-family: "Source Serif Pro", Georgia, serif;
+    font-size: 40px;
+    line-height: 1;
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .name {
+    font-family: "Source Serif Pro", Georgia, serif;
+    font-size: 19px;
+    margin: 0;
+    font-weight: 500;
+    flex: 1;
+  }
+  .role {
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-soft);
+    background: var(--rule);
+    padding: 3px 8px;
+    border-radius: 2px;
+  }
+  .lookbook {
+    flex: 1;
+    border: 0.5px solid var(--rule);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 220px;
+    background: var(--bg);
+  }
+  .lookbook .hero {
+    font-family: "Source Serif Pro", Georgia, serif;
+    font-size: 28px;
+    line-height: 1.1;
+    letter-spacing: -0.012em;
+  }
+  .palette-strip {
+    display: flex;
+    height: 24px;
+    border: 0.5px solid var(--rule);
+  }
+  .palette-strip span {
+    flex: 1;
+  }
+  .lookbook .body {
+    font-size: 13px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+  .signatures {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .rationale {
+    font-size: 13px;
+    color: var(--ink-soft);
+    border-top: 0.5px dashed var(--rule);
+    padding-top: 12px;
+    line-height: 1.5;
+  }
+  footer.page {
+    max-width: 1280px;
+    margin: 32px auto 0;
+    border-top: 0.5px solid var(--rule);
+    padding-top: 16px;
+    color: var(--ink-soft);
+    font-size: 12px;
+    font-family: ui-monospace, monospace;
+  }
+</style>
+</head>
+<body>
+
+<header class="page">
+  <span class="replay-banner">replay · phase complete</span>
+  <h1>Three directions. Pick one. Or mix.</h1>
+  <p>Vellum · cross-school shortlist. Schools 3, 1, 4 (Eastern Minimalism, Information
+     Architecture, Experimental Avant-Garde). Picked: A with mix "A grid + B's typography".</p>
+</header>
+
+<main class="grid" id="grid">
+
+  <article class="card chosen">
+    <header>
+      <span class="letter">A</span>
+      <h2 class="name">Hara · Eastern Minimalism</h2>
+      <span class="role">safe</span>
+    </header>
+    <div class="lookbook">
+      <div class="hero" style="font-family:'Source Serif Pro',Georgia,serif">vellum</div>
+      <div class="palette-strip" role="img" aria-label="Hara palette">
+        <span style="background:#FAF7F0"></span>
+        <span style="background:#EFE9DD"></span>
+        <span style="background:#6E6862"></span>
+        <span style="background:#9A4B3D"></span>
+        <span style="background:#1B1614"></span>
+      </div>
+      <div class="body">80%-plus negative space. Warm paper, single ink, rust accent in trace doses. The page should read as breath, not bandwidth.</div>
+      <ul class="signatures">
+        <li>· hairline rules at 0.5–0.75px</li>
+        <li>· lowercase serif headers</li>
+        <li>· one rust element max per page</li>
+      </ul>
+    </div>
+    <p class="rationale">vibe-words map directly. flinch was loud-color (Pocket-2024); this row anchors on white-space, defending against the flinch structurally. row 3 of the 5-school grid.</p>
+  </article>
+
+  <article class="card">
+    <header>
+      <span class="letter">B</span>
+      <h2 class="name">iA · Content-First</h2>
+      <span class="role">stretch</span>
+    </header>
+    <div class="lookbook">
+      <div class="hero" style="font-family:'JetBrains Mono','Source Code Pro',monospace;font-size:24px">Vellum</div>
+      <div class="palette-strip" role="img" aria-label="iA palette">
+        <span style="background:#FFFFFF"></span>
+        <span style="background:#F0F0F0"></span>
+        <span style="background:#888888"></span>
+        <span style="background:#0000EE"></span>
+        <span style="background:#1A1A1A"></span>
+      </div>
+      <div class="body">System fonts only. 66-character line. Classic blue links. Performance as aesthetic. The text is the design.</div>
+      <ul class="signatures">
+        <li>· no decorative SVG</li>
+        <li>· REM type scale, golden ratio</li>
+        <li>· Source Serif body, 18px</li>
+      </ul>
+    </div>
+    <p class="rationale">calm + technical reads as typographic system, not motion-led. iA Writer was in the moodboard kept list. row 1 of the grid.</p>
+  </article>
+
+  <article class="card">
+    <header>
+      <span class="letter">C</span>
+      <h2 class="name">Sagmeister · Visceral</h2>
+      <span class="role">curveball</span>
+    </header>
+    <div class="lookbook">
+      <div class="hero" style="font-family:'Source Serif Pro',Georgia,serif;transform:rotate(-2deg);display:inline-block">Vellum.</div>
+      <div class="palette-strip" role="img" aria-label="Sagmeister palette">
+        <span style="background:#F4ECD8"></span>
+        <span style="background:#9A4B3D"></span>
+        <span style="background:#E8A33D"></span>
+        <span style="background:#3A6B5D"></span>
+        <span style="background:#1B1614"></span>
+      </div>
+      <div class="body">Type built from physical objects. Saturated bursts on neutral cardboard. The hand stays visible in the artifact.</div>
+      <ul class="signatures">
+        <li>· torn-paper edges</li>
+        <li>· one big positive sentence per spread</li>
+        <li>· photographs of made objects as final art</li>
+      </ul>
+    </div>
+    <p class="rationale">"irreverent" vibe-word pulls toward School 4. controlled risk: user can reject explicitly. cross-school differentiation rule satisfied (rows 3, 1, 4).</p>
+  </article>
+
+</main>
+
+<footer class="page">
+  picked: A with mix "A.grid + B.typography" · 2026-04-27 09:36:23 → discovery.json#directions
+</footer>
+
+</body>
+</html>

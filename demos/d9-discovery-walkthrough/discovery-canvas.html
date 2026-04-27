@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vellum · Discovery Canvas</title>
+<link rel="stylesheet" href="assets/vellum-brand/palette.css">
+<link rel="stylesheet" href="assets/vellum-brand/type-stack.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--paper, #FAF7F0);
+    color: var(--ink, #1B1614);
+    font-family: var(--font-body, "Inter", system-ui, sans-serif);
+    line-height: 1.6;
+    padding: clamp(24px, 5vw, 72px) clamp(20px, 6vw, 96px) 96px;
+    min-height: 100vh;
+  }
+  header.canvas {
+    max-width: 880px;
+    margin: 0 auto clamp(28px, 4vw, 56px);
+    border-bottom: 0.75px solid var(--accent-quiet);
+    padding-bottom: 28px;
+  }
+  header.canvas .eyebrow {
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--accent-quiet);
+    margin: 0 0 12px;
+  }
+  header.canvas h1 {
+    font-family: var(--font-display, Georgia, serif);
+    font-weight: 500;
+    font-size: clamp(34px, 4.5vw, 56px);
+    letter-spacing: -0.012em;
+    line-height: 1.05;
+    margin: 0 0 14px;
+  }
+  header.canvas p {
+    color: var(--accent-quiet);
+    margin: 0;
+    font-size: 15px;
+    max-width: 60ch;
+  }
+  main.timeline {
+    max-width: 880px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  section.phase {
+    padding: clamp(24px, 4vw, 40px) 0;
+    border-bottom: 0.5px solid var(--surface-secondary, #EFE9DD);
+    display: grid;
+    grid-template-columns: 88px 1fr;
+    gap: clamp(16px, 3vw, 32px);
+  }
+  section.phase:last-of-type { border-bottom: 0; }
+  .ph-num {
+    font-family: var(--font-display, serif);
+    font-size: 56px;
+    font-weight: 400;
+    line-height: 1;
+    color: var(--accent-quiet);
+    letter-spacing: -0.02em;
+  }
+  .ph-body h2 {
+    font-family: var(--font-display, serif);
+    font-weight: 500;
+    font-size: 24px;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .ph-meta {
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 11px;
+    color: var(--accent-quiet);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 16px;
+  }
+  .ph-summary {
+    margin: 0 0 16px;
+    max-width: 60ch;
+  }
+  .ph-decision {
+    border-left: 0.5px solid var(--accent-quiet);
+    padding: 4px 0 4px 16px;
+    margin: 16px 0;
+    font-family: var(--font-display, serif);
+    font-size: 17px;
+    color: var(--ink);
+  }
+  .ph-decision .label {
+    display: block;
+    font-family: var(--font-mono, monospace);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent-quiet);
+    margin-bottom: 4px;
+  }
+  .ph-events {
+    list-style: none;
+    padding: 0;
+    margin: 16px 0 0;
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 12px;
+    color: var(--accent-quiet);
+  }
+  .ph-events li {
+    display: grid;
+    grid-template-columns: 76px 1fr;
+    gap: 12px;
+    padding: 4px 0;
+    border-bottom: 0.5px dotted var(--surface-secondary);
+  }
+  .ph-events li:last-child { border-bottom: 0; }
+  .ph-events .ts { color: var(--ink); }
+  .artifact-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 16px 0 0;
+  }
+  .artifact-strip .pill {
+    display: inline-block;
+    background: var(--surface-secondary);
+    padding: 4px 10px;
+    border-radius: 2px;
+    font-family: var(--font-mono, monospace);
+    font-size: 11px;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .artifact-strip .pill:hover { background: var(--accent-quiet); color: var(--paper); }
+  .three-up {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 20px 0 0;
+  }
+  .three-up .opt {
+    border: 0.5px solid var(--accent-quiet);
+    background: var(--paper);
+    padding: 8px 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .three-up .opt.chosen {
+    border-color: var(--ink);
+    border-width: 1px;
+  }
+  .three-up .opt object,
+  .three-up .opt img {
+    width: 100%;
+    height: 80px;
+    object-fit: contain;
+    background: var(--paper);
+    pointer-events: none;
+  }
+  .three-up .opt .label {
+    font-family: var(--font-mono, monospace);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent-quiet);
+    display: flex;
+    justify-content: space-between;
+  }
+  .three-up .opt .label .pick { color: var(--ink); }
+  .three-up .opt.chosen .label .pick { color: var(--accent-rare); font-weight: 500; }
+  .palette-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    margin: 16px 0 0;
+    border: 0.5px solid var(--accent-quiet);
+  }
+  .palette-row .swatch {
+    aspect-ratio: 1.6 / 1;
+    display: flex;
+    align-items: flex-end;
+    padding: 8px;
+    font-family: var(--font-mono, monospace);
+    font-size: 10px;
+  }
+  .gaps {
+    margin: 16px 0 0;
+    list-style: none;
+    padding: 0;
+  }
+  .gaps li {
+    display: grid;
+    grid-template-columns: 80px 100px 1fr;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 0.5px dotted var(--surface-secondary);
+    font-size: 13px;
+  }
+  .gaps li:last-child { border-bottom: 0; }
+  .gaps .sev {
+    font-family: var(--font-mono, monospace);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .gaps .sev.high { color: var(--accent-rare); }
+  .gaps .sev.medium { color: var(--accent-quiet); }
+  footer.canvas {
+    max-width: 880px;
+    margin: 56px auto 0;
+    padding-top: 24px;
+    border-top: 0.5px solid var(--accent-quiet);
+    color: var(--accent-quiet);
+    font-size: 13px;
+    font-family: var(--font-mono, ui-monospace, monospace);
+  }
+  @media (max-width: 600px) {
+    section.phase {
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    .ph-num { font-size: 36px; }
+    .three-up { grid-template-columns: 1fr; }
+    .palette-row { grid-template-columns: repeat(5, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header class="canvas">
+  <p class="eyebrow">Vellum · discovery canvas · 2026-04-27</p>
+  <h1>How the brand got picked.</h1>
+  <p>Six phases. Forty-five minutes wall-clock. Every choose-point preserved.
+     Every reject recoverable. This page reads `discovery.json` and renders the
+     timeline. Read top to bottom. Every artifact is one click away.</p>
+</header>
+
+<main class="timeline" id="timeline"></main>
+
+<footer class="canvas">
+  <p>Source of truth: <a href="discovery.json">discovery.json</a> ·
+     Producer contract: <a href="brand-spec.md">brand-spec.md</a></p>
+</footer>
+
+<script>
+const PHASES = [
+  {
+    n: 1, name: "Intake",
+    summary: "Six structured questions. The agent listens. No options yet.",
+    decision: { label: "captured", text: "calm reading app for biologists, web first. vibe-words: calm, technical, irreverent. anti-brands: bookworm clichés, gamified reading apps, generic Kindle clones." },
+    artifacts: [{ label: "discovery.json#intake", href: "discovery.json" }],
+    eventFilter: e => e.phase === 1
+  },
+  {
+    n: 2, name: "Moodboard",
+    summary: "15 references across 3 lanes. Tinder pass. Keep five, flinch one. Flinches are the load-bearing signal.",
+    decision: { label: "kept · flinched", text: "kept 5 (MUJI Atsumi Tea, Hara Designing Design, Readwise quiet, iA Writer paper, Matter app). flinched on Pocket-2024: 'loud orange, gamified, anti-calm'." },
+    artifacts: [
+      { label: "moodboard/", href: "moodboard/README.md" },
+      { label: "phase-2-moodboard.html", href: "choosers/phase-2-moodboard.html" }
+    ],
+    eventFilter: e => e.phase === 2
+  },
+  {
+    n: 3, name: "Direction shortlist",
+    summary: "Three differentiated philosophies, one per row of the 5-school grid. Cross-school rule satisfied (rows 3, 1, 4). Labeled safe / stretch / curveball.",
+    threeUp: [
+      { letter: "A", name: "Hara · Eastern Minimalism", role: "safe", chosen: true },
+      { letter: "B", name: "iA · Content-First", role: "stretch", chosen: false },
+      { letter: "C", name: "Sagmeister · Visceral", role: "curveball", chosen: false }
+    ],
+    decision: { label: "chosen · mix", text: "A (Hara) with mix: A's grid + B's typography. Hara atmosphere, iA type." },
+    artifacts: [
+      { label: "phase-3-directions.html", href: "choosers/phase-3-directions.html" },
+      { label: "discovery.json#directions", href: "discovery.json" }
+    ],
+    eventFilter: e => e.phase === 3
+  },
+  {
+    n: 4, name: "Asset build",
+    summary: "Per-slot generation. Three options per asset, except iconography (family pick, not three). Mix-and-match supported. Collision check on logos.",
+    threeUp: [
+      { letter: "A", name: "Pentagram · serif wordmark", svg: "assets/vellum-brand/logo-option-a.svg", chosen: false },
+      { letter: "B", name: "Hara · arc + mark", svg: "assets/vellum-brand/logo-option-b.svg", chosen: true },
+      { letter: "C", name: "Sagmeister · torn", svg: "assets/vellum-brand/logo-option-c.svg", chosen: false }
+    ],
+    palette: [
+      { name: "paper",       hex: "#FAF7F0" },
+      { name: "ink",         hex: "#1B1614" },
+      { name: "quiet",       hex: "#6E6862" },
+      { name: "rare (rust)", hex: "#9A4B3D" },
+      { name: "secondary",   hex: "#EFE9DD" }
+    ],
+    decision: { label: "chosen · per slot", text: "logo: B (Hara). palette: moodboard-extracted from image #7. type: Source Serif Pro + Inter + JetBrains Mono. icons: Lucide thin. voice: three-axis (0, -1, +1). audio brand: deferred to v2." },
+    artifacts: [
+      { label: "logo.svg", href: "assets/vellum-brand/logo.svg" },
+      { label: "palette.css", href: "assets/vellum-brand/palette.css" },
+      { label: "type-stack.css", href: "assets/vellum-brand/type-stack.css" },
+      { label: "voice.md", href: "assets/vellum-brand/voice.md" },
+      { label: "phase-4-logo.html", href: "choosers/phase-4-logo.html" }
+    ],
+    eventFilter: e => e.phase === 4
+  },
+  {
+    n: 5, name: "Spec consolidation",
+    summary: "Automatic. Chosen assets composed into producer-mode contract.",
+    decision: { label: "written", text: "brand-spec.md validated: logo paths exist, palette has provenance, type stack has license. Schema 1.0." },
+    artifacts: [{ label: "brand-spec.md", href: "brand-spec.md" }],
+    eventFilter: e => e.phase === 5
+  },
+  {
+    n: 6, name: "Hand-off",
+    summary: "Gaps finalized. Producer reads brand-spec, sees flagged gaps, prompts user before drafting if any high-severity gap stands.",
+    decision: { label: "gaps", text: "2 high (biologist-hands hero photography, product-hero), 3 medium (UI mocks for home / reader / library). Producer mode refuses final delivery while high-severity gaps stand." },
+    gaps: [
+      { asset: "biologist-hands-with-paper.jpg", sev: "high",   action: "user must commission or shoot" },
+      { asset: "product-hero.png",              sev: "high",   action: "user must shoot once device frame exists" },
+      { asset: "ui-home.png",                   sev: "medium", action: "producer can mock" },
+      { asset: "ui-reader.png",                 sev: "medium", action: "producer can mock" },
+      { asset: "ui-library.png",                sev: "medium", action: "producer can mock" }
+    ],
+    artifacts: [{ label: "discovery.json#gaps", href: "discovery.json" }],
+    eventFilter: e => e.phase === 6
+  }
+];
+
+function el(tag, attrs, ...kids) {
+  const n = document.createElement(tag);
+  if (attrs) for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") n.className = v;
+    else if (k === "style") n.setAttribute("style", v);
+    else if (v !== false && v != null) n.setAttribute(k, v);
+  }
+  for (const k of kids) {
+    if (k == null) continue;
+    n.appendChild(typeof k === "string" ? document.createTextNode(k) : k);
+  }
+  return n;
+}
+
+function fmtTime(iso) {
+  return iso.slice(11, 19);
+}
+
+async function loadEvents() {
+  try {
+    const r = await fetch("discovery.json");
+    if (!r.ok) return [];
+    const j = await r.json();
+    return j.events || [];
+  } catch (_) { return []; }
+}
+
+function renderPhase(p, events) {
+  const sec = el("section", { class: "phase" });
+  sec.appendChild(el("div", { class: "ph-num" }, String(p.n)));
+
+  const body = el("div", { class: "ph-body" });
+  body.appendChild(el("h2", null, p.name));
+  body.appendChild(el("p", { class: "ph-meta" }, "phase " + p.n + " · " + (events.length ? events.length + " events" : "scaffolded")));
+  body.appendChild(el("p", { class: "ph-summary" }, p.summary));
+
+  if (p.threeUp) {
+    const grid = el("div", { class: "three-up" });
+    for (const o of p.threeUp) {
+      const card = el("div", { class: "opt" + (o.chosen ? " chosen" : "") });
+      if (o.svg) {
+        card.appendChild(el("object", { type: "image/svg+xml", data: o.svg, "aria-label": o.name }));
+      } else {
+        card.appendChild(el("div", { style: "height:80px;display:flex;align-items:center;justify-content:center;background:var(--surface-secondary);font-family:var(--font-mono,monospace);font-size:11px;color:var(--accent-quiet)" }, o.role || ""));
+      }
+      const lbl = el("div", { class: "label" });
+      lbl.appendChild(el("span", null, o.letter + " · " + o.name));
+      lbl.appendChild(el("span", { class: "pick" }, o.chosen ? "chosen" : (o.role || "")));
+      card.appendChild(lbl);
+      grid.appendChild(card);
+    }
+    body.appendChild(grid);
+  }
+
+  if (p.palette) {
+    const row = el("div", { class: "palette-row" });
+    for (const s of p.palette) {
+      const sw = el("div", { class: "swatch", style: "background:" + s.hex + ";color:" + (s.name === "ink" || s.name === "quiet" ? "#FAF7F0" : "#1B1614") }, s.hex);
+      row.appendChild(sw);
+    }
+    body.appendChild(row);
+  }
+
+  if (p.gaps) {
+    const list = el("ul", { class: "gaps" });
+    for (const g of p.gaps) {
+      const li = el("li", null);
+      li.appendChild(el("span", { class: "sev " + g.sev }, g.sev));
+      li.appendChild(el("span", null, g.asset));
+      li.appendChild(el("span", null, g.action));
+      list.appendChild(li);
+    }
+    body.appendChild(list);
+  }
+
+  if (p.decision) {
+    const dec = el("div", { class: "ph-decision" });
+    dec.appendChild(el("span", { class: "label" }, p.decision.label));
+    dec.appendChild(document.createTextNode(p.decision.text));
+    body.appendChild(dec);
+  }
+
+  if (p.artifacts && p.artifacts.length) {
+    const strip = el("div", { class: "artifact-strip" });
+    for (const a of p.artifacts) {
+      strip.appendChild(el("a", { class: "pill", href: a.href }, a.label));
+    }
+    body.appendChild(strip);
+  }
+
+  if (events.length) {
+    const ul = el("ul", { class: "ph-events" });
+    for (const e of events) {
+      const li = el("li", null);
+      li.appendChild(el("span", { class: "ts" }, fmtTime(e.ts)));
+      li.appendChild(el("span", null, (e.slot ? "[" + e.slot + "] " : "") + e.action));
+      ul.appendChild(li);
+    }
+    body.appendChild(ul);
+  }
+
+  sec.appendChild(body);
+  return sec;
+}
+
+(async function mount() {
+  const events = await loadEvents();
+  const root = document.getElementById("timeline");
+  for (const p of PHASES) {
+    const phaseEvents = events.filter(p.eventFilter);
+    root.appendChild(renderPhase(p, phaseEvents));
+  }
+})();
+</script>
+</body>
+</html>

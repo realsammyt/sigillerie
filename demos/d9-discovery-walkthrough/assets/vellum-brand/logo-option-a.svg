@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Vellum · Logo Option A
+  School: Information Architecture (Pentagram-Typographic IA)
+  Posture: pure serif wordmark, tight tracking, geometric construction grid
+  Why this might fit: Vellum is a reading app, so a typographic mark is honest.
+  Why it does NOT fit Vellum's chosen direction: it leans authoritative / editorial,
+  closer to a magazine masthead than to dawn-pre-coffee calm. Reads as confident, not quiet.
+  Rejected in favor of Option B (Hara-Whitespace).
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 240 80"
+     width="240" height="80"
+     role="img" aria-label="Vellum wordmark, Option A, Pentagram-Typographic">
+  <rect width="240" height="80" fill="#FAF7F0"/>
+  <g font-family="'Source Serif Pro', 'Source Serif', Georgia, 'Times New Roman', serif"
+     font-weight="500"
+     fill="#1B1614">
+    <!-- Wordmark, tight letter-spacing, optical center -->
+    <text x="120" y="50"
+          font-size="36"
+          letter-spacing="-1.4"
+          text-anchor="middle">Vellum</text>
+    <!-- Underline rule, signature pentagram move: hairline anchored to cap-height math -->
+    <line x1="56" y1="60" x2="184" y2="60"
+          stroke="#1B1614" stroke-width="0.75"/>
+    <!-- Tiny metadata strip, the editorial tic -->
+    <text x="120" y="71"
+          font-family="ui-monospace, 'JetBrains Mono', 'SFMono-Regular', monospace"
+          font-size="6.5"
+          letter-spacing="3"
+          text-anchor="middle"
+          fill="#6E6862">EST · MMXXVI</text>
+  </g>
+</svg>
