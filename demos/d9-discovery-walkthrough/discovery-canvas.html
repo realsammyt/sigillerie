@@ -436,11 +436,24 @@ function renderPhase(p, events) {
 }
 
 (async function mount() {
-  const events = await loadEvents();
-  const root = document.getElementById("timeline");
-  for (const p of PHASES) {
-    const phaseEvents = events.filter(p.eventFilter);
-    root.appendChild(renderPhase(p, phaseEvents));
+  try {
+    const events = await loadEvents();
+    const root = document.getElementById("timeline");
+    for (const p of PHASES) {
+      const phaseEvents = events.filter(p.eventFilter);
+      root.appendChild(renderPhase(p, phaseEvents));
+    }
+  } catch (err) {
+    console.error("mount failed:", err);
+  } finally {
+    // page contract: signal the recorder we are ready, regardless of fetch outcome
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => { window.__ready = true; });
+    } else {
+      window.__ready = true;
+    }
+    // static page; expose duration for the recorder
+    window.__duration = window.__duration || 1;
   }
 })();
 </script>

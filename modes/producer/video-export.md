@@ -1,11 +1,11 @@
 ---
 name: video-export
-description: HTML to MP4/GIF export pipeline (--mode=html). Playwright recordVideo at 25fps, ffmpeg interp to 60fps, palette-optimized GIF, BGM mixing. 3D mode covered in modes/three3d/page-contract.md.
+description: HTML to MP4/GIF export pipeline (--mode=html). Playwright recordVideo at 30fps default, NVENC GPU encode auto-detected, SSAA via deviceScaleFactor for crisp text, resolution presets (4K, vertical, square), GIF + BGM. 3D mode covered in modes/three3d/page-contract.md.
 ---
 
 # Video Export (HTML mode)
 
-Scope: `--mode=html` only. Playwright headless Chromium loads the single-file HTML, records at 25fps, ffmpeg upscales temporally and packages MP4 + GIF. For 3D scenes (Three.js / R3F / model-viewer), use `--mode=three3d` and read `modes/three3d/page-contract.md` instead. That mode drives frames via CDP `HeadlessExperimental.beginFrame` against a virtualized clock and a page-side `__renderFrame(t)` hook, which is a different pipeline.
+Scope: `--mode=html` only. Playwright headless Chromium loads the single-file HTML, captures at viewport resolution with high DPI rasterization, ffmpeg encodes to H.264 (NVENC when available, libx264 fallback). For 3D scenes (Three.js / R3F / model-viewer), use `--mode=3d` and read `modes/three3d/page-contract.md` instead. That mode drives frames via CDP `HeadlessExperimental.beginFrame` against a virtualized clock and a page-side `__renderFrame(t)` hook, which is a different pipeline.
 
 ## When to export
 
@@ -43,24 +43,70 @@ Final-frame rule: the last sprite in the timeline sets `fadeOut = 0`. Video end 
 
 Two scripts in `scripts/`:
 
-### 1. `render-video.js` (HTML to 25fps MP4)
+### 1. `render-video.js` (HTML to MP4)
 
-Drives Playwright. Records a webm at 25fps, transcodes to H.264 MP4, trims the head.
+Drives Playwright. Records a webm at viewport resolution with `deviceScaleFactor` set for SSAA, transcodes to H.264 MP4 (NVENC when available), trims the head, optional 60fps interpolation.
 
 ```bash
-NODE_PATH=$(npm root -g) node scripts/render-video.js <html-file>
+node scripts/render-video.js <html-file> [flags]
 ```
 
-Args:
-- `--duration=30` total animation seconds
-- `--width=1920 --height=1080` resolution
-- `--trim=2.2` seconds to cut from the front (drops navigation + font-load flicker)
-- `--fontwait=1.5` extra wait for webfonts before `__ready` is honored
-- `--audio=tone` opt-in: capture runtime-synthesized audio via MediaRecorder OPUS. See `capabilities/generative-audio/capture-pipeline.md` for the full path. The default is silent video; BGM gets mixed in later.
+**Full flag reference**:
 
-GPU launch flags (from upstream PR #14, baked into `render-video.js`): Chromium starts with `--enable-gpu`, `--ignore-gpu-blocklist`, ANGLE backend selected per-platform (`--use-angle=metal` on macOS, `--use-angle=d3d11` on Windows, `--use-angle=gl` on Linux), plus `--enable-features=Vulkan,UseSkiaRenderer` where supported. This matters for canvas-heavy and CSS-filter-heavy pages where the software rasterizer drops frames or smears blur. Headless Chromium without these flags falls back to SwiftShader and recording quality degrades noticeably.
+| Flag | Default | Purpose |
+|---|---|---|
+| `--duration=<sec>` | reads `window.__duration`, fallback 10 | total animation seconds |
+| `--mode=html\|3d\|tone` | auto-detect | `3d` if `window.__renderFrame` exists, else `html` |
+| `--output=<path>` | `<input>.mp4` | output file |
+| `--verbose` | off | log timing, file sizes, ffmpeg invocation |
+| **Resolution** | | |
+| `--width=<px>` `--height=<px>` | 1920 × 1080 | explicit, overrides any preset below |
+| `--4k` |  | 3840 × 2160 |
+| `--1440p` |  | 2560 × 1440 |
+| `--720p` |  | 1280 × 720 |
+| `--vertical` |  | 1080 × 1920 (Reels / TikTok / Shorts) |
+| `--square` |  | 1080 × 1080 (Instagram feed) |
+| **Frame rate** | | |
+| `--fps=<n>` | 30 | output fps |
+| `--base-fps=<n>` | 30 | capture fps |
+| `--60fps` |  | shorthand for `--fps=60` (engages minterpolate) |
+| `--no-interp` | off | force skip minterpolate, output at base-fps |
+| **Quality** | | |
+| `--ssaa=<n>` | 2 | super-sample factor 1-4. 1=off, 2=default crisp, 3=hero, 4=print. Sets Chromium `deviceScaleFactor` so text and edges raster at higher DPI before capture. |
+| **Encoder** | | |
+| (auto) | NVENC if available, else libx264 | encoder selection |
+| `--gpu-encode` |  | force `h264_nvenc` (errors if unavailable) |
+| `--cpu-encode` |  | force `libx264 -preset slow` (forced CPU) |
+| **Browser GPU** | | |
+| (always on) | enabled | `--enable-gpu`, `--use-angle=<platform>`, `--enable-features=Vulkan,VulkanFromANGLE`, `--enable-unsafe-webgpu`, `--allow-file-access-from-files` |
+| `--no-gpu` |  | disable GPU launch flags (CI / debug / suspect render bugs) |
+| **Audio** | | |
+| `--audio=tone` | off | capture runtime-synthesized audio via MediaRecorder OPUS. See `capabilities/generative-audio/capture-pipeline.md`. Default is silent video; BGM gets mixed by `add-music.sh` after. |
+| **Other outputs** | | |
+| `--gif` | off | also emit GIF via `convert-formats.sh` |
 
-Output: `<name>.mp4` next to the source HTML.
+**Common combos**:
+
+```bash
+# default, 1080p, 30fps, SSAA 2x, NVENC if available
+node scripts/render-video.js page.html --duration=8
+
+# hero-quality, 4K, 60fps interp, max NVENC
+node scripts/render-video.js page.html --4k --60fps --duration=15
+
+# fast preview, small + skip interp
+node scripts/render-video.js page.html --720p --ssaa=1 --no-interp --duration=8
+
+# vertical social cut
+node scripts/render-video.js page.html --vertical --duration=12
+
+# CI-safe (no GPU access)
+node scripts/render-video.js page.html --no-gpu --cpu-encode --ssaa=1
+```
+
+**Why these defaults**: 30/30 matches Playwright's native capture rate, skipping minterpolate when fps_out === fps_base. SSAA 2x makes text and edges crisp without doubling encode time on Titan-class GPUs. NVENC auto-detect saves ~5-10× encode time when available. All overridable.
+
+Output: `<name>.mp4` next to the source HTML (or wherever `--output` points).
 
 ### 2. `convert-formats.sh` (25fps MP4 to 60fps MP4 + GIF)
 

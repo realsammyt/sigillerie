@@ -6,10 +6,10 @@
  *
  *   Playwright headless Chromium (GPU on)
  *     -> warmup context (JIT + font cache)
- *     -> recording context, recordVideo @ 25fps
+ *     -> recording context, recordVideo (Playwright native rate)
  *     -> wait window.__ready, hold for duration
- *     -> ffmpeg WebM -> H.264 MP4
- *     -> optional minterpolate 25 -> 60 fps
+ *     -> ffmpeg WebM -> H.264 MP4 at output fps
+ *     -> optional minterpolate when --fps differs from --base-fps
  *     -> optional GIF via convert-formats.sh
  *     -> optional Tone.js audio mux
  *
@@ -53,10 +53,19 @@ Options:
   --duration=<sec>      default: read window.__duration, fallback 10
   --width=<px>          default: 1920
   --height=<px>         default: 1080
-  --fps=<n>             output fps, default: 60
-  --base-fps=<n>        capture fps, default: 25 (Playwright ceiling)
+  --fps=<n>             output fps, default: 30 (matches base, no interp)
+  --base-fps=<n>        capture fps, default: 30
   --output=<path>       default: <input>.mp4
-  --no-interp           skip 25->60 interp, output at base-fps
+  --no-interp           force skip interp, output at base-fps
+  --60fps               shorthand for --fps=60 (engages minterpolate)
+  --gpu-encode          force NVENC encode (fails if unavailable)
+  --cpu-encode          force libx264 (default if NVENC absent)
+  --ssaa=<n>            super-sample factor 1-4, default 2 (1=off, 3=hero, 4=print)
+  --4k                  shorthand for --width=3840 --height=2160
+  --1440p               shorthand for --width=2560 --height=1440
+  --720p                shorthand for --width=1280 --height=720
+  --vertical            shorthand for 1080x1920 (Reels / TikTok / Shorts)
+  --square              shorthand for 1080x1080 (Instagram feed)
   --audio=tone          mux runtime Tone.js MediaRecorder audio
   --gif                 also emit GIF via convert-formats.sh
   --no-gpu              disable GPU flags (CI / debug)
@@ -79,11 +88,20 @@ try {
       height:      { type: 'string' },
       fps:         { type: 'string' },
       'base-fps':  { type: 'string' },
+      '60fps':     { type: 'boolean' },
       output:      { type: 'string' },
       'no-interp': { type: 'boolean' },
       audio:       { type: 'string' },
       gif:         { type: 'boolean' },
       'no-gpu':    { type: 'boolean' },
+      'gpu-encode': { type: 'boolean' },
+      'cpu-encode': { type: 'boolean' },
+      ssaa:        { type: 'string' },
+      '4k':        { type: 'boolean' },
+      '1440p':     { type: 'boolean' },
+      '720p':      { type: 'boolean' },
+      vertical:    { type: 'boolean' },
+      square:      { type: 'boolean' },
       verbose:     { type: 'boolean' },
       help:        { type: 'boolean' },
     },
@@ -101,12 +119,31 @@ if (parsed.values.help || parsed.positionals.length === 0) {
 
 const INPUT      = parsed.positionals[0];
 const MODE_ARG   = parsed.values.mode || 'auto';
-const WIDTH      = parseInt(parsed.values.width  || '1920', 10);
-const HEIGHT     = parseInt(parsed.values.height || '1080', 10);
-const FPS_OUT    = parseInt(parsed.values.fps    || '60',   10);
-const FPS_BASE   = parseInt(parsed.values['base-fps'] || '25', 10);
+
+// Resolution presets. Explicit --width / --height beats presets.
+function resolveDimensions() {
+  if (parsed.values.width || parsed.values.height) {
+    return [parseInt(parsed.values.width || '1920', 10), parseInt(parsed.values.height || '1080', 10)];
+  }
+  if (parsed.values['4k'])    return [3840, 2160];
+  if (parsed.values['1440p']) return [2560, 1440];
+  if (parsed.values['720p'])  return [1280, 720];
+  if (parsed.values.vertical) return [1080, 1920];
+  if (parsed.values.square)   return [1080, 1080];
+  return [1920, 1080];
+}
+const [WIDTH, HEIGHT] = resolveDimensions();
+// Default 30/30: matches Playwright's native rate well, skips minterpolate.
+// Use --60fps or --fps=60 to engage interp for hero / cinematic deliverables.
+const FPS_OUT    = parseInt(parsed.values.fps    || (parsed.values['60fps'] ? '60' : '30'), 10);
+const FPS_BASE   = parseInt(parsed.values['base-fps'] || '30', 10);
 const NO_INTERP  = parsed.values['no-interp'] === true;
 const NO_GPU     = parsed.values['no-gpu']    === true;
+const FORCE_GPU_ENCODE = parsed.values['gpu-encode'] === true;
+const FORCE_CPU_ENCODE = parsed.values['cpu-encode'] === true;
+// SSAA: render at SSAA× the output resolution, downsample with lanczos at encode.
+// Defaults to 2× for crisp text and edges. Set --ssaa=1 to disable, --ssaa=3 for hero render.
+const SSAA = Math.max(1, Math.min(4, parseInt(parsed.values.ssaa || '2', 10)));
 const VERBOSE    = parsed.values.verbose      === true;
 const WANT_GIF   = parsed.values.gif          === true;
 const AUDIO_MODE = parsed.values.audio || null;   // 'tone' or null
@@ -154,6 +191,9 @@ function gpuArgs() {
     '--enable-unsafe-webgpu',
     '--enable-unsafe-swiftshader',
     '--autoplay-policy=no-user-gesture-required',
+    // allow fetch() of sibling files when input is a file:// URL
+    '--allow-file-access-from-files',
+    '--disable-web-security',
   ];
 }
 
@@ -164,6 +204,66 @@ function log(...args) {
 }
 function vlog(...args) {
   if (VERBOSE) console.log('  [verbose]', ...args);
+}
+
+// ─── NVENC DETECT ────────────────────────────────────────────────────────────
+// Probes ffmpeg once for h264_nvenc availability. Cached after first call.
+let _nvencCache = null;
+function hasNvenc() {
+  if (_nvencCache !== null) return _nvencCache;
+  const r = spawnSync('ffmpeg', ['-hide_banner', '-encoders'], { encoding: 'utf8' });
+  if (r.status !== 0) { _nvencCache = false; return false; }
+  _nvencCache = /^\s*V[\.\w]+\s+h264_nvenc\s/m.test(r.stdout || '');
+  return _nvencCache;
+}
+
+// Returns the chosen encoder + ffmpeg args. Order:
+//   --cpu-encode -> libx264
+//   --gpu-encode -> h264_nvenc (errors if unavailable)
+//   neither     -> auto: nvenc if detected, else libx264
+function pickEncoder() {
+  if (FORCE_CPU_ENCODE) return { name: 'libx264 (forced cpu)', args: x264Args() };
+  const available = hasNvenc();
+  if (FORCE_GPU_ENCODE && !available) {
+    console.error('✗ --gpu-encode requested but h264_nvenc not available in ffmpeg');
+    console.error('  install ffmpeg with NVENC, or drop the flag (auto-detect falls back to libx264)');
+    process.exit(5);
+  }
+  if (available) return { name: 'h264_nvenc (gpu)', args: nvencArgs() };
+  return { name: 'libx264 (cpu, no nvenc detected)', args: x264Args() };
+}
+
+function x264Args() {
+  return [
+    '-c:v', 'libx264',
+    '-crf', '16',
+    '-preset', 'slow',
+    '-pix_fmt', 'yuv420p',
+    '-color_primaries', 'bt709',
+    '-colorspace', 'bt709',
+    '-color_trc', 'bt709',
+    '-movflags', '+faststart',
+  ];
+}
+
+function nvencArgs() {
+  // p7 = slowest preset = highest quality. cq 19 ≈ x264 crf 16.
+  // -tune hq biases toward visual fidelity. -rc vbr lets cq drive bitrate.
+  return [
+    '-c:v', 'h264_nvenc',
+    '-preset', 'p7',
+    '-tune', 'hq',
+    '-rc', 'vbr',
+    '-cq', '19',
+    '-b:v', '0',
+    '-maxrate', '50M',
+    '-bufsize', '100M',
+    '-pix_fmt', 'yuv420p',
+    '-color_primaries', 'bt709',
+    '-colorspace', 'bt709',
+    '-color_trc', 'bt709',
+    '-movflags', '+faststart',
+  ];
 }
 
 function ffprobeDuration(file) {
@@ -303,10 +403,16 @@ process.on('exit', cleanup);
   }
 
   // ─── RECORD ────────────────────────────────────────────────────────────────
-  log('record: opening recording context...');
+  // SSAA path: viewport stays at logical WIDTH×HEIGHT (CSS pixels). deviceScaleFactor
+  // tells Chromium to rasterize at SSAA× DPI, so text and edges get subpixel detail
+  // at higher resolution. Playwright captures viewport-sized (WIDTH×HEIGHT), Chromium's
+  // compositor handles the downsample from device buffer to capture buffer.
+  // (Earlier attempt: recordVideo.size = viewport*SSAA produced a top-left quadrant
+  // bug because Playwright doesn't scale the viewport to match recordVideo.size.)
+  log(`record: opening recording context (DPR ${SSAA}x, output ${WIDTH}x${HEIGHT})...`);
   const recCtx = await browser.newContext({
     viewport: { width: WIDTH, height: HEIGHT },
-    deviceScaleFactor: 1,
+    deviceScaleFactor: SSAA,
     recordVideo: {
       dir: TMP_DIR,
       size: { width: WIDTH, height: HEIGHT },
@@ -483,8 +589,9 @@ process.on('exit', cleanup);
     args.push('-i', audioPath);
   }
 
-  // Video filter: minterpolate 25 -> 60 unless --no-interp.
-  // Settings per modes/producer/video-export.md (mci + aobmc + bidir).
+  // Video filter chain. Capture is already at output size; no scale needed.
+  // Chromium rasterized at SSAA× DPI internally, so text/edge fidelity is baked
+  // into the WebM at viewport resolution. ffmpeg only handles fps and codec.
   const vf = [];
   if (!NO_INTERP && FPS_OUT !== FPS_BASE) {
     vf.push(`minterpolate=fps=${FPS_OUT}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1`);
@@ -496,16 +603,9 @@ process.on('exit', cleanup);
     args.push('-vf', vf.join(','));
   }
 
-  args.push(
-    '-c:v', 'libx264',
-    '-crf', '16',
-    '-preset', 'slow',
-    '-pix_fmt', 'yuv420p',
-    '-color_primaries', 'bt709',
-    '-colorspace', 'bt709',
-    '-color_trc', 'bt709',
-    '-movflags', '+faststart',
-  );
+  const encoder = pickEncoder();
+  log(`encoder: ${encoder.name}`);
+  args.push(...encoder.args);
 
   if (audioPath) {
     args.push(

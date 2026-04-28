@@ -929,7 +929,20 @@ async function boot() {
     const sub = document.getElementById("subtitle");
     sub.textContent = "Demo data. No discovery.json found alongside this page.";
   }
-  renderAll(data);
+  try {
+    renderAll(data);
+  } catch (err) {
+    console.error("renderAll failed:", err);
+  } finally {
+    // page contract: signal the recorder we are ready, regardless of fetch outcome
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => { window.__ready = true; });
+    } else {
+      window.__ready = true;
+    }
+    // static page; expose duration for the recorder
+    window.__duration = window.__duration || 1;
+  }
 }
 
 boot();
