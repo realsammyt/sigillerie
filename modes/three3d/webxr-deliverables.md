@@ -1,6 +1,6 @@
 ---
 name: webxr-deliverables
-description: 3D / Immersive — TODO Phases 4-7
+description: 3D / Immersive, TODO Phases 4-7
 status: stub
 ---
 
