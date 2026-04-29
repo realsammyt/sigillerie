@@ -40,8 +40,74 @@
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const http = require('http');
 const { spawnSync } = require('child_process');
 const { parseArgs } = require('node:util');
+
+// ─── LOCAL HTTP SERVER ───────────────────────────────────────────────────────
+// 3D mode pages use CDN importmaps with bare specifiers. Chromium resolves
+// CDN sub-imports relative to the CDN host, which only works when the page
+// is served over http://. file:// treats any absolute path (/foo) as local
+// filesystem, breaking transitive CDN deps like tw-to-css, @preact/signals,
+// etc. This server serves the repo root so demos can load ../../assets/ and
+// the browser resolves CDN imports correctly.
+
+function findRepoRoot(startDir) {
+  let dir = startDir;
+  for (let i = 0; i < 8; i++) {
+    if (fs.existsSync(path.join(dir, 'package.json'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return startDir;
+}
+
+function startStaticServer(root) {
+  const MIME = {
+    '.html': 'text/html',
+    '.js': 'application/javascript',
+    '.mjs': 'application/javascript',
+    '.jsx': 'application/javascript',
+    '.css': 'text/css',
+    '.json': 'application/json',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.webp': 'image/webp',
+    '.wasm': 'application/wasm',
+    '.glb': 'model/gltf-binary',
+    '.gltf': 'model/gltf+json',
+    '.mp3': 'audio/mpeg',
+    '.ogg': 'audio/ogg',
+  };
+  return new Promise((resolve, reject) => {
+    const server = http.createServer((req, res) => {
+      let filePath = path.join(root, req.url.split('?')[0]);
+      // Prevent path traversal outside root.
+      if (!filePath.startsWith(root)) {
+        res.writeHead(403); res.end(); return;
+      }
+      try {
+        const stat = fs.statSync(filePath);
+        if (stat.isDirectory()) filePath = path.join(filePath, 'index.html');
+      } catch {
+        res.writeHead(404); res.end(); return;
+      }
+      const ext = path.extname(filePath).toLowerCase();
+      const mime = MIME[ext] || 'application/octet-stream';
+      res.writeHead(200, {
+        'Content-Type': mime,
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'no-cache',
+      });
+      fs.createReadStream(filePath).pipe(res);
+    });
+    server.listen(0, '127.0.0.1', () => {
+      resolve({ server, port: server.address().port });
+    });
+    server.on('error', reject);
+  });
+}
 
 // ─── ARGS ────────────────────────────────────────────────────────────────────
 
@@ -367,35 +433,47 @@ async function renderMode3D({ browser, t0, tmpDir, url, output }) {
     const _epoch = Date.now();
     Date.now = () => _epoch + (window.__virtualTimeMs || 0);
     if (_origPerfNow) {
-      // performance.now: monotonic from page start, matches virtual clock.
+      // performance.now: must remain monotonically increasing, or React's
+      // scheduler gets stuck (it uses perf.now() for yield / time-slice
+      // decisions; a constant 0 causes hasTimeRemaining() to always return
+      // false, stalling React). Use real wall-clock perf.now so the
+      // scheduler yields correctly. Virtual time (window.__virtualTimeMs)
+      // only needs to affect THREE animation uniforms and Stage3D's clock,
+      // not the React scheduler itself.
       // eslint-disable-next-line no-global-assign
-      performance.now = () => window.__virtualTimeMs || 0;
+      // performance.now = () => window.__virtualTimeMs || 0; // REMOVED
     }
-    // requestAnimationFrame: deferred to a no-op queue. Page code that calls
-    // rAF will register callbacks but they never fire on their own. The
-    // recorder calls __renderFrame(t) directly per frame. This keeps the
-    // page contract simple: page sets up renderer, exposes __renderFrame,
-    // recorder drives. Any boot-time rAF chains (loaders waiting on next
-    // frame) get drained by a manual flush after navigation.
-    const _rafQueue = [];
+    // requestAnimationFrame: replaced with a setTimeout-based shim that
+    // fires callbacks on the next macrotask (≈0ms). This lets the scheduler
+    // of React and other libs continue to work (they use rAF for yield
+    // budgeting / commit phases). The stage3d.jsx recording guard
+    // (!window.__recording) already prevents Stage3D from self-driving the
+    // THREE render loop via rAF — the only rAFs we intercept here are
+    // incidental ones from React, Babel, and boot-time loaders.
+    //
+    // The dead-queue approach (store but never fire) was abandoned because
+    // React 18's scheduler posts an rAF as part of its commit handshake;
+    // if it never fires, React freezes mid-boot, __ready is never set,
+    // and the 90s timeout fires with only a Babel warning in the log.
+    const _rafIds = new Map();
+    let _rafNextId = 1;
     window.requestAnimationFrame = (cb) => {
-      const id = _rafQueue.length + 1;
-      _rafQueue.push({ id, cb });
+      const id = _rafNextId++;
+      const t_ms = window.__virtualTimeMs || 0;
+      const tid = setTimeout(() => {
+        _rafIds.delete(id);
+        try { cb(t_ms); } catch {}
+      }, 0);
+      _rafIds.set(id, tid);
       return id;
     };
     window.cancelAnimationFrame = (id) => {
-      const i = _rafQueue.findIndex(e => e.id === id);
-      if (i >= 0) _rafQueue.splice(i, 1);
+      const tid = _rafIds.get(id);
+      if (tid !== undefined) { clearTimeout(tid); _rafIds.delete(id); }
     };
     window.__flushRaf = () => {
-      // Drain pending callbacks at the current virtual time. Used after
-      // boot so any one-shot rAF chains (font ready, model load) complete
-      // before we start the capture loop.
-      const drain = _rafQueue.splice(0, _rafQueue.length);
-      const t = window.__virtualTimeMs || 0;
-      for (const { cb } of drain) {
-        try { cb(t); } catch {}
-      }
+      // Flush is now a no-op: all rAF callbacks auto-fire via setTimeout(0).
+      // Kept for compatibility with page-contract callers that invoke it.
     };
   });
 
@@ -457,14 +535,14 @@ async function renderMode3D({ browser, t0, tmpDir, url, output }) {
   try {
     await page.waitForFunction(
       () => window.__ready === true && window.__sceneReady === true,
-      { timeout: 30_000 },
+      { timeout: 90_000 },
     );
   } catch {
     readyOk = false;
   }
 
   if (!readyOk) {
-    console.error('✗ window.__ready && window.__sceneReady not set within 30s');
+    console.error('✗ window.__ready && window.__sceneReady not set within 90s');
     console.error('  page may have failed to boot or assets did not resolve.');
     console.error('  recent console output:');
     for (const line of consoleMsgs.slice(-20)) console.error('    ' + line);
@@ -793,13 +871,28 @@ async function renderMode3D({ browser, t0, tmpDir, url, output }) {
   log(`mode: ${mode}`);
 
   if (mode === '3d') {
-    await renderMode3D({
-      browser,
-      t0,
-      tmpDir: TMP_DIR,
-      url: URL,
-      output: OUTPUT,
-    });
+    // 3D mode: CDN importmaps use absolute sub-paths (/tw-to-css@...) that
+    // only resolve correctly when served over HTTP (Chromium resolves them
+    // relative to the CDN host). file:// treats them as local filesystem paths,
+    // causing "Failed to resolve module specifier" errors for every transitive
+    // CDN dependency. Spin up a one-shot local static server so importmaps
+    // work, then close it after the render finishes.
+    const repoRoot = findRepoRoot(HTML_DIR);
+    const { server: staticServer, port: staticPort } = await startStaticServer(repoRoot);
+    const relPath = HTML_ABS.replace(/\\/g, '/').replace(repoRoot.replace(/\\/g, '/'), '');
+    const httpUrl = `http://127.0.0.1:${staticPort}${relPath}`;
+    vlog(`3d static server: http://127.0.0.1:${staticPort} (root: ${repoRoot})`);
+    try {
+      await renderMode3D({
+        browser,
+        t0,
+        tmpDir: TMP_DIR,
+        url: httpUrl,
+        output: OUTPUT,
+      });
+    } finally {
+      staticServer.close();
+    }
     return;
   }
 
