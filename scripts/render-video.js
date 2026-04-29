@@ -535,14 +535,14 @@ async function renderMode3D({ browser, t0, tmpDir, url, output }) {
   try {
     await page.waitForFunction(
       () => window.__ready === true && window.__sceneReady === true,
-      { timeout: 90_000 },
+      { timeout: 30_000 },
     );
   } catch {
     readyOk = false;
   }
 
   if (!readyOk) {
-    console.error('✗ window.__ready && window.__sceneReady not set within 90s');
+    console.error('✗ window.__ready && window.__sceneReady not set within 30s');
     console.error('  page may have failed to boot or assets did not resolve.');
     console.error('  recent console output:');
     for (const line of consoleMsgs.slice(-20)) console.error('    ' + line);
