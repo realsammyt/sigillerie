@@ -14,13 +14,20 @@
   #stage-host { width: 100vw; height: 100vh; }
 </style>
 
-<!-- caveman: importmap. three + addons + uikit, all pinned. -->
+<!-- caveman: importmap. three + addons + uikit + uikit peer deps, all pinned.
+     uikit@0.8.13 dist/index.js is NOT a bundle; it re-exports from relative
+     sub-files and pulls in @preact/signals-core, yoga-layout, and
+     three/examples/jsm via bare specifiers. All four are listed here so the
+     browser can resolve them without a host (file:// context). -->
 <script type="importmap">
 {
   "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.181.0/build/three.module.min.js",
     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.181.0/examples/jsm/",
-    "@pmndrs/uikit": "https://cdn.jsdelivr.net/npm/@pmndrs/uikit@0.8.13/dist/index.js"
+    "three/examples/jsm/": "https://cdn.jsdelivr.net/npm/three@0.181.0/examples/jsm/",
+    "@pmndrs/uikit": "https://cdn.jsdelivr.net/npm/@pmndrs/uikit@0.8.13/dist/index.js",
+    "@preact/signals-core": "https://cdn.jsdelivr.net/npm/@preact/signals-core@1.5.1/dist/signals-core.module.js",
+    "yoga-layout/load": "https://cdn.jsdelivr.net/npm/yoga-layout@3.2.1/dist/src/load.js"
   }
 }
 </script>
