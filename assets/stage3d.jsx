@@ -54,6 +54,8 @@
     pixelRatio: 1,
     isRecording: false,
     registerSprite: () => () => {},
+    aspect: 16 / 9,
+    layout: 'wide',
   });
   const Sprite3DContext = createContext(null);
 
@@ -65,6 +67,165 @@
     const v = useContext(Sprite3DContext);
     if (!v) return { t: 0, elapsed: 0, duration: 0, start: 0, end: 0 };
     return v;
+  }
+
+  // ---- Adaptive layout helpers -----------------------------------------
+  // Viewport-aware classification + recipe-friendly camera/grid presets.
+  // Pure functions so they're safe to call from non-React consumers via
+  // window.SigillerieAdaptive.
+
+  // caveman: classify aspect into a layout bucket. Boundaries chosen so
+  // 16:9 lands "wide", 1:1 lands "square", phones land "portrait", cinema
+  // ratios (21:9, 32:9) land "ultrawide".
+  function layoutForAspect(aspect) {
+    if (aspect > 2.4) return 'ultrawide';
+    if (aspect > 1.5) return 'wide';
+    if (aspect > 0.9) return 'square';
+    return 'portrait';
+  }
+
+  // caveman: per-layout camera defaults. Recipes call cameraForLayout()
+  // and apply { fov, pos, target } to their PerspectiveCamera. Numbers
+  // tuned against the aesthetic doc §6 (default fov 35) with adjustments
+  // for narrow / wide framings.
+  function cameraForLayout(layout) {
+    switch (layout) {
+      case 'ultrawide':
+        // closer in + flatter fov so caps/status read at proper size, not
+        // as thumbnails on the wings.
+        return { fov: 28, pos: [0, 0.1, 7.2], target: [0, 0, 0] };
+      case 'square':
+        // back enough that 2x2 grid breathes; flatter z-recede (below) means
+        // the bottom row no longer reads tiny.
+        return { fov: 42, pos: [0, 0.2, 8.4], target: [0, -0.1, 0] };
+      case 'portrait':
+        // wider fov so 4 stacked panels fit vertically without crowding;
+        // taller frame needs more vertical reach, not closer camera.
+        return { fov: 50, pos: [0, 0, 7.4], target: [0, 0, 0] };
+      case 'wide':
+      default:
+        // classic hero: third-line offset, slight tilt-up for headroom.
+        return { fov: 34, pos: [0.2, 0.25, 5.6], target: [-0.05, -0.05, 0] };
+    }
+  }
+
+  // caveman: aspect-aware panel grid. Returns N transforms for N panels.
+  // Patterns:
+  //   wide: horizontal arc, panels rotated to face center
+  //   square: 2x2 grid with z-stagger so depth reads
+  //   portrait: vertical stack
+  //   ultrawide: long horizontal line, no curve
+  function gridForLayout(layout, count) {
+    const n = Math.max(1, count | 0);
+    const out = [];
+    if (n === 1) {
+      out.push({ position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] });
+      return out;
+    }
+
+    if (layout === 'portrait') {
+      // vertical stack with asymmetric x-shift so it doesn't read PowerPoint.
+      // step is tuned so panels don't overlap each other (uikit panels are
+      // ~1.6 units tall) at portrait camera fov 50.
+      const step = Math.min(1.65, 5.6 / n);
+      const startY = ((n - 1) / 2) * step;
+      for (let i = 0; i < n; i += 1) {
+        // alternating slight x-shift breaks the dead-center column.
+        const xShift = (i % 2 === 0 ? -0.18 : 0.22);
+        // gentle z-recede so bottom panels still read at full size.
+        const zShift = -i * 0.08;
+        out.push({
+          position: [xShift, startY - i * step, zShift],
+          rotation: [0, xShift > 0 ? -0.05 : 0.05, 0],
+          scale: [1, 1, 1],
+        });
+      }
+      return out;
+    }
+
+    if (layout === 'square') {
+      // 2x2 grid. Hero (slot 0) sits top-left and forward; subtitle top-
+      // right; caps + status on bottom row receding. Generous spacing so
+      // the hero doesn't crash into its neighbor.
+      const cols = 2;
+      const rows = Math.ceil(n / cols);
+      const xStep = 3.2;
+      const yStep = 2.0;
+      for (let i = 0; i < n; i += 1) {
+        const r = Math.floor(i / cols);
+        const c = i % cols;
+        const colsThisRow = (r === rows - 1 && n % cols === 1) ? 1 : cols;
+        const cx = (c - (colsThisRow - 1) / 2) * xStep;
+        const cy = ((rows - 1) / 2 - r) * yStep;
+        // gentler depth ladder: hero forward, top row near, bottom row
+        // slightly recessed. Avoids bottom-row panels reading too small.
+        const cz = i === 0 ? 0.10 : (r === 0 ? -0.05 : -0.20);
+        // every panel toes-in toward center for a faint vitrine curve.
+        const yaw = -cx * 0.08;
+        out.push({
+          position: [cx, cy, cz],
+          rotation: [0, yaw, 0],
+          scale: [1, 1, 1],
+        });
+      }
+      return out;
+    }
+
+    if (layout === 'ultrawide') {
+      // shallow arc across a long horizontal span. flatter than wide arc.
+      const arcRadius = 9.0;
+      const arcSpan = Math.min(Math.PI * 0.36, n * 0.20);
+      for (let i = 0; i < n; i += 1) {
+        const f = n === 1 ? 0.5 : i / (n - 1);
+        const theta = -arcSpan / 2 + f * arcSpan;
+        const x = Math.sin(theta) * arcRadius;
+        const z = -Math.cos(theta) * arcRadius + arcRadius * 0.85;
+        out.push({
+          position: [x, 0, z],
+          rotation: [0, -theta * 0.7, 0],
+          scale: [1, 1, 1],
+        });
+      }
+      return out;
+    }
+
+    // default: wide, horizontal arc. Each panel rotated toward center.
+    // tighter angle + bigger radius so the arc curves elegantly without
+    // panels eating each other.
+    const arcRadius = 5.2;
+    const arcSpan = Math.min(Math.PI * 0.46, n * 0.27);
+    for (let i = 0; i < n; i += 1) {
+      const f = n === 1 ? 0.5 : i / (n - 1);
+      const theta = -arcSpan / 2 + f * arcSpan;
+      const x = Math.sin(theta) * arcRadius;
+      const z = -Math.cos(theta) * arcRadius + arcRadius * 0.88;
+      out.push({
+        position: [x, 0, z],
+        rotation: [0, -theta, 0],
+        scale: [1, 1, 1],
+      });
+    }
+    return out;
+  }
+
+  // Hook: returns current viewport aspect + layout class. Re-fires on
+  // viewport resize because Stage3D updates the context state below.
+  function useAspect() {
+    const ctx = useContext(Stage3DContext);
+    return {
+      aspect: ctx.aspect != null ? ctx.aspect : 16 / 9,
+      layout: ctx.layout || 'wide',
+    };
+  }
+
+  // Mount adaptive helpers on a global namespace so vanilla recipes
+  // (no React) can use the same camera/grid logic.
+  if (typeof window !== 'undefined') {
+    window.SigillerieAdaptive = {
+      layoutForAspect,
+      cameraForLayout,
+      gridForLayout,
+    };
   }
 
   // ---- Styles ------------------------------------------------------------
@@ -128,6 +289,18 @@
     const rafRef = useRef(null);
     const [time, setTime] = useState(0);
     const [bootStatus, setBootStatus] = useState('booting');
+
+    // Viewport-aware state. Initial value seeded from window inner-size so
+    // the first render of children sees a real layout class, not the
+    // stage's nominal width/height (which is the backbuffer size, not the
+    // visible aspect).
+    const [viewport, setViewport] = useState(() => {
+      // caveman: prefer real viewport; fall back to nominal stage aspect.
+      const vw = (typeof window !== 'undefined' && window.innerWidth) || width;
+      const vh = (typeof window !== 'undefined' && window.innerHeight) || height;
+      const a = vw > 0 && vh > 0 ? vw / vh : (width / height);
+      return { aspect: a, layout: layoutForAspect(a) };
+    });
 
     // Sprite registration. Children call this in an effect; returns an
     // unregister function. Each entry stores the render callback ref so
@@ -214,7 +387,22 @@
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.0;
         renderer.setPixelRatio(pixelRatio);
-        renderer.setSize(width, height, false);
+
+        // caveman: recording = pin to nominal stage size; interactive = fill
+        // visible viewport so portrait/ultrawide actually paint into the
+        // tall/long frame.
+        if (isRecording) {
+          renderer.setSize(width, height, false);
+        } else {
+          const vw = (typeof window !== 'undefined' && window.innerWidth) || width;
+          const vh = (typeof window !== 'undefined' && window.innerHeight) || height;
+          renderer.setSize(vw, vh, false);
+          // Camera aspect must match the actual viewport, not the nominal stage.
+          if (camera.isPerspectiveCamera) {
+            camera.aspect = vw / vh;
+            camera.updateProjectionMatrix();
+          }
+        }
 
         if (cancelled) {
           renderer.dispose && renderer.dispose();
@@ -237,6 +425,10 @@
           frame: 0,
           useWebGPU: usedBackend === 'webgpu',
           backend: usedBackend,
+          // Recipes can replace this with a postprocessing composer call,
+          // e.g. api.draw = () => composer.render(). When null/undefined,
+          // __renderFrame falls back to the plain renderer.render(scene, camera).
+          draw: null,
         };
 
         // Update __capabilities with the actual chosen backend.
@@ -280,7 +472,11 @@
                 cb(api, Math.max(0, Math.min(1, localT)), t_s);
               }
             }
-            api.renderer.render(api.scene, api.camera);
+            if (typeof api.draw === 'function') {
+              api.draw();
+            } else {
+              api.renderer.render(api.scene, api.camera);
+            }
           };
         }
 
@@ -290,17 +486,38 @@
         // pass; for now first render is enough.
         const markReady = () => {
           if (cancelled) return;
-          // Run the time-0 frame so any Sprite3D starting at start=0 paints.
-          if (typeof window !== 'undefined' && typeof window.__renderFrame === 'function') {
-            window.__renderFrame(0);
-          } else {
-            threeRef.current.renderer.render(threeRef.current.scene, threeRef.current.camera);
-          }
-          if (typeof window !== 'undefined') {
-            window.__ready = true;
-            window.__sceneReady = true;
-          }
+          // Flip bootStatus first so React commits the children and their
+          // Sprite3Ds register via useEffect. We must NOT signal __ready yet,
+          // or the recorder starts capturing before sprites are in
+          // spritesRef.current and the early frames render an empty scene.
           setBootStatus('ready');
+          // Wait two animation frames + a microtask flush so:
+          //   - React commits children (1 rAF after setBootStatus)
+          //   - Children's useEffects run, registering sprites (next rAF)
+          // Only THEN run __renderFrame(0) to paint the populated scene
+          // and signal __ready.
+          const finalize = () => {
+            if (cancelled) return;
+            if (typeof window !== 'undefined' && typeof window.__renderFrame === 'function') {
+              window.__renderFrame(0);
+            } else {
+              const api = threeRef.current;
+              if (typeof api.draw === 'function') {
+                api.draw();
+              } else {
+                api.renderer.render(api.scene, api.camera);
+              }
+            }
+            if (typeof window !== 'undefined') {
+              window.__ready = true;
+              window.__sceneReady = true;
+            }
+          };
+          if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(() => requestAnimationFrame(finalize));
+          } else {
+            setTimeout(finalize, 32);
+          }
         };
         if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
           document.fonts.ready.then(markReady);
@@ -382,6 +599,50 @@
       };
     }, [bootStatus, isRecording, duration, loop]);
 
+    // ---- Resize subscription -------------------------------------------
+    // Keep aspect/layout state in sync with the visible viewport. Recording
+    // mode pins to the nominal stage size since the recorder never resizes.
+    useEffect(() => {
+      if (typeof window === 'undefined') return undefined;
+      if (isRecording) return undefined;
+
+      function onResize() {
+        const vw = window.innerWidth || width;
+        const vh = window.innerHeight || height;
+        const a = vw > 0 && vh > 0 ? vw / vh : (width / height);
+        const next = layoutForAspect(a);
+
+        // caveman: in interactive mode the canvas backbuffer follows the
+        // viewport so portrait/ultrawide actually paint into the tall/long
+        // frame (no letterbox bars). Camera aspect + composer get the same
+        // size so post-stack passes stay in sync.
+        const api = threeRef.current;
+        if (api && api.renderer && api.camera) {
+          api.renderer.setSize(vw, vh, false);
+          if (api.camera.isPerspectiveCamera) {
+            api.camera.aspect = a;
+            api.camera.updateProjectionMatrix();
+          }
+          // Notify any post-pipeline composer attached by a preset.
+          if (typeof api.onResize === 'function') {
+            api.onResize(vw, vh);
+          }
+        }
+
+        // caveman: only re-render when the bucket changes OR aspect drifts
+        // by more than 1% (avoids per-pixel React churn during resize).
+        setViewport((prev) => {
+          if (prev.layout === next && Math.abs(prev.aspect - a) < 0.01) return prev;
+          return { aspect: a, layout: next };
+        });
+      }
+
+      window.addEventListener('resize', onResize, { passive: true });
+      // Run once after mount in case the seed used stale dimensions.
+      onResize();
+      return () => window.removeEventListener('resize', onResize);
+    }, [isRecording, width, height]);
+
     const stageCtx = useMemo(
       () => ({
         threeApi: threeRef.current,
@@ -391,19 +652,30 @@
         isRecording,
         registerSprite,
         bootStatus,
+        aspect: viewport.aspect,
+        layout: viewport.layout,
       }),
-      [time, duration, pixelRatio, isRecording, registerSprite, bootStatus]
+      [time, duration, pixelRatio, isRecording, registerSprite, bootStatus, viewport]
     );
 
-    // Canvas size in CSS pixels. Backbuffer is scaled by pixelRatio via
-    // renderer.setPixelRatio above.
-    const canvasStyle = {
-      ...stage3dStyles.canvas,
-      width: width,
-      height: height,
-      maxWidth: '100vw',
-      maxHeight: '100vh',
-    };
+    // Canvas display size. Recording mode pins to the nominal stage aspect
+    // (width x height) so MP4 export gets a fixed-size canvas. Interactive
+    // mode fills the actual viewport so portrait and ultrawide aspects
+    // compose into the visible frame (no letterbox bars).
+    const canvasStyle = isRecording
+      ? {
+          ...stage3dStyles.canvas,
+          width: 'auto',
+          height: 'auto',
+          maxWidth: '100vw',
+          maxHeight: '100vh',
+          aspectRatio: `${width} / ${height}`,
+        }
+      : {
+          ...stage3dStyles.canvas,
+          width: '100vw',
+          height: '100vh',
+        };
 
     return (
       <Stage3DContext.Provider value={stageCtx}>
@@ -475,12 +747,17 @@
       Sprite3D,
       useStage3D,
       useSprite3D,
+      useAspect,
+      layoutForAspect,
+      cameraForLayout,
+      gridForLayout,
     });
     Object.assign(window, {
       Stage3D,
       Sprite3D,
       useStage3D,
       useSprite3D,
+      useAspect,
     });
   }
 })();

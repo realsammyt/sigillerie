@@ -13,6 +13,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "dev": "npx serve -p 5174 .",
     "test": "node scripts/run-all-golden-tests.mjs",
     "test:lint": "node scripts/run-gates.mjs --gate=lint",
     "test:caveman": "node scripts/run-gates.mjs --gate=caveman",
