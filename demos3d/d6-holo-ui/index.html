@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sigillerie · Holo-UI · Adaptive 3D</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #000;
+    overflow: hidden;
+    font-family: 'Source Serif Pro', Georgia, serif;
+  }
+  #stage-host { width: 100vw; height: 100vh; }
+</style>
+
+<!-- caveman: importmap. three + addons + uikit, all pinned. -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.181.0/build/three.module.min.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.181.0/examples/jsm/",
+    "@pmndrs/uikit": "https://esm.sh/@pmndrs/uikit@0.8.13?bundle"
+  }
+}
+</script>
+
+<!-- React + Babel for the Stage3D component layer. -->
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+
+<!-- Sigillerie 3D loader. Mounts window.Sigillerie3D with THREE inside. -->
+<script type="module" src="../../assets/three3d-loader.js"></script>
+
+<!-- Pin OrbitControls + RoomEnvironment on window for the Babel-transformed
+     recipe block to consume. -->
+<script type="module">
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+  import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+  window.OrbitControls = OrbitControls;
+  window.RoomEnvironment = RoomEnvironment;
+</script>
+
+<!-- New Sigillerie 3D library suite. Each ESM module self-mounts on window. -->
+<script type="module" src="../../assets/three3d/materials.js"></script>
+<script type="module" src="../../assets/three3d/lighting-moods.js"></script>
+<script type="module" src="../../assets/three3d/uikit-panel.js"></script>
+<script type="module" src="../../assets/tsl-effects.js"></script>
+<script type="module" src="../../assets/three3d/scene-presets.js"></script>
+
+<!-- Stage3D + Sprite3D engine. Provides Stage3D, Sprite3D, useAspect, plus
+     window.SigillerieAdaptive helpers. -->
+<script type="text/babel" data-presets="env,react" src="../../assets/stage3d.jsx"></script>
+</head>
+<body>
+<div id="stage-host"></div>
+
+<script type="text/babel" data-presets="env,react">
+// d6-holo-ui · Phase 4.5 wave 2 integration test.
+// Goal: prove the new Sigillerie 3D system delivers a world-class spatial-UI
+// scene with zero ad-hoc lighting, zero ad-hoc materials, zero CanvasTexture
+// text. Preset picks the look. uikit handles every glyph. Adaptive layout
+// switches composition by viewport bucket.
+
+const { Stage3D, Sprite3D } = window;
+
+// ---- App component ----------------------------------------------------
+
+function App() {
+  React.useEffect(() => {
+    // caveman: audio cue at t=2.0 is the golden-test landmark. The recorder's
+    // add-music.sh mixes from disk; we just declare the cue.
+    window.__audioCues = [{ t: 2.0, type: 'sfx', cue: 'holo-bell' }];
+    window.__audioRuntime = 'static';
+  }, []);
+
+  return (
+    <Stage3D
+      width={1920}
+      height={1080}
+      duration={12}
+      loop={true}
+      pixelRatio={1}
+      bgColor="#0a0814"
+      cameraType="perspective"
+      cameraFov={34}
+      cameraPos={[0.2, 0.25, 5.6]}
+    >
+      <Sprite3D start={0} end={12}>
+        {(threeApi, sprite_t, global_t) => {
+          HoloUiAdaptive(threeApi, sprite_t, global_t);
+        }}
+      </Sprite3D>
+    </Stage3D>
+  );
+}
+
+// ---- Recipe ------------------------------------------------------------
+// Build-once on first call, mutate per frame. Stage3D's dispose walk frees
+// everything on unmount. All build-once state lives on group.userData so
+// hot-reload doesn't double-build.
+
+function HoloUiAdaptive(threeApi, sprite_t, global_t) {
+  const THREE = threeApi.THREE;
+  const group = threeApi.group;
+  const t = global_t;
+
+  if (!group.userData.built) {
+    group.userData.built = true;
+    buildScene(threeApi, group);
+  }
+
+  tickScene(threeApi, group, t);
+}
+
+// ---- One-time build ----------------------------------------------------
+
+function buildScene(threeApi, group) {
+  const THREE = threeApi.THREE;
+
+  // 1. PMREM environment so the preset's frosted-glass material has something
+  //    to refract. Without an env map, glass reads as flat tinted plastic
+  //    (aesthetic.md §3). Preset doesn't manage envMap; that's still on us.
+  if (window.RoomEnvironment && threeApi.renderer) {
+    const pmrem = new THREE.PMREMGenerator(threeApi.renderer);
+    const env = pmrem.fromScene(new window.RoomEnvironment(), 0.04).texture;
+    threeApi.scene.environment = env;
+    group.userData.pmrem = pmrem;
+    group.userData.envTexture = env;
+  }
+
+  // 2. Install Spatial Vitrine preset. This wires lighting (warm-sunset),
+  //    material factory (frosted glass), camera (fov 38, slight drift), and
+  //    the post chain (bloom + vignette + chromatic) all in one call. The
+  //    preset attaches its composer to threeApi.draw automatically when we
+  //    pass attachDraw: true.
+  let preset = null;
+  if (window.SigilleriePresets && window.SigilleriePresets.applySpatialVitrine) {
+    preset = window.SigilleriePresets.applySpatialVitrine(threeApi, {
+      attachDraw: true,
+    });
+    group.userData.preset = preset;
+  } else {
+    console.warn('[d6] SigilleriePresets not on window. Scene will look plain.');
+  }
+
+  // 3. Aspect detection. Pick a layout class from the actual viewport, not
+  //    from the nominal 1920x1080 backbuffer. Falls back to 'wide' if the
+  //    adaptive helpers haven't loaded yet.
+  const adaptive = window.SigillerieAdaptive || {
+    layoutForAspect: () => 'wide',
+    cameraForLayout: (l) => ({ fov: 38, pos: [0, 0.2, 5.5], target: [0, 0, 0] }),
+    gridForLayout: (l, n) => Array.from({ length: n }, (_, i) => ({
+      position: [(i - (n - 1) / 2) * 1.6, 0, 0],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1],
+    })),
+  };
+  const viewportAspect = (typeof window !== 'undefined' && window.innerWidth && window.innerHeight)
+    ? window.innerWidth / window.innerHeight
+    : 16 / 9;
+  const layout = adaptive.layoutForAspect(viewportAspect);
+  group.userData.layout = layout;
+
+  // 4. Apply per-layout camera. Preset already set a default; we override
+  //    when the layout class wants something tighter or wider. Preset's
+  //    drift function still works because it captures the new basePos via
+  //    setupCamera reading current cam.position.
+  const camCfg = adaptive.cameraForLayout(layout);
+  if (threeApi.camera && camCfg) {
+    threeApi.camera.fov = camCfg.fov;
+    threeApi.camera.position.set(camCfg.pos[0], camCfg.pos[1], camCfg.pos[2]);
+    threeApi.camera.lookAt(camCfg.target[0], camCfg.target[1], camCfg.target[2]);
+    threeApi.camera.updateProjectionMatrix();
+  }
+
+  // 5. Build 4 uikit panels per layout grid. Roles map to slots:
+  //    title (hero), subtitle (supporting), capabilities (context), status (context).
+  //    Per-layout slot ordering is tuned in computePanelSpecs().
+  const panelSpecs = computePanelSpecs(layout);
+  const grid = adaptive.gridForLayout(layout, panelSpecs.length);
+
+  const panels = [];
+  for (let i = 0; i < panelSpecs.length; i += 1) {
+    const spec = panelSpecs[i];
+    const xform = grid[i] || { position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] };
+
+    // caveman: scale grid transform by spec.scaleHint so the hero panel reads
+    // bigger than supporting / context panels (focal hierarchy, aesthetic §1).
+    const sx = (xform.scale[0] || 1) * spec.scaleHint;
+    const sy = (xform.scale[1] || 1) * spec.scaleHint;
+    const sz = (xform.scale[2] || 1) * spec.scaleHint;
+
+    const panel = window.SigillerieUikit.createPanel(threeApi, {
+      width: spec.width,
+      height: spec.height,
+      layout: 'flex-col',
+      justifyContent: spec.justifyContent || 'center',
+      alignItems: spec.alignItems || 'flex-start',
+      background: spec.bg,
+      borderRadius: 24,
+      padding: spec.padding != null ? spec.padding : 40,
+      theme: 'dark',
+      children: spec.children,
+    });
+
+    // caveman: thin warm accent stripe along top of hero panel. Uses an
+    // additive emissive sliver so bloom catches it. Signals "this is the
+    // hero" and reinforces the warm/cool axis (aesthetic §7).
+    if (spec.role === 'title') {
+      const stripeW = spec.width * 0.85;
+      const stripeGeo = new THREE.PlaneGeometry(stripeW, 0.012);
+      const stripeMat = new THREE.MeshBasicMaterial({
+        color: 0xffb37a,
+        transparent: true,
+        opacity: 0.95,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      const stripe = new THREE.Mesh(stripeGeo, stripeMat);
+      // sit just inside the top edge, very slightly forward.
+      stripe.position.set(0, spec.height * 0.5 - 0.05, 0.012);
+      panel.root.add(stripe);
+    }
+
+    panel.root.position.set(xform.position[0], xform.position[1], xform.position[2]);
+    panel.root.rotation.set(xform.rotation[0], xform.rotation[1], xform.rotation[2]);
+    panel.root.scale.set(sx, sy, sz);
+    panel.root.userData.role = spec.role;
+    panel.root.userData.basePos = [xform.position[0], xform.position[1], xform.position[2]];
+    panel.root.userData.baseScale = [sx, sy, sz];
+    panel.root.userData.phase = i * 0.6;
+
+    group.add(panel.root);
+    panels.push(panel);
+  }
+  group.userData.panels = panels;
+
+  // 6. Hero accent: a thin warm-emissive torus inside the hero panel,
+  //    pinned to the right side so it reads as ornament behind the title
+  //    text without colliding with neighboring panels. Sized smaller in
+  //    square/portrait where the hero panel is itself smaller.
+  const heroIdx = panelSpecs.findIndex((s) => s.role === 'title');
+  if (heroIdx >= 0 && grid[heroIdx]) {
+    const hp = grid[heroIdx].position;
+    const heroSpec = panelSpecs[heroIdx];
+    const heroW = heroSpec.width * heroSpec.scaleHint;
+    const heroH = heroSpec.height * heroSpec.scaleHint;
+    // Ring radius scales with panel height; lives 28% in from right edge.
+    const ringRadius = Math.min(0.42, heroH * 0.30);
+    const ringX = hp[0] + heroW * 0.30;
+    const ringY = hp[1];
+    const ringZ = hp[2] - 0.05;
+
+    const ringGeo = new THREE.TorusGeometry(ringRadius, 0.007, 16, 96);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0xffb37a,
+      transparent: true,
+      opacity: 0.95,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.set(ringX, ringY, ringZ);
+    ring.userData.basePos = [ringX, ringY, ringZ];
+    ring.rotation.x = 0.04;
+    group.add(ring);
+    group.userData.heroRing = ring;
+
+    // Inner disc for extra bloom catch. Soft warm glow behind the ring.
+    const haloSize = ringRadius * 3.0;
+    const haloGeo = new THREE.PlaneGeometry(haloSize, haloSize);
+    const haloMat = new THREE.MeshBasicMaterial({
+      color: 0xff8d52,
+      transparent: true,
+      opacity: 0.14,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const halo = new THREE.Mesh(haloGeo, haloMat);
+    halo.position.set(ringX, ringY, ringZ - 0.05);
+    group.add(halo);
+    group.userData.heroHalo = halo;
+
+    // A second tiny inner ring for layered detail (cinema-grade ornament).
+    const inner = new THREE.Mesh(
+      new THREE.TorusGeometry(ringRadius * 0.42, 0.004, 12, 64),
+      new THREE.MeshBasicMaterial({
+        color: 0xffd0a0,
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+    );
+    inner.position.set(ringX, ringY, ringZ + 0.01);
+    group.add(inner);
+    group.userData.heroInner = inner;
+  }
+
+  // 7. Backdrop gradient sphere. Inverted normals so we render the inside.
+  //    Vertex-color radial gradient: deep indigo at top, near-black at
+  //    bottom. Sits at z=-12 so it's outside the scene action and reads as
+  //    atmosphere, not as a wall. Replaces the prior cream-glass plate
+  //    that was eating every frame.
+  const bgGeo = new THREE.SphereGeometry(36, 32, 24);
+  const bgMat = new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    depthWrite: false,
+    uniforms: {
+      colorTop:    { value: new THREE.Color(0x2a1d4a) },
+      colorMid:    { value: new THREE.Color(0x140a26) },
+      colorBottom: { value: new THREE.Color(0x05030d) },
+    },
+    vertexShader: `
+      varying vec3 vWorldPos;
+      void main() {
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vWorldPos = wp.xyz;
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 colorTop;
+      uniform vec3 colorMid;
+      uniform vec3 colorBottom;
+      varying vec3 vWorldPos;
+      void main() {
+        float h = clamp((normalize(vWorldPos).y + 1.0) * 0.5, 0.0, 1.0);
+        vec3 c = h < 0.5
+          ? mix(colorBottom, colorMid, h * 2.0)
+          : mix(colorMid, colorTop, (h - 0.5) * 2.0);
+        gl_FragColor = vec4(c, 1.0);
+      }
+    `,
+  });
+  const bgSphere = new THREE.Mesh(bgGeo, bgMat);
+  bgSphere.renderOrder = -1;
+  threeApi.scene.add(bgSphere);
+  group.userData.bgSphere = bgSphere;
+
+  // 7. OrbitControls in interactive mode only. Recording mode lets the
+  //    preset's camera drift own the camera. Damping makes idle preview feel
+  //    cinematic without forcing user input.
+  if (typeof window.OrbitControls === 'function' &&
+      threeApi.renderer && threeApi.renderer.domElement &&
+      !window.__recording) {
+    const oc = new window.OrbitControls(threeApi.camera, threeApi.renderer.domElement);
+    oc.enableDamping = true;
+    oc.dampingFactor = 0.08;
+    oc.minDistance = 3;
+    oc.maxDistance = 14;
+    oc.target.set(0, 0, 0);
+    oc.update();
+    group.userData.orbitControls = oc;
+  }
+
+  // 8. Atmospheric particle flecks. Drift upward, wrap when they leave the
+   //   box. Pure function of t so the recorder stays deterministic. These
+   //   are atmosphere; they sit behind the panels at varying depth and
+   //   never compete for attention.
+  buildParticles(threeApi, group);
+
+  // 9. Composer resize. Stage3D drives this via threeApi.onResize when the
+  //    visible viewport changes. The handler reads the renderer's actual
+  //    size and pushes it into the post-stack composer.
+  if (preset && preset.postprocessing && preset.postprocessing.composer) {
+    const composer = preset.postprocessing.composer;
+    threeApi.onResize = function (vw, vh) {
+      composer.setSize(vw, vh);
+      composer.setPixelRatio(threeApi.renderer.getPixelRatio());
+    };
+    // Run once now so first paint matches the booted viewport.
+    if (threeApi.renderer) {
+      const size = new THREE.Vector2();
+      threeApi.renderer.getSize(size);
+      composer.setSize(size.x, size.y);
+      composer.setPixelRatio(threeApi.renderer.getPixelRatio());
+    }
+  }
+}
+
+// ---- Layout-aware panel content ---------------------------------------
+// caveman: layout class drives both panel geometry (width/height) and the
+// content density. Portrait wants tall narrow panels, ultrawide wants short
+// wide ones. Title is always slot 0 and gets scaleHint > 1 so it dominates.
+
+function computePanelSpecs(layout) {
+  // Color discipline (aesthetic §7):
+  //   warm (hero) vs cool (supporting/context). Hero gets a deep ember-tinted
+  //   surface with a coral accent stripe; supporting and context panels
+  //   carry a cool indigo so the warm/cool axis reads. Background panels
+  //   are darker so luminance delta vs panels is visible.
+  const titleColor    = '#FFF4E2'; // warm white
+  const supportColor  = '#E8EEF8'; // cool white
+  const mutedColor    = '#A8B5D6';
+  const labelColor    = '#FF9A6A'; // warm coral, used as accent eyebrow
+  const labelCool     = '#7E8DB8';
+
+  // Hero: warm-bronzed dark with enough alpha to feel like a tinted glass
+  //       plate rather than a brick. The high luminance contrast vs ctx
+  //       panels carries the focal hierarchy.
+  const surfaceHero   = 'rgba(54, 32, 22, 0.78)';
+  // Supporting: cool deep navy, slightly transparent. luminance lower than hero.
+  const surfaceSupp   = 'rgba(20, 26, 52, 0.78)';
+  // Context: very dark cool, low opacity so it recedes. context = atmosphere.
+  const surfaceCtx    = 'rgba(12, 16, 30, 0.62)';
+
+  // Common children definitions, reused across layouts. Title fontSize is
+  // sized to fit inside hero width 3.0 with padding; uikit doesn't shrink to
+  // fit so we keep the glyph budget under what the box can hold.
+  const titleChildren = [
+    { type: 'text', text: 'STUDIO  /  2026',
+      fontSize: 12, color: labelColor,
+      textAlign: 'left', letterSpacing: 6, marginBottom: 14 },
+    { type: 'text', text: 'SIGILLERIE',
+      fontSize: 78, color: titleColor, fontWeight: 'bold',
+      textAlign: 'left', letterSpacing: 6 },
+    { type: 'text', text: 'spatial design studio',
+      fontSize: 18, color: mutedColor,
+      textAlign: 'left', marginTop: 14, letterSpacing: 5 },
+    { type: 'text', text: 'Holo-UI  ·  v0.2',
+      fontSize: 20, color: labelColor,
+      textAlign: 'left', marginTop: 22, letterSpacing: 3 },
+  ];
+  const subtitleChildren = [
+    { type: 'text', text: 'ADAPTIVE 3D',
+      fontSize: 32, color: supportColor, fontWeight: 'bold', letterSpacing: 3 },
+    { type: 'text', text: 'one scene  ·  four shapes',
+      fontSize: 17, color: mutedColor, marginTop: 10 },
+    { type: 'text', text: 'wide / square / portrait / ultrawide',
+      fontSize: 13, color: labelCool, marginTop: 16, letterSpacing: 2 },
+  ];
+  const capsChildren = [
+    { type: 'text', text: 'CAPABILITY',
+      fontSize: 13, color: labelCool, letterSpacing: 5, marginBottom: 14 },
+    { type: 'text', text: 'Discovery', fontSize: 22, color: supportColor, marginTop: 4 },
+    { type: 'text', text: 'Producer',  fontSize: 22, color: supportColor, marginTop: 4 },
+    { type: 'text', text: '3D',        fontSize: 22, color: supportColor, marginTop: 4 },
+    { type: 'text', text: 'Audio',     fontSize: 22, color: mutedColor,   marginTop: 4 },
+  ];
+  const statusChildren = [
+    { type: 'text', text: 'TARGET',
+      fontSize: 13, color: labelCool, letterSpacing: 5, marginBottom: 14 },
+    { type: 'text', text: 'Vision Pro',    fontSize: 22, color: supportColor, marginTop: 4 },
+    { type: 'text', text: 'Quest 3',       fontSize: 22, color: supportColor, marginTop: 4 },
+    { type: 'text', text: 'Web',           fontSize: 22, color: supportColor, marginTop: 4 },
+    { type: 'text', text: 'AR Quick Look', fontSize: 16, color: mutedColor,   marginTop: 10 },
+  ];
+
+  if (layout === 'portrait') {
+    // tall stack. hero on top; supporting, contexts smaller below. With
+    // the portrait camera at z=6.8 the panels need full size so text reads.
+    return [
+      { role: 'title',    width: 2.4, height: 1.5,  bg: surfaceHero, padding: 32, scaleHint: 1.00, children: titleChildren },
+      { role: 'subtitle', width: 2.2, height: 1.0,  bg: surfaceSupp, padding: 24, scaleHint: 0.85, children: subtitleChildren },
+      { role: 'caps',     width: 2.0, height: 1.25, bg: surfaceCtx,  padding: 22, scaleHint: 0.75, children: capsChildren },
+      { role: 'status',   width: 2.0, height: 1.25, bg: surfaceCtx,  padding: 22, scaleHint: 0.70, children: statusChildren },
+    ];
+  }
+
+  if (layout === 'ultrawide') {
+    // long bar: hero center-right at slot 2 (third-line offset, §8). caps
+    // far left, status far right, subtitle just left of hero.
+    return [
+      { role: 'caps',     width: 1.8, height: 1.65, bg: surfaceCtx,  padding: 32, scaleHint: 0.85, children: capsChildren },
+      { role: 'subtitle', width: 2.0, height: 1.20, bg: surfaceSupp, padding: 32, scaleHint: 0.95, children: subtitleChildren },
+      { role: 'title',    width: 2.8, height: 1.55, bg: surfaceHero, padding: 38, scaleHint: 1.15, children: titleChildren },
+      { role: 'status',   width: 1.8, height: 1.65, bg: surfaceCtx,  padding: 32, scaleHint: 0.85, children: statusChildren },
+    ];
+  }
+
+  if (layout === 'square') {
+    // 2x2 grid. hero in top-left (slot 0 sits forward). subtitle top-right,
+    // caps bottom-left, status bottom-right. Hero stays moderate so the
+    // grid actually reads as 2x2 + hierarchy, not as one giant panel +
+    // thumbnails.
+    return [
+      { role: 'title',    width: 2.4, height: 1.45, bg: surfaceHero, padding: 32, scaleHint: 0.92, children: titleChildren },
+      { role: 'subtitle', width: 2.0, height: 1.15, bg: surfaceSupp, padding: 26, scaleHint: 0.82, children: subtitleChildren },
+      { role: 'caps',     width: 1.9, height: 1.30, bg: surfaceCtx,  padding: 24, scaleHint: 0.78, children: capsChildren },
+      { role: 'status',   width: 1.9, height: 1.30, bg: surfaceCtx,  padding: 24, scaleHint: 0.78, children: statusChildren },
+    ];
+  }
+
+  // wide (default): horizontal arc. caps and status flank as wings,
+  // subtitle is left-of-hero, hero (slot 2) sits on the right third-line.
+  return [
+    { role: 'caps',     width: 1.8, height: 1.65, bg: surfaceCtx,  padding: 30, scaleHint: 0.78, children: capsChildren },
+    { role: 'subtitle', width: 2.0, height: 1.20, bg: surfaceSupp, padding: 30, scaleHint: 0.88, children: subtitleChildren },
+    { role: 'title',    width: 2.8, height: 1.55, bg: surfaceHero, padding: 38, scaleHint: 1.12, children: titleChildren },
+    { role: 'status',   width: 1.8, height: 1.65, bg: surfaceCtx,  padding: 30, scaleHint: 0.78, children: statusChildren },
+  ];
+}
+
+// caveman: backdrop sphere now handles the bg. computePlateSize was removed
+// because the cream-glass plate was eating every frame; see buildScene §7.
+
+// ---- Particles --------------------------------------------------------
+// Atmospheric flecks. 60 points, deterministic mulberry32 seed so the
+// recorder gets identical output each run. Additive blend so they pop
+// against the dark backdrop without competing with panel readability.
+
+function buildParticles(threeApi, group) {
+  const THREE = threeApi.THREE;
+  const COUNT = 90;
+  const positions = new Float32Array(COUNT * 3);
+  const init = new Float32Array(COUNT * 3);
+  const vel = new Float32Array(COUNT);
+  const phase = new Float32Array(COUNT);
+
+  // mulberry32. deterministic seed.
+  let seed = 9123;
+  function rand() {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let r = seed;
+    r = Math.imul(r ^ (r >>> 15), r | 1);
+    r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  }
+
+  for (let i = 0; i < COUNT; i += 1) {
+    const x = (rand() - 0.5) * 14.0;
+    const y = (rand() - 0.5) * 8.0;
+    const z = -3.5 + rand() * 4.0;
+    init[i * 3 + 0] = x;
+    init[i * 3 + 1] = y;
+    init[i * 3 + 2] = z;
+    positions[i * 3 + 0] = x;
+    positions[i * 3 + 1] = y;
+    positions[i * 3 + 2] = z;
+    vel[i] = 0.05 + rand() * 0.10;
+    phase[i] = rand() * Math.PI * 2;
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const mat = new THREE.PointsMaterial({
+    color: 0xffd6b0,
+    size: 0.030,
+    sizeAttenuation: true,
+    transparent: true,
+    opacity: 0.45,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const points = new THREE.Points(geo, mat);
+  group.add(points);
+
+  group.userData.particles = {
+    points: points,
+    init: init,
+    vel: vel,
+    phase: phase,
+    count: COUNT,
+    ySpan: 9.0,
+  };
+}
+
+// ---- Per-frame tick ---------------------------------------------------
+
+function tickScene(threeApi, group, t) {
+  // 1. uikit panels: layout reflow tick + radial breath. Every panel
+  //    breathes toward/away from origin along its base radial vector. Phase
+  //    is offset per panel so the group reads as alive, not synchronized.
+  const panels = group.userData.panels;
+  if (panels && panels.length) {
+    for (let i = 0; i < panels.length; i += 1) {
+      const p = panels[i];
+      // uikit Root.update(dt) ticks yoga layout + animations.
+      if (typeof p.update === 'function') p.update();
+
+      const base = p.root.userData.basePos;
+      const phase = p.root.userData.phase || 0;
+      const breath = Math.sin(t * 0.4 + phase) * 0.06;
+
+      // breathing direction: outward from origin in xz plane.
+      const distSq = base[0] * base[0] + base[2] * base[2];
+      if (distSq > 0.01) {
+        const dist = Math.sqrt(distSq);
+        const nx = base[0] / dist;
+        const nz = base[2] / dist;
+        p.root.position.x = base[0] + nx * breath;
+        p.root.position.z = base[2] + nz * breath;
+      } else {
+        // no horizontal radial; breathe along z only.
+        p.root.position.z = base[2] + breath;
+      }
+      // tiny y bob, role-dependent. title gets the most.
+      const role = p.root.userData.role;
+      const bobAmp = role === 'title' ? 0.04 : 0.02;
+      p.root.position.y = base[1] + Math.sin(t * 0.3 + phase) * bobAmp;
+    }
+  }
+
+  // 2. Hero ring + halo: slow rotation + breath. The ring's emissive bloom
+  //    is the focal anchor (aesthetic §1, §4). Rotation is slow enough to
+  //    read as alive, not animated.
+  const heroRing = group.userData.heroRing;
+  if (heroRing && heroRing.userData.basePos) {
+    const bp = heroRing.userData.basePos;
+    heroRing.rotation.z = t * 0.06;
+    heroRing.position.y = bp[1] + Math.sin(t * 0.4) * 0.03;
+    // gentle pulse on opacity so the bloom breathes.
+    if (heroRing.material) {
+      heroRing.material.opacity = 0.78 + Math.sin(t * 0.5) * 0.10;
+    }
+  }
+  const heroHalo = group.userData.heroHalo;
+  if (heroHalo && heroHalo.material) {
+    heroHalo.material.opacity = 0.08 + Math.sin(t * 0.35) * 0.03;
+  }
+
+  // 3. Camera drift, preset-driven. Only when not recording AND user is not
+  //    actively dragging. OrbitControls.update() handles damping when present.
+  const preset = group.userData.preset;
+  const oc = group.userData.orbitControls;
+  if (oc && typeof oc.update === 'function') {
+    oc.update();
+  } else if (preset && preset.camera && typeof preset.camera.drift === 'function') {
+    preset.camera.drift(t);
+  }
+
+  // 4. Lighting mood update. Aurora has time-driven palette; warm-sunset is a
+  //    no-op but we call defensively so a future preset swap "just works".
+  if (preset && preset.lighting && typeof preset.lighting.update === 'function') {
+    preset.lighting.update(t);
+  }
+
+  // 5. Plasma material tick. Not used by spatial-vitrine preset, but if the
+  //    caller swaps to aurora-drift later, this keeps the surface alive.
+  if (group.userData.plasmaMat && group.userData.plasmaMat.userData &&
+      typeof group.userData.plasmaMat.userData.update === 'function') {
+    group.userData.plasmaMat.userData.update(t);
+  }
+
+  // 6. Particle drift. Pure function of t so the recorder is deterministic.
+  const parts = group.userData.particles;
+  if (parts) {
+    const arr = parts.points.geometry.attributes.position.array;
+    for (let i = 0; i < parts.count; i += 1) {
+      const ix = i * 3;
+      const x0 = parts.init[ix + 0];
+      const y0 = parts.init[ix + 1];
+      const z0 = parts.init[ix + 2];
+      let y = y0 + t * parts.vel[i];
+      // wrap modulus into [-ySpan/2, +ySpan/2)
+      y = ((y + parts.ySpan / 2) % parts.ySpan + parts.ySpan) % parts.ySpan
+          - parts.ySpan / 2;
+      const sway = Math.sin(t * 0.5 + parts.phase[i]) * 0.10;
+      arr[ix + 0] = x0 + sway;
+      arr[ix + 1] = y;
+      arr[ix + 2] = z0;
+    }
+    parts.points.geometry.attributes.position.needsUpdate = true;
+  }
+}
+
+// ---- Mount -------------------------------------------------------------
+
+ReactDOM.createRoot(document.getElementById('stage-host')).render(<App />);
+</script>
+</body>
+</html>

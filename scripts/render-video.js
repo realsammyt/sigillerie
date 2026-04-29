@@ -13,8 +13,11 @@
  *     -> optional GIF via convert-formats.sh
  *     -> optional Tone.js audio mux
  *
- * 3D mode (--mode=3d) is a stub. Phase 4 fills modes/three3d/page-contract.md
- * with the CDP beginFrame contract; this script will dispatch there.
+ * 3D mode (--mode=3d) drives modes/three3d/page-contract.md via CDP
+ * HeadlessExperimental.beginFrame against a virtualized clock. Page exposes
+ * window.__renderFrame(t_ms); recorder owns time, captures PNG sequence,
+ * encodes via pickEncoder(). Falls back to page.screenshot() if the CDP
+ * domain is missing.
  *
  * Reference: huashu-design/scripts/render-video.js (parity, re-implemented).
  * See modes/producer/animation-pitfalls.md §5, §12 for the warmup + __ready
@@ -61,6 +64,8 @@ Options:
   --gpu-encode          force NVENC encode (fails if unavailable)
   --cpu-encode          force libx264 (default if NVENC absent)
   --ssaa=<n>            super-sample factor 1-4, default 2 (1=off, 3=hero, 4=print)
+  --frame-interval=<ms> 3d mode: override per-frame interval (default 1000/fps)
+  --audio-tail-buffer=<ms>  3d mode: extra audio capture past last frame (default 200)
   --4k                  shorthand for --width=3840 --height=2160
   --1440p               shorthand for --width=2560 --height=1440
   --720p                shorthand for --width=1280 --height=720
@@ -97,6 +102,8 @@ try {
       'gpu-encode': { type: 'boolean' },
       'cpu-encode': { type: 'boolean' },
       ssaa:        { type: 'string' },
+      'frame-interval':    { type: 'string' },
+      'audio-tail-buffer': { type: 'string' },
       '4k':        { type: 'boolean' },
       '1440p':     { type: 'boolean' },
       '720p':      { type: 'boolean' },
@@ -148,6 +155,12 @@ const VERBOSE    = parsed.values.verbose      === true;
 const WANT_GIF   = parsed.values.gif          === true;
 const AUDIO_MODE = parsed.values.audio || null;   // 'tone' or null
 const DURATION_OVERRIDE = parsed.values.duration ? parseFloat(parsed.values.duration) : null;
+const FRAME_INTERVAL_OVERRIDE = parsed.values['frame-interval']
+  ? parseFloat(parsed.values['frame-interval'])
+  : null;
+const AUDIO_TAIL_BUFFER_MS = parsed.values['audio-tail-buffer']
+  ? parseInt(parsed.values['audio-tail-buffer'], 10)
+  : 200;
 
 // ─── VALIDATE ────────────────────────────────────────────────────────────────
 
@@ -309,6 +322,397 @@ function cleanup() {
 }
 process.on('exit', cleanup);
 
+// ─── 3D MODE: deterministic frame stepping ───────────────────────────────────
+// Per HUASHU-3D-FORK-PLAN.md §4.3 and modes/three3d/page-contract.md.
+//
+// The page exposes window.__renderFrame(t_ms). The recorder owns the clock:
+// it sets window.__virtualTimeMs, calls __renderFrame(t), then captures a PNG
+// via CDP HeadlessExperimental.beginFrame. Wall-clock APIs are pre-stubbed
+// via addInitScript so the page cannot read real time. The result is bit-exact
+// frames at exactly t = i * frameInterval for i = 0..totalFrames-1.
+//
+// Fallback path (if HeadlessExperimental.beginFrame is not available in the
+// current Chromium build) uses page.screenshot() with the same virtual clock
+// loop. Same determinism, slightly slower, no CDP dependency.
+
+async function renderMode3D({ browser, t0, tmpDir, url, output }) {
+  log('mode=3d: deterministic frame stepping via CDP beginFrame');
+
+  // ─── CONTEXT + CLOCK STUBS ────────────────────────────────────────────────
+  // Build a non-recordVideo context (we capture frames ourselves, not via
+  // Playwright recordVideo). deviceScaleFactor=SSAA passes through to
+  // Chromium's compositor: screenshots come out at WIDTH*SSAA × HEIGHT*SSAA.
+  const recCtx = await browser.newContext({
+    viewport: { width: WIDTH, height: HEIGHT },
+    deviceScaleFactor: SSAA,
+  });
+
+  // Recording handshake: set BEFORE navigation so the page reads it during
+  // boot and stays out of the rAF loop (page-contract.md §__recording).
+  await recCtx.addInitScript(() => {
+    window.__recording = true;
+  });
+
+  // Virtual clock: stub Date.now / performance.now and neutralize rAF so
+  // the page cannot read wall-clock or self-drive its render loop. The
+  // recorder is the only thing that advances time. Per page-contract.md §3
+  // (banned wall-clock APIs).
+  await recCtx.addInitScript(() => {
+    window.__virtualTimeMs = 0;
+    const _origPerfNow = (typeof performance !== 'undefined' && performance.now)
+      ? performance.now.bind(performance) : null;
+    // Date.now: always return virtual time. ms-since-epoch shape preserved
+    // by adding a frozen epoch base so any code doing Date.now() - someBase
+    // sees monotonic deltas.
+    const _epoch = Date.now();
+    Date.now = () => _epoch + (window.__virtualTimeMs || 0);
+    if (_origPerfNow) {
+      // performance.now: monotonic from page start, matches virtual clock.
+      // eslint-disable-next-line no-global-assign
+      performance.now = () => window.__virtualTimeMs || 0;
+    }
+    // requestAnimationFrame: deferred to a no-op queue. Page code that calls
+    // rAF will register callbacks but they never fire on their own. The
+    // recorder calls __renderFrame(t) directly per frame. This keeps the
+    // page contract simple: page sets up renderer, exposes __renderFrame,
+    // recorder drives. Any boot-time rAF chains (loaders waiting on next
+    // frame) get drained by a manual flush after navigation.
+    const _rafQueue = [];
+    window.requestAnimationFrame = (cb) => {
+      const id = _rafQueue.length + 1;
+      _rafQueue.push({ id, cb });
+      return id;
+    };
+    window.cancelAnimationFrame = (id) => {
+      const i = _rafQueue.findIndex(e => e.id === id);
+      if (i >= 0) _rafQueue.splice(i, 1);
+    };
+    window.__flushRaf = () => {
+      // Drain pending callbacks at the current virtual time. Used after
+      // boot so any one-shot rAF chains (font ready, model load) complete
+      // before we start the capture loop.
+      const drain = _rafQueue.splice(0, _rafQueue.length);
+      const t = window.__virtualTimeMs || 0;
+      for (const { cb } of drain) {
+        try { cb(t); } catch {}
+      }
+    };
+  });
+
+  // Audio capture: same Tone.js MediaRecorder bridge as html mode, kept here
+  // so 3D pages with __audioRuntime='tone' get audio without duplicating
+  // logic.
+  let audioChunks = null;
+  if (AUDIO_MODE === 'tone') {
+    audioChunks = [];
+    await recCtx.exposeFunction('__sigillerieAudioChunk', (b64) => {
+      audioChunks.push(Buffer.from(b64, 'base64'));
+    });
+    await recCtx.addInitScript(() => {
+      window.__sigillerieRegisterRecorder = (rec) => {
+        rec.addEventListener('dataavailable', async (ev) => {
+          if (!ev.data || ev.data.size === 0) return;
+          const buf = await ev.data.arrayBuffer();
+          let bin = '';
+          const bytes = new Uint8Array(buf);
+          for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+          window.__sigillerieAudioChunk(btoa(bin));
+        });
+      };
+    });
+  }
+
+  const page = await recCtx.newPage();
+
+  const consoleMsgs = [];
+  page.on('console', m => consoleMsgs.push(`[${m.type()}] ${m.text()}`));
+  page.on('pageerror', err => consoleMsgs.push(`[error] ${err.message}`));
+
+  try {
+    await page.goto(url, { waitUntil: 'load', timeout: 60_000 });
+  } catch (e) {
+    console.error(`✗ page load failed: ${url}`);
+    console.error(`  ${e.message}`);
+    await recCtx.close();
+    await browser.close();
+    process.exit(1);
+  }
+
+  // ─── DURATION ─────────────────────────────────────────────────────────────
+  let duration = DURATION_OVERRIDE;
+  if (duration === null) {
+    duration = await page.evaluate(() => {
+      const d = window.__duration;
+      return typeof d === 'number' && d > 0 ? d : null;
+    }).catch(() => null);
+  }
+  if (duration === null) duration = 10;
+  log(`duration: ${duration}s`);
+
+  // ─── WAIT FOR READY ───────────────────────────────────────────────────────
+  // 3D contract requires both __ready AND __sceneReady (assets resolved).
+  // page-contract.md §__sceneReady. Without this we capture placeholders.
+  log('waiting for window.__ready && window.__sceneReady ...');
+  let readyOk = true;
+  try {
+    await page.waitForFunction(
+      () => window.__ready === true && window.__sceneReady === true,
+      { timeout: 30_000 },
+    );
+  } catch {
+    readyOk = false;
+  }
+
+  if (!readyOk) {
+    console.error('✗ window.__ready && window.__sceneReady not set within 30s');
+    console.error('  page may have failed to boot or assets did not resolve.');
+    console.error('  recent console output:');
+    for (const line of consoleMsgs.slice(-20)) console.error('    ' + line);
+    try {
+      const shotPath = path.join(tmpDir, 'failure.png');
+      await page.screenshot({ path: shotPath, fullPage: false });
+      console.error(`  screenshot: ${shotPath}`);
+    } catch {}
+    await recCtx.close();
+    await browser.close();
+    process.exit(2);
+  }
+
+  // Confirm __renderFrame is callable (defense; auto-detect already verified).
+  const hasRenderFrame = await page.evaluate(
+    () => typeof window.__renderFrame === 'function',
+  );
+  if (!hasRenderFrame) {
+    console.error('✗ window.__renderFrame is not a function after __sceneReady');
+    await recCtx.close();
+    await browser.close();
+    process.exit(2);
+  }
+
+  // Drain any boot-time rAF callbacks at t=0 so loaders/post-init effects
+  // settle before we start stepping time. Then commit a fresh t=0 frame
+  // through __renderFrame so the first captured frame is canonical.
+  await page.evaluate(() => {
+    if (typeof window.__flushRaf === 'function') window.__flushRaf();
+    window.__virtualTimeMs = 0;
+    window.__renderFrame(0);
+  });
+
+  // ─── CDP SESSION + BEGINFRAME PROBE ───────────────────────────────────────
+  const fps = FPS_BASE;
+  const frameInterval = FRAME_INTERVAL_OVERRIDE !== null
+    ? FRAME_INTERVAL_OVERRIDE
+    : (1000 / fps);
+  const totalFrames = Math.round(duration * fps);
+  log(`capture: ${totalFrames} frames @ ${fps}fps (interval ${frameInterval.toFixed(3)}ms)`);
+
+  const client = await page.context().newCDPSession(page);
+  let useBeginFrame = true;
+  try {
+    await client.send('HeadlessExperimental.enable');
+    vlog('CDP HeadlessExperimental enabled');
+  } catch (e) {
+    useBeginFrame = false;
+    vlog(`HeadlessExperimental.enable failed: ${e.message}`);
+  }
+
+  // Probe one beginFrame call. Some Chromium builds expose the domain but
+  // reject screenshot params; if the probe throws, fall back to page
+  // screenshots with the same virtual-clock timing.
+  if (useBeginFrame) {
+    try {
+      const probe = await client.send('HeadlessExperimental.beginFrame', {
+        frameTimeTicks: 0,
+        interval: frameInterval,
+        screenshot: { format: 'png' },
+      });
+      if (!probe || !probe.screenshotData) {
+        useBeginFrame = false;
+        vlog('beginFrame probe returned no screenshotData; falling back');
+      }
+    } catch (e) {
+      useBeginFrame = false;
+      vlog(`beginFrame probe threw: ${e.message}; falling back`);
+    }
+  }
+  log(`capture path: ${useBeginFrame ? 'CDP beginFrame' : 'page.screenshot fallback'}`);
+
+  // ─── AUDIO START ──────────────────────────────────────────────────────────
+  // Audio runs in real wall-clock; the page records its Tone.js output to a
+  // MediaRecorder which keeps writing while we step frames. This works
+  // because audio is captured at runtime rate, not virtual rate; the mux
+  // step trims to duration. Tail buffer past the last frame keeps the audio
+  // tail intact.
+  if (AUDIO_MODE === 'tone') {
+    await page.evaluate(() => {
+      if (typeof window.__audioStart === 'function') window.__audioStart();
+    }).catch(() => {});
+  }
+
+  // ─── FRAME LOOP ───────────────────────────────────────────────────────────
+  const captureT0 = Date.now();
+  for (let i = 0; i < totalFrames; i++) {
+    const t_ms = i * frameInterval;
+
+    // Advance virtual clock + run page render. __renderFrame is pure of t,
+    // so this single call commits the scene state for this tick.
+    await page.evaluate((t) => {
+      window.__virtualTimeMs = t;
+      window.__renderFrame(t);
+    }, t_ms);
+
+    let pngBuf;
+    if (useBeginFrame) {
+      const result = await client.send('HeadlessExperimental.beginFrame', {
+        frameTimeTicks: t_ms,
+        interval: frameInterval,
+        screenshot: { format: 'png' },
+      });
+      if (!result || !result.screenshotData) {
+        // Mid-loop failure. Drop to fallback for the rest of the run rather
+        // than aborting; we have the path tested.
+        vlog(`beginFrame returned empty at frame ${i}; switching to fallback`);
+        useBeginFrame = false;
+        pngBuf = await page.screenshot({ type: 'png', omitBackground: false });
+      } else {
+        pngBuf = Buffer.from(result.screenshotData, 'base64');
+      }
+    } else {
+      pngBuf = await page.screenshot({ type: 'png', omitBackground: false });
+    }
+
+    const framePath = path.join(tmpDir, `frame_${String(i).padStart(5, '0')}.png`);
+    fs.writeFileSync(framePath, pngBuf);
+
+    if (VERBOSE && (i % 30 === 0 || i === totalFrames - 1)) {
+      const pct = (((i + 1) / totalFrames) * 100).toFixed(1);
+      vlog(`frame ${i + 1}/${totalFrames} (${pct}%)`);
+    }
+  }
+  vlog(`frames captured in ${((Date.now() - captureT0) / 1000).toFixed(2)}s`);
+
+  // ─── AUDIO STOP ───────────────────────────────────────────────────────────
+  if (AUDIO_MODE === 'tone') {
+    // Hold for tail buffer so the page's MediaRecorder catches reverb /
+    // release tails past the last visual frame.
+    if (AUDIO_TAIL_BUFFER_MS > 0) {
+      await page.waitForTimeout(AUDIO_TAIL_BUFFER_MS);
+    }
+    await page.evaluate(() => {
+      if (typeof window.__audioStop === 'function') window.__audioStop();
+    }).catch(() => {});
+    // Let MediaRecorder flush its last ondataavailable.
+    await page.waitForTimeout(150);
+  }
+
+  await page.close();
+  await recCtx.close();
+  await browser.close();
+  vlog(`capture done @ ${((Date.now() - t0) / 1000).toFixed(2)}s`);
+
+  // ─── ENCODE ───────────────────────────────────────────────────────────────
+  // PNG sequence -> H.264 MP4 via shared pickEncoder(). No SSAA scale filter:
+  // Chromium already rasterized at deviceScaleFactor=SSAA, so PNGs are at
+  // WIDTH*SSAA × HEIGHT*SSAA. The encode path resamples down to the target
+  // output size with lanczos at the same time as fps work. Output fps in 3D
+  // mode is captured fps directly (no minterpolate; we already drew the
+  // exact frame count).
+  let audioPath = null;
+  if (AUDIO_MODE === 'tone' && audioChunks && audioChunks.length > 0) {
+    audioPath = path.join(tmpDir, 'audio-track.webm');
+    fs.writeFileSync(audioPath, Buffer.concat(audioChunks));
+    vlog(`audio chunks: ${audioChunks.length} · ${fileMB(audioPath)} MB`);
+  } else if (AUDIO_MODE === 'tone') {
+    console.warn('  ! --audio=tone but no chunks captured. Did the page call __sigillerieRegisterRecorder?');
+  }
+
+  const targetFps = fps;
+  log(`encode: frame_%05d.png -> ${path.basename(output)} (H.264, ${targetFps}fps)`);
+
+  const encoder = pickEncoder();
+  log(`encoder: ${encoder.name}`);
+
+  const args = [
+    '-y',
+    '-framerate', String(targetFps),
+    '-i', path.join(tmpDir, 'frame_%05d.png'),
+  ];
+
+  if (audioPath) {
+    args.push('-i', audioPath);
+  }
+
+  const vf = [];
+  // SSAA down-sample. PNGs are at WIDTH*SSAA × HEIGHT*SSAA; bring to output
+  // size with lanczos. For SSAA=1 this is a no-op; skip the filter.
+  if (SSAA > 1) {
+    vf.push(`scale=${WIDTH}:${HEIGHT}:flags=lanczos`);
+  }
+
+  args.push('-t', duration.toFixed(3));
+
+  if (vf.length > 0) {
+    args.push('-vf', vf.join(','));
+  }
+
+  args.push(...encoder.args);
+
+  if (audioPath) {
+    args.push(
+      '-c:a', 'aac',
+      '-b:a', '192k',
+      '-map', '0:v:0',
+      '-map', '1:a:0',
+      '-shortest',
+    );
+  } else {
+    args.push('-an');
+  }
+
+  args.push(output);
+  runFfmpeg(args);
+
+  // ─── VERIFY ───────────────────────────────────────────────────────────────
+  if (!fs.existsSync(output)) {
+    console.error(`✗ output not written: ${output}`);
+    process.exit(4);
+  }
+  if (!ffprobeHasVideo(output)) {
+    console.error(`✗ output has no video stream: ${output}`);
+    process.exit(3);
+  }
+  const outDur = ffprobeDuration(output);
+  if (outDur === null) {
+    console.error(`✗ cannot probe output duration`);
+    process.exit(3);
+  }
+  if (Math.abs(outDur - duration) > 0.5) {
+    console.warn(`  ! output duration ${outDur.toFixed(2)}s drifted from target ${duration}s (>0.5s)`);
+  }
+
+  // Optional GIF hand-off, same as html mode.
+  if (WANT_GIF) {
+    const conv = path.join(__dirname, 'convert-formats.sh');
+    if (!fs.existsSync(conv)) {
+      console.warn(`  ! --gif requested but ${conv} not found. Skipping GIF.`);
+    } else {
+      log('gif: invoking convert-formats.sh ...');
+      const r = spawnSync('bash', [conv, output, '--gif'], {
+        stdio: VERBOSE ? 'inherit' : 'ignore',
+      });
+      if (r.status !== 0) {
+        console.warn('  ! convert-formats.sh exited non-zero. GIF may be missing.');
+      }
+    }
+  }
+
+  const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+  log(`done in ${elapsed}s`);
+  log(`  ${output}`);
+  log(`  ${fileMB(output)} MB · ${outDur.toFixed(2)}s · ${targetFps}fps`);
+  if (audioPath) log(`  + audio track muxed (${AUDIO_MODE})`);
+}
+
 // ─── MAIN ────────────────────────────────────────────────────────────────────
 
 (async () => {
@@ -389,17 +793,14 @@ process.on('exit', cleanup);
   log(`mode: ${mode}`);
 
   if (mode === '3d') {
-    // TODO Phase 4: dispatch to a CDP beginFrame driver per
-    // modes/three3d/page-contract.md. For now, hard-stop with a clear note so
-    // callers know this is intentional, not silent breakage.
-    console.error('');
-    console.error('✗ --mode=3d not implemented in this script.');
-    console.error('  Phase 4 (modes/three3d/page-contract.md) ships a CDP-based');
-    console.error('  HeadlessExperimental.beginFrame driver. Until then, render');
-    console.error('  3D scenes via the dedicated capture script (TBD).');
-    console.error('');
-    await browser.close();
-    process.exit(1);
+    await renderMode3D({
+      browser,
+      t0,
+      tmpDir: TMP_DIR,
+      url: URL,
+      output: OUTPUT,
+    });
+    return;
   }
 
   // ─── RECORD ────────────────────────────────────────────────────────────────

@@ -1,11 +1,27 @@
 ---
 name: architecture
-description: Decision tree for picking 3D track. Track A vanilla three.js, Track B R3F + Vite + drei + xr, or model-viewer easy path. Bundle budgets and triggers.
+description: Decision tree for picking 3D track + layout pattern. Track A vanilla three.js, Track B R3F + Vite + drei + xr, or model-viewer easy path. Includes layout patterns (curved arc, hero+overlay, carousel, isometric) and the stacked-z anti-pattern.
 ---
 
 # 3D Architecture · Decision Tree
 
-Three execution paths for 3D output. Pick one per deliverable. Defaults bias toward smallest that works.
+Two decisions per deliverable: (1) which **track** to use (A / B / model-viewer), and (2) which **layout pattern** to use. Layout matters more than people expect: a wrong pattern hides 75% of content from the default camera angle.
+
+## Layout patterns (read FIRST)
+
+The default camera is head-on. Layout determines what's visible there.
+
+| Pattern | Use when | Visible head-on | Best for |
+|---|---|---|---|
+| **Hero 3D object + 2D text overlay** | most marketing animations, product launches, brand heroes | 3D motion + crisp 2D text via `drei.Html` or DOM-positioned overlays | the 80% case |
+| **Curved arc (Vision Pro-style)** | spatial UI, multi-panel content needing 3D depth | every panel faces camera, all readable | multi-app interfaces, tabs, settings |
+| **Carousel / orbital** | rotating reveal of equal-priority items | one item forward at a time, others orbit | feature carousel, testimonials, gallery |
+| **Isometric layered** | dashboards, infographics, structured data | top-down 30° angle shows all layers | data viz, system diagrams |
+| **Stacked-z parallel** | RARE — AR/VR depth-effects only | useless head-on; back panels 100% hidden | NEVER as content layout. Only as visual texture under a hero. |
+
+The Phase 4 `demos3d/d6-holo-ui` initially used stacked-z and content was hidden behind the front panel. Redesigned to curved arc; now all four panels readable head-on. **Lesson**: do not default to stacked-z just because three.js can do depth.
+
+## The three tracks
 
 ## The three tracks
 

@@ -77,18 +77,13 @@ const capabilities = {
 // Lazy WebGPURenderer import. Stage3D awaits Sigillerie3D.loadWebGPURenderer()
 // when useWebGPU is true. Keeps the cold-start cost off the WebGL2 path.
 async function loadWebGPURenderer() {
-  if (!useWebGPU) return null;
-  try {
-    const mod = await import(
-      'three/addons/renderers/webgpu/WebGPURenderer.js'
-    );
-    return mod.default || mod.WebGPURenderer;
-  } catch (err) {
-    // CDN miss or browser without WebGPU runtime. Fall back to WebGL2 by
-    // returning null; Stage3D treats null as "use WebGLRenderer".
-    console.warn('[Sigillerie3D] WebGPURenderer load failed, falling back', err);
-    return null;
-  }
+  // WebGPU support is intentionally disabled in v0.x of Sigillerie 3D.
+  // Reason: three.js r170+ ships WebGPURenderer inside `three/webgpu`, which
+  // is a FULL second build of three.js (not just the renderer). Loading it
+  // creates two THREE namespaces and breaks PMREM/cross-instance objects.
+  // Until three offers a single-instance WebGPU path, recipe code uses
+  // WebGLRenderer everywhere. Roadmap item; not blocking.
+  return null;
 }
 
 // Reference HTML snippet for recipe builders. Inline as a string so a
