@@ -15,17 +15,21 @@
  *     "imports": {
  *       "three": "https://cdn.jsdelivr.net/npm/three@0.181.0/build/three.module.min.js",
  *       "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.181.0/examples/jsm/",
- *       "@pmndrs/uikit": "https://cdn.jsdelivr.net/npm/@pmndrs/uikit@latest/dist/index.js"
+ *       "three/examples/jsm/": "https://cdn.jsdelivr.net/npm/three@0.181.0/examples/jsm/",
+ *       "@pmndrs/uikit": "https://cdn.jsdelivr.net/npm/@pmndrs/uikit@0.8.13/dist/index.js",
+ *       "@preact/signals-core": "https://cdn.jsdelivr.net/npm/@preact/signals-core@1.5.1/dist/signals-core.module.js",
+ *       "yoga-layout/load": "https://cdn.jsdelivr.net/npm/yoga-layout@3.2.1/dist/src/load.js"
  *     }
  *   }
  *   </script>
  *
- * Note: jsDelivr serves the published @pmndrs/uikit ESM bundle from
- * `dist/index.js`. user verifies, if `@pmndrs/uikit@latest` shifts its
- * entry, pin to a known-good version (e.g. `@pmndrs/uikit@0.8.x`) and
- * point at the resolved file. The fallback below makes a wrong path
- * non-fatal: createPanel still returns a working Object3D, just rendered
- * via CanvasTexture instead of yoga flex.
+ * NOTE on peer deps: uikit@0.8.13 dist/index.js is NOT a single bundle.
+ * It bare-imports @preact/signals-core, yoga-layout/load, and
+ * three/examples/jsm/. All three need importmap entries or module
+ * resolution fails in file:// context (Playwright render). The entries
+ * above are self-contained jsDelivr ESM files; no further sub-imports.
+ * The fallback below makes a wrong path non-fatal: createPanel still
+ * returns a working Object3D rendered via CanvasTexture.
  *
  * --- USAGE ---
  *
