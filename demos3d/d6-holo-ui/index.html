@@ -14,11 +14,15 @@
   #stage-host { width: 100vw; height: 100vh; }
 </style>
 
-<!-- caveman: importmap. three + addons + uikit + uikit peer deps, all pinned.
-     uikit@0.8.13 dist/index.js is NOT a bundle; it re-exports from relative
-     sub-files and pulls in @preact/signals-core, yoga-layout, and
-     three/examples/jsm via bare specifiers. All four are listed here so the
-     browser can resolve them without a host (file:// context). -->
+<!-- caveman: importmap. three + addons + uikit + all uikit peer deps, pinned.
+     uikit@0.8.13 dist/index.js is NOT a bundle. dist/components/container.js
+     and text.js both import from dist/internals.js, which re-exports from
+     dist/convert/html/internals.js, which pulls in node-html-parser,
+     inline-style-parser, and tw-to-css as bare specifiers. All must be listed.
+     node-html-parser and inline-style-parser use jsDelivr +esm (CJS->ESM).
+     tw-to-css +esm is a self-contained bundle; no further bare deps.
+     Served over http:// (local static server in --mode=3d) so CDN absolute
+     sub-paths (/npm/he@...) resolve correctly against cdn.jsdelivr.net. -->
 <script type="importmap">
 {
   "imports": {
@@ -29,7 +33,10 @@
     "@pmndrs/uikit": "https://cdn.jsdelivr.net/npm/@pmndrs/uikit@0.8.13/dist/index.js",
     "@pmndrs/msdfonts": "https://cdn.jsdelivr.net/npm/@pmndrs/msdfonts@0.8.21/dist/index.js",
     "@preact/signals-core": "https://cdn.jsdelivr.net/npm/@preact/signals-core@1.5.1/dist/signals-core.module.js",
-    "yoga-layout/load": "https://cdn.jsdelivr.net/npm/yoga-layout@3.2.1/dist/src/load.js"
+    "yoga-layout/load": "https://cdn.jsdelivr.net/npm/yoga-layout@3.2.1/dist/src/load.js",
+    "node-html-parser": "https://cdn.jsdelivr.net/npm/node-html-parser@6.1.13/+esm",
+    "inline-style-parser": "https://cdn.jsdelivr.net/npm/inline-style-parser@0.2.3/+esm",
+    "tw-to-css": "https://cdn.jsdelivr.net/npm/tw-to-css@0.0.12/+esm"
   }
 }
 </script>

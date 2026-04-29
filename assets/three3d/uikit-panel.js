@@ -20,17 +20,23 @@
  *       "@pmndrs/uikit": "https://cdn.jsdelivr.net/npm/@pmndrs/uikit@0.8.13/dist/index.js",
  *       "@pmndrs/msdfonts": "https://cdn.jsdelivr.net/npm/@pmndrs/msdfonts@0.8.21/dist/index.js",
  *       "@preact/signals-core": "https://cdn.jsdelivr.net/npm/@preact/signals-core@1.5.1/dist/signals-core.module.js",
- *       "yoga-layout/load": "https://cdn.jsdelivr.net/npm/yoga-layout@3.2.1/dist/src/load.js"
+ *       "yoga-layout/load": "https://cdn.jsdelivr.net/npm/yoga-layout@3.2.1/dist/src/load.js",
+ *       "node-html-parser": "https://cdn.jsdelivr.net/npm/node-html-parser@6.1.13/+esm",
+ *       "inline-style-parser": "https://cdn.jsdelivr.net/npm/inline-style-parser@0.2.3/+esm",
+ *       "tw-to-css": "https://cdn.jsdelivr.net/npm/tw-to-css@0.0.12/+esm"
  *     }
  *   }
  *   </script>
  *
  * NOTE on peer deps: uikit@0.8.13 dist/index.js is NOT a single bundle.
- * It bare-imports @preact/signals-core, yoga-layout/load,
- * three/examples/jsm/, and three/src/math/MathUtils.js. All need
- * importmap entries or module resolution fails in file:// context
- * (Playwright render). The entries above are self-contained jsDelivr
- * ESM files; no further sub-imports.
+ * dist/components/container.js and text.js both import dist/internals.js,
+ * which re-exports dist/convert/html/internals.js, pulling in
+ * node-html-parser, inline-style-parser, and tw-to-css as bare specifiers.
+ * All three need importmap entries (use jsDelivr +esm for the CJS ones).
+ * IMPORTANT: page must be served over http://, not file://. The +esm bundles
+ * for node-html-parser include absolute CDN paths (/npm/he@...) that only
+ * resolve correctly against the cdn.jsdelivr.net host. The local HTTP server
+ * in render-video.js --mode=3d handles this automatically.
  * The fallback below makes a wrong path non-fatal: createPanel still
  * returns a working Object3D rendered via CanvasTexture.
  *
@@ -235,9 +241,9 @@ function mountUikit(state, host, uikit) {
   // Some builds of uikit also ship Image; fall back to a Container if missing.
   const ImageNode = uikit.Image || uikit.Container;
 
-  // Root needs camera + renderer to handle pointer events and pixel sizing.
+  // uikit@0.8.x vanilla Root: constructor(camera, renderer, properties, ...)
   // sizeX/sizeY are world units, matching the recipe's width/height contract.
-  const rootNode = new Root({
+  const properties = {
     sizeX: opts.width != null ? opts.width : 2,
     sizeY: opts.height != null ? opts.height : 1.2,
     flexDirection: opts.layout === 'flex-row' ? 'row' : 'column',
@@ -248,18 +254,13 @@ function mountUikit(state, host, uikit) {
     borderRadius: opts.borderRadius != null ? opts.borderRadius : 24,
     borderColor: opts.borderColor || theme.border,
     borderWidth: opts.borderWidth != null ? opts.borderWidth : 0,
-  });
+  };
 
-  // uikit's Root extends Object3D, so we add it directly to our host group.
-  // Cameras are picked up off threeApi at attach time.
-  if (typeof rootNode.bind === 'function') {
-    // Newer API: bind(camera, renderer) wires interaction.
-    try {
-      rootNode.bind(threeApi.camera, threeApi.renderer);
-    } catch (err) {
-      // Older builds bind via attach; ignore.
-    }
-  }
+  const rootNode = new Root(
+    threeApi.camera,
+    threeApi.renderer,
+    properties,
+  );
 
   host.add(rootNode);
   state.uikitRoot = rootNode;
