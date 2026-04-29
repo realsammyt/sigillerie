@@ -18,6 +18,7 @@
  *       "three/examples/jsm/": "https://cdn.jsdelivr.net/npm/three@0.181.0/examples/jsm/",
  *       "three/src/math/MathUtils.js": "https://cdn.jsdelivr.net/npm/three@0.181.0/src/math/MathUtils.js",
  *       "@pmndrs/uikit": "https://cdn.jsdelivr.net/npm/@pmndrs/uikit@0.8.13/dist/index.js",
+ *       "@pmndrs/msdfonts": "https://cdn.jsdelivr.net/npm/@pmndrs/msdfonts@0.8.21/dist/index.js",
  *       "@preact/signals-core": "https://cdn.jsdelivr.net/npm/@preact/signals-core@1.5.1/dist/signals-core.module.js",
  *       "yoga-layout/load": "https://cdn.jsdelivr.net/npm/yoga-layout@3.2.1/dist/src/load.js"
  *     }
