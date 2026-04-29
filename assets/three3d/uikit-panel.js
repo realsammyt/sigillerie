@@ -239,7 +239,8 @@ function mountUikit(state, host, uikit) {
     padding: opts.padding != null ? opts.padding : 24,
     backgroundColor: opts.background || theme.surface,
     borderRadius: opts.borderRadius != null ? opts.borderRadius : 24,
-    borderColor: theme.border,
+    borderColor: opts.borderColor || theme.border,
+    borderWidth: opts.borderWidth != null ? opts.borderWidth : 0,
   });
 
   // uikit's Root extends Object3D, so we add it directly to our host group.
@@ -351,6 +352,15 @@ function mountFallback(state, host) {
   ctx.fillStyle = opts.background || theme.surface;
   roundRect(ctx, 0, 0, cw, ch, radius);
   ctx.fill();
+
+  // optional border stroke (maps to opts.borderWidth + opts.borderColor)
+  if (opts.borderWidth && opts.borderWidth > 0) {
+    const bw = opts.borderWidth * (cw / (w * pxPerUnit));
+    ctx.strokeStyle = opts.borderColor || theme.border;
+    ctx.lineWidth = Math.max(1, bw);
+    roundRect(ctx, bw * 0.5, bw * 0.5, cw - bw, ch - bw, Math.max(0, radius - bw * 0.5));
+    ctx.stroke();
+  }
 
   // Children layout. Only text and nested containers are honored in fallback.
   const layout = opts.layout || 'flex-col';
