@@ -44,6 +44,16 @@ import { applyRecipeBaseline } from '../three3d/recipe-baseline.js';
 
 const HELPERS = (typeof window !== 'undefined' && window.Sigillerie3D && window.Sigillerie3D.helpers) || {};
 
+// UX Law: Serial Position (§13). The camera starts on the first layer and
+// ends on the last. Those are the two panels the viewer remembers most.
+// Put the product hero at cameraStart target. Put the CTA or closing claim
+// at the cameraEnd target. Context and supporting copy travel between them.
+//
+// UX Law: Peak-End Rule (§13). The animation has one moment of highest
+// interest (the layer that first fully fills the frustum as the camera
+// closes in) and a deliberate close (cameraEnd). Design both explicitly:
+// put the peak layer at roughly z = (cameraStart[2] + cameraEnd[2]) / 2
+// and let the final stationary frame be the CTA, not a transition frame.
 export function createParallaxScroll(threeApi, opts = {}) {
   const THREE = threeApi.THREE;
   const scene = threeApi.scene;

@@ -12,6 +12,14 @@
  *   scene.add(hero.group);
  *   hero.update(t, sprite_t);
  *   hero.dispose();
+ *
+ * UX Law: Aesthetic-Usability Effect (§13). Users perceive visually polished
+ * interfaces as easier to use and more trustworthy, even before they interact.
+ * The caustic ground plane + rim lighting are the polish budget here. They add
+ * GPU cost (one full-screen shader pass for caustics, an extra directional
+ * light for the rim) but pay back in perceived quality and product trust.
+ * Do not skip caustics to save 0.5 ms per frame — the perceptual return
+ * outweighs the render cost on any GPU that can handle MeshPhysicalMaterial.
  */
 
 import {
