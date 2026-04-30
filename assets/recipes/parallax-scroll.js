@@ -27,7 +27,8 @@
 //
 // Content shapes:
 //   - string ending in .png/.jpg/.jpeg/.webp → image plane (TextureLoader)
-//   - { type: 'text', text, font, size, color } → CanvasTexture text plane
+//   - { type: 'text', text, font, size, color } → uikit panel (primary) or
+//     CanvasTexture fallback when uikit unavailable or opts.renderer='canvas'
 //   - { type: 'color', color } → flat color plane (cheap depth hint)
 //   - THREE.Object3D → drop straight in (caller owns the mesh)
 //
@@ -38,6 +39,8 @@
 //
 // Self-contained. No build step. No external textures required (text and
 // color layers procedural). Works under Track A inline pages.
+
+import { applyRecipeBaseline } from '../three3d/recipe-baseline.js';
 
 const HELPERS = (typeof window !== 'undefined' && window.Sigillerie3D && window.Sigillerie3D.helpers) || {};
 
@@ -139,8 +142,37 @@ export function createParallaxScroll(threeApi, opts = {}) {
     return mesh;
   }
 
+  // uikit panels array. update() ticks yoga; dispose() tears them down.
+  const uikitPanels = [];
+
   function buildTextPlane(spec, w, h) {
-    // CanvasTexture text. Cheap, no troika dependency. Good for headlines.
+    // PARA-1 (aesthetic §5): uikit is primary for {type:'text'} layers.
+    // Falls back to CanvasTexture when:
+    //   a) window.SigillerieUikit.createPanel is unavailable, or
+    //   b) caller passes {renderer: 'canvas'} on the spec.
+    const uikit = typeof window !== 'undefined' && window.SigillerieUikit;
+    const forceCanvas = spec.renderer === 'canvas';
+    if (!forceCanvas && uikit && typeof uikit.createPanel === 'function') {
+      try {
+        const panel = uikit.createPanel({
+          type: 'text',
+          text: spec.text || '',
+          font: spec.font || 'serif',
+          fontSize: spec.size || 1.0,
+          color: spec.color || '#ffffff',
+          width: w,
+          height: h,
+        });
+        uikitPanels.push(panel);
+        // uikit panels expose a Three.js Object3D on .root or .mesh
+        return panel.root || panel.mesh || panel;
+      } catch (err) {
+        // uikit threw (e.g. Yoga WASM not ready). Fall through to canvas.
+        console.warn('[parallax-scroll] uikit panel failed, using canvas fallback', err);
+      }
+    }
+
+    // CanvasTexture fallback. Used when uikit unavailable or canvas opt-in.
     const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
     const cw = Math.max(256, Math.round(1024 * dpr));
     const ch = Math.max(128, Math.round((1024 * h / Math.max(0.01, w)) * dpr));
@@ -245,6 +277,12 @@ export function createParallaxScroll(threeApi, opts = {}) {
     });
   }
 
+  // --- postprocessing baseline (PARA-3, aesthetic §4 / §12) -----------------
+  const post = applyRecipeBaseline(threeApi);
+  if (post.composer) {
+    threeApi.draw = () => post.composer.render();
+  }
+
   // --- scroll source ---------------------------------------------------------
   // sprite-t mode reads from update(t, sprite_t).
   // window-scroll mode reads from window.scrollY versus document height.
@@ -268,6 +306,11 @@ export function createParallaxScroll(threeApi, opts = {}) {
   // --- per-frame update ------------------------------------------------------
   // t = absolute seconds from sprite start. sprite_t = 0..1 normalized.
   function update(t, sprite_t) {
+    // tick uikit yoga layout per frame (PARA-1)
+    for (const panel of uikitPanels) {
+      if (panel && typeof panel.update === 'function') panel.update();
+    }
+
     let s;
     if (cfg.driveBy === 'window-scroll') {
       s = cachedScrollT;
@@ -323,7 +366,13 @@ export function createParallaxScroll(threeApi, opts = {}) {
     for (const d of disposables) {
       if (d && typeof d.dispose === 'function') d.dispose();
     }
+    // tear down uikit panels (PARA-1)
+    for (const panel of uikitPanels) {
+      if (panel && typeof panel.dispose === 'function') panel.dispose();
+    }
+    uikitPanels.length = 0;
     if (scene.fog) scene.fog = null;
+    post.dispose();
   }
 
   return {
