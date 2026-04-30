@@ -7,6 +7,8 @@ description: Discovery Phase 1, 6 intake questions, bilingual EN/ZH, vague-answe
 
 Phase 1 listens. No options yet, no moodboard, no logo talk. Six questions, asked one at a time, answers landed in `discovery.json#intake`. If user names a real existing product, agent fills gaps from public sources and tags inferred fields. Locale captured here threads through every later phase. Budget: 4–7 min wall-clock, 8–12 turns, 0–2 web searches.
 
+Postel's Law (be conservative in what you send, liberal in what you accept) governs intake. Accept any answer shape: short, long, vague, off-topic. The vague-answer recovery table normalizes input into the rubric. Don't ask the user to retry in a particular format; restate as a forced choice instead.
+
 ---
 
 ## The Six Questions
