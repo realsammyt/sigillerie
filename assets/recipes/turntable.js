@@ -68,6 +68,12 @@ export function createTurntable(threeApi, opts = {}) {
     }
   }
 
+  // UX Law: Doherty Threshold (§13). Any wait over 400 ms without feedback
+  // breaks flow and erodes trust. RoomEnvironment is a zero-fetch procedural
+  // fallback that resolves synchronously — the scene has valid IBL on first
+  // frame, well inside the 400 ms threshold. The real HDRI path (above) may
+  // exceed 400 ms on a slow connection; that path should set a loading state
+  // (e.g. window.__sceneReady = false) until the texture lands, then clear it.
   function fallbackRoomEnv() {
     // RoomEnvironment is in three/examples, assume the loader exposed it
     const RoomEnvironment = (window.Sigillerie3D && window.Sigillerie3D.RoomEnvironment) || THREE.RoomEnvironment;
