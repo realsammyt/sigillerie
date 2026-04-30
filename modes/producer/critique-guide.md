@@ -103,18 +103,71 @@ Within the philosophy, is there a fresh move? Or is this template-shaped?
 
 Critic-agent looks for named anti-patterns. Each hit drops innovation by 1, sometimes more. The catalog grows; current entries:
 
-| Name | Description |
-|------|-------------|
-| **generic-LoFi** | Default low-fi wireframe aesthetic mistaken for a finished design. |
-| **mystery-meat** | Icons or controls without labels, function unguessable. |
-| **hairball** | Force-directed graph rendered with no spatial logic, every node visible at once. |
-| **neon-cyber-default** | Deep blue (#0D1117) plus neon glow, used as a fallback rather than a choice. |
-| **AI-orb** | Gradient sphere standing in for "intelligence." |
-| **glass-everywhere** | Frosted glass on every surface. Translucency has no semantic role. |
-| **template-grid** | 3-column card grid with identical cards, no visual rhythm. |
-| **ornament-tax** | Decorative element that survives the deletion test (work is unchanged when removed) but stayed in. |
+| Name | Description | UX law violated |
+|------|-------------|-----------------|
+| **generic-LoFi** | Default low-fi wireframe aesthetic mistaken for a finished design. | Aesthetic-Usability Effect (low perceived craft lowers perceived function) |
+| **mystery-meat** | Icons or controls without labels, function unguessable. | Jakob's Law (violates platform convention that interactive controls are labeled) |
+| **hairball** | Force-directed graph rendered with no spatial logic, every node visible at once. | Cognitive Load / Miller's Law (exceeds working memory; no focal path) |
+| **neon-cyber-default** | Deep blue (#0D1117) plus neon glow, used as a fallback rather than a choice. | Von Restorff Effect (nothing differentiates; every element glows equally) |
+| **AI-orb** | Gradient sphere standing in for "intelligence." | Selective Attention (decorative focal element competes with actual content) |
+| **glass-everywhere** | Frosted glass on every surface. Translucency has no semantic role. | Common Region (no visual grouping signal; everything reads as one undifferentiated layer) |
+| **template-grid** | 3-column card grid with identical cards, no visual rhythm. | Serial Position Effect (middle cards equal in weight to first/last; no hierarchy) |
+| **ornament-tax** | Decorative element that survives the deletion test (work is unchanged when removed) but stayed in. | Cognitive Load (every non-functional element consumes attention budget without return) |
 
 A demo with two or more named anti-patterns cannot score above 6 on innovation, regardless of other strengths.
+
+**Additional UX-law gate flags** (each counts as a named anti-pattern hit):
+
+| Flag | What to look for | Fail condition |
+|------|-----------------|----------------|
+| **serial-position-burial** | Key stat or primary claim not first or last in its sequence. | Found in position 2-through-(N-1) with no visual weight to compensate. |
+| **von-restorff-null** | Every element identical in size, color, and weight. Nothing differentiates. | Zero elements break the visual rhythm. |
+| **doherty-void** | Interactive or animated deliverable has no loading state or skeleton. | First meaningful content arrives over 400 ms with no progress signal. |
+| **fitts-undersize** | Interactive targets (buttons, CTAs) below 44 px on screen or below 2° angular size in spatial context. | Any tappable region misses the minimum. |
+| **cognitive-overload** | More than 5 focal elements on a flat surface or more than 4 in a 3D supporting layer, all at equal visual weight. | Count exceeds cap; no hierarchy present. |
+
+## UX law violation scan
+
+A second-pass critique gate, run after the five-dimension score. The five-dimension rubric catches aesthetic and craft failures. This gate catches cognitive UX failures: no visual defect, just a broken mental model or overloaded attention system.
+
+**Gate structure:** four questions, each a binary pass/fail. One fail blocks the G4 gate the same way a dimension score below 7 does. These mirror the self-check in SKILL.md "UX law self-check (pre-delivery gate)" but are framed for reviewer use, not author use.
+
+### Q1 - Cognitive load
+
+Count independent focal elements. If there are 6 or more on a flat surface all at the same visual weight, that's a fail. The reviewer doesn't need to count precisely; if the squint test produces more than five competing entry points, the deliverable fails this gate.
+
+Relevant laws: Miller's Law, Cognitive Load theory.
+
+### Q2 - Serial position
+
+The most important claim or content is at position 1 or position N in its sequence. Check the slide deck order, the section sequence in an infographic, the card list. If the hero claim is buried in the middle with no compensating visual weight (size, color, isolation), that's a fail.
+
+Relevant law: Serial Position Effect.
+
+### Q3 - Peak-end
+
+The deliverable has a named peak (the highest-value moment: the stat that lands, the product reveal, the climax frame) and a deliberate close (the last thing the viewer sees or reads). If the reviewer can't name both in one sentence each, the deliverable fails this gate. "It kind of ends" is a fail.
+
+Relevant laws: Peak-End Rule, Von Restorff Effect (the peak must be isolable).
+
+### Q4 - Doherty
+
+Any interaction or animation that takes over 400 ms to first meaningful content has a loading state. Check: skeleton screen, progress indicator, or animated placeholder. Missing loading state on a slow-to-render deliverable is a fail.
+
+Relevant law: Doherty Threshold.
+
+### Named violation flags (call these out explicitly in critique reports)
+
+| Law | What to look for | Fail example |
+|-----|-----------------|--------------|
+| **Serial Position Effect** | Important content in the middle of a sequence with no visual distinction. | Slide 4 of 7 carries the core value proposition at body-text size. |
+| **Von Restorff Effect** | No element breaks the visual rhythm; everything blends. | 6 equally styled feature callouts, none differentiated. |
+| **Common Region** | Related items have no shared bounding, grouping, or backdrop. | Three related stats float with no container; reader can't parse the grouping. |
+| **Aesthetic-Usability Effect** | Low craft triggers low trust in function before the user interacts. | Misaligned grid, inconsistent type scale, visible draft quality in a shipped deliverable. |
+| **Doherty Threshold** | No feedback for operations over 400 ms. | Clicking a CTA triggers a 2 s transition with no skeleton or spinner. |
+| **Fitts's Law** | CTA or interactive region too small or too far from the natural gaze or cursor path. | Primary CTA at bottom-right corner of a 1920 px-wide layout with no visual weight to pull the eye. |
+| **Jakob's Law** | Interaction pattern deviates from platform convention without rationale. | Custom swipe gesture replaces standard scroll on a web landing page. |
+| **Selective Attention** | Decorative element captures attention at the same level as functional content. | Animated background gradient moves faster than the hero text, pulling focus away. |
 
 ## Per-Medium Weighting
 
@@ -146,6 +199,7 @@ The five dimensions matter unequally by medium. The floor rule still applies; th
 - Innovation: X/10. [one sentence]
 
 **Anti-patterns detected**: [list, or "none"]
+**UX law violations**: [list from violation scan, or "none"]
 
 ### Keep
 - [specific moves that work, in design language]
@@ -180,6 +234,7 @@ Fictional landing page for a SaaS analytics tool. Hero shows a gradient sphere o
 - Innovation: 3/10. Two named anti-patterns present (see below); zero authorial moves.
 
 **Anti-patterns detected**: AI-orb, neon-cyber-default, template-grid, glass-everywhere
+**UX law violations**: Serial Position Effect (CTA buried mid-page), Von Restorff Effect (nothing differentiates), Selective Attention (orb competes with headline)
 
 ### Keep
 - Vertical rhythm in the card region tracks the 8pt grid.
