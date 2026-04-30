@@ -14,13 +14,29 @@
   #stage-host { width: 100vw; height: 100vh; }
 </style>
 
-<!-- caveman: importmap. three + addons + uikit, all pinned. -->
+<!-- caveman: importmap. three + addons + uikit + all uikit peer deps, pinned.
+     uikit@0.8.13 dist/index.js is NOT a bundle. dist/components/container.js
+     and text.js both import from dist/internals.js, which re-exports from
+     dist/convert/html/internals.js, which pulls in node-html-parser,
+     inline-style-parser, and tw-to-css as bare specifiers. All must be listed.
+     node-html-parser and inline-style-parser use jsDelivr +esm (CJS->ESM).
+     tw-to-css +esm is a self-contained bundle; no further bare deps.
+     Served over http:// (local static server in --mode=3d) so CDN absolute
+     sub-paths (/npm/he@...) resolve correctly against cdn.jsdelivr.net. -->
 <script type="importmap">
 {
   "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.181.0/build/three.module.min.js",
     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.181.0/examples/jsm/",
-    "@pmndrs/uikit": "https://esm.sh/@pmndrs/uikit@0.8.13?bundle"
+    "three/examples/jsm/": "https://cdn.jsdelivr.net/npm/three@0.181.0/examples/jsm/",
+    "three/src/math/MathUtils.js": "https://cdn.jsdelivr.net/npm/three@0.181.0/src/math/MathUtils.js",
+    "@pmndrs/uikit": "https://cdn.jsdelivr.net/npm/@pmndrs/uikit@0.8.13/dist/index.js",
+    "@pmndrs/msdfonts": "https://cdn.jsdelivr.net/npm/@pmndrs/msdfonts@0.8.21/dist/index.js",
+    "@preact/signals-core": "https://cdn.jsdelivr.net/npm/@preact/signals-core@1.5.1/dist/signals-core.module.js",
+    "yoga-layout/load": "https://cdn.jsdelivr.net/npm/yoga-layout@3.2.1/dist/src/load.js",
+    "node-html-parser": "https://cdn.jsdelivr.net/npm/node-html-parser@6.1.13/+esm",
+    "inline-style-parser": "https://cdn.jsdelivr.net/npm/inline-style-parser@0.2.3/+esm",
+    "tw-to-css": "https://cdn.jsdelivr.net/npm/tw-to-css@0.0.12/+esm"
   }
 }
 </script>
@@ -200,6 +216,8 @@ function buildScene(threeApi, group) {
       alignItems: spec.alignItems || 'flex-start',
       background: spec.bg,
       borderRadius: 24,
+      borderColor: spec.borderColor,
+      borderWidth: spec.borderWidth,
       padding: spec.padding != null ? spec.padding : 40,
       theme: 'dark',
       children: spec.children,
@@ -221,6 +239,23 @@ function buildScene(threeApi, group) {
       const stripe = new THREE.Mesh(stripeGeo, stripeMat);
       // sit just inside the top edge, very slightly forward.
       stripe.position.set(0, spec.height * 0.5 - 0.05, 0.012);
+      panel.root.add(stripe);
+    }
+
+    // caveman: dimmer amber stripe on caps/status micro-panels. 40% of hero
+    // opacity so hierarchy reads clearly but the panel has visible chrome.
+    if (spec.role === 'caps' || spec.role === 'status') {
+      const stripeW = spec.width * 0.75;
+      const stripeGeo = new THREE.PlaneGeometry(stripeW, 0.007);
+      const stripeMat = new THREE.MeshBasicMaterial({
+        color: 0xffb37a,
+        transparent: true,
+        opacity: 0.38,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      const stripe = new THREE.Mesh(stripeGeo, stripeMat);
+      stripe.position.set(0, spec.height * 0.5 - 0.04, 0.012);
       panel.root.add(stripe);
     }
 
@@ -404,8 +439,10 @@ function computePanelSpecs(layout) {
   const surfaceHero   = 'rgba(54, 32, 22, 0.78)';
   // Supporting: cool deep navy, slightly transparent. luminance lower than hero.
   const surfaceSupp   = 'rgba(20, 26, 52, 0.78)';
-  // Context: very dark cool, low opacity so it recedes. context = atmosphere.
-  const surfaceCtx    = 'rgba(12, 16, 30, 0.62)';
+  // Context: mid-indigo dark, clearly distinct from near-black scene bg.
+  // Old value (12,16,30) blended into the bg at 0.62. Raised hue+alpha so
+  // the micro-panel chrome reads at all layout scales.
+  const surfaceCtx    = 'rgba(18, 24, 52, 0.90)';
 
   // Common children definitions, reused across layouts. Title fontSize is
   // sized to fit inside hero width 3.0 with padding; uikit doesn't shrink to
@@ -432,22 +469,41 @@ function computePanelSpecs(layout) {
     { type: 'text', text: 'wide / square / portrait / ultrawide',
       fontSize: 13, color: labelCool, marginTop: 16, letterSpacing: 2 },
   ];
+  // micro-panel accent bar: thin amber stripe at top, dimmer than hero stripe.
+  // Acts as eyebrow chrome so the panel reads as a proper card at small scale.
+  const ctxAccentBar = {
+    type: 'container',
+    layout: 'flex-row',
+    background: 'rgba(255, 179, 122, 0.55)',
+    height: 4,
+    marginBottom: 14,
+    marginLeft: 0,
+    marginRight: 0,
+  };
+
   const capsChildren = [
+    ctxAccentBar,
     { type: 'text', text: 'CAPABILITY',
-      fontSize: 13, color: labelCool, letterSpacing: 5, marginBottom: 14 },
+      fontSize: 13, color: labelCool, letterSpacing: 5, marginBottom: 10 },
     { type: 'text', text: 'Discovery', fontSize: 22, color: supportColor, marginTop: 4 },
     { type: 'text', text: 'Producer',  fontSize: 22, color: supportColor, marginTop: 4 },
     { type: 'text', text: '3D',        fontSize: 22, color: supportColor, marginTop: 4 },
     { type: 'text', text: 'Audio',     fontSize: 22, color: mutedColor,   marginTop: 4 },
   ];
   const statusChildren = [
+    ctxAccentBar,
     { type: 'text', text: 'TARGET',
-      fontSize: 13, color: labelCool, letterSpacing: 5, marginBottom: 14 },
+      fontSize: 13, color: labelCool, letterSpacing: 5, marginBottom: 10 },
     { type: 'text', text: 'Vision Pro',    fontSize: 22, color: supportColor, marginTop: 4 },
     { type: 'text', text: 'Quest 3',       fontSize: 22, color: supportColor, marginTop: 4 },
     { type: 'text', text: 'Web',           fontSize: 22, color: supportColor, marginTop: 4 },
     { type: 'text', text: 'AR Quick Look', fontSize: 16, color: mutedColor,   marginTop: 10 },
   ];
+
+  // Micro-panel border: thin warm-amber edge on caps/status panels.
+  // Subtle (0.35 alpha) so it reads as chrome, not as a highlight.
+  const ctxBorderColor = 'rgba(255, 179, 122, 0.35)';
+  const ctxBorderWidth = 1;
 
   if (layout === 'portrait') {
     // tall stack. hero on top; supporting, contexts smaller below. With
@@ -455,8 +511,8 @@ function computePanelSpecs(layout) {
     return [
       { role: 'title',    width: 2.4, height: 1.5,  bg: surfaceHero, padding: 32, scaleHint: 1.00, children: titleChildren },
       { role: 'subtitle', width: 2.2, height: 1.0,  bg: surfaceSupp, padding: 24, scaleHint: 0.85, children: subtitleChildren },
-      { role: 'caps',     width: 2.0, height: 1.25, bg: surfaceCtx,  padding: 22, scaleHint: 0.75, children: capsChildren },
-      { role: 'status',   width: 2.0, height: 1.25, bg: surfaceCtx,  padding: 22, scaleHint: 0.70, children: statusChildren },
+      { role: 'caps',     width: 2.0, height: 1.25, bg: surfaceCtx,  padding: 22, scaleHint: 0.75, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: capsChildren },
+      { role: 'status',   width: 2.0, height: 1.25, bg: surfaceCtx,  padding: 22, scaleHint: 0.70, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: statusChildren },
     ];
   }
 
@@ -464,10 +520,10 @@ function computePanelSpecs(layout) {
     // long bar: hero center-right at slot 2 (third-line offset, §8). caps
     // far left, status far right, subtitle just left of hero.
     return [
-      { role: 'caps',     width: 1.8, height: 1.65, bg: surfaceCtx,  padding: 32, scaleHint: 0.85, children: capsChildren },
+      { role: 'caps',     width: 1.8, height: 1.65, bg: surfaceCtx,  padding: 32, scaleHint: 0.85, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: capsChildren },
       { role: 'subtitle', width: 2.0, height: 1.20, bg: surfaceSupp, padding: 32, scaleHint: 0.95, children: subtitleChildren },
       { role: 'title',    width: 2.8, height: 1.55, bg: surfaceHero, padding: 38, scaleHint: 1.15, children: titleChildren },
-      { role: 'status',   width: 1.8, height: 1.65, bg: surfaceCtx,  padding: 32, scaleHint: 0.85, children: statusChildren },
+      { role: 'status',   width: 1.8, height: 1.65, bg: surfaceCtx,  padding: 32, scaleHint: 0.85, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: statusChildren },
     ];
   }
 
@@ -479,18 +535,18 @@ function computePanelSpecs(layout) {
     return [
       { role: 'title',    width: 2.4, height: 1.45, bg: surfaceHero, padding: 32, scaleHint: 0.92, children: titleChildren },
       { role: 'subtitle', width: 2.0, height: 1.15, bg: surfaceSupp, padding: 26, scaleHint: 0.82, children: subtitleChildren },
-      { role: 'caps',     width: 1.9, height: 1.30, bg: surfaceCtx,  padding: 24, scaleHint: 0.78, children: capsChildren },
-      { role: 'status',   width: 1.9, height: 1.30, bg: surfaceCtx,  padding: 24, scaleHint: 0.78, children: statusChildren },
+      { role: 'caps',     width: 1.9, height: 1.30, bg: surfaceCtx,  padding: 24, scaleHint: 0.78, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: capsChildren },
+      { role: 'status',   width: 1.9, height: 1.30, bg: surfaceCtx,  padding: 24, scaleHint: 0.78, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: statusChildren },
     ];
   }
 
   // wide (default): horizontal arc. caps and status flank as wings,
   // subtitle is left-of-hero, hero (slot 2) sits on the right third-line.
   return [
-    { role: 'caps',     width: 1.8, height: 1.65, bg: surfaceCtx,  padding: 30, scaleHint: 0.78, children: capsChildren },
+    { role: 'caps',     width: 1.8, height: 1.65, bg: surfaceCtx,  padding: 30, scaleHint: 0.78, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: capsChildren },
     { role: 'subtitle', width: 2.0, height: 1.20, bg: surfaceSupp, padding: 30, scaleHint: 0.88, children: subtitleChildren },
     { role: 'title',    width: 2.8, height: 1.55, bg: surfaceHero, padding: 38, scaleHint: 1.12, children: titleChildren },
-    { role: 'status',   width: 1.8, height: 1.65, bg: surfaceCtx,  padding: 30, scaleHint: 0.78, children: statusChildren },
+    { role: 'status',   width: 1.8, height: 1.65, bg: surfaceCtx,  padding: 30, scaleHint: 0.78, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: statusChildren },
   ];
 }
 

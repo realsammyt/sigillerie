@@ -15,17 +15,30 @@
  *     "imports": {
  *       "three": "https://cdn.jsdelivr.net/npm/three@0.181.0/build/three.module.min.js",
  *       "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.181.0/examples/jsm/",
- *       "@pmndrs/uikit": "https://cdn.jsdelivr.net/npm/@pmndrs/uikit@latest/dist/index.js"
+ *       "three/examples/jsm/": "https://cdn.jsdelivr.net/npm/three@0.181.0/examples/jsm/",
+ *       "three/src/math/MathUtils.js": "https://cdn.jsdelivr.net/npm/three@0.181.0/src/math/MathUtils.js",
+ *       "@pmndrs/uikit": "https://cdn.jsdelivr.net/npm/@pmndrs/uikit@0.8.13/dist/index.js",
+ *       "@pmndrs/msdfonts": "https://cdn.jsdelivr.net/npm/@pmndrs/msdfonts@0.8.21/dist/index.js",
+ *       "@preact/signals-core": "https://cdn.jsdelivr.net/npm/@preact/signals-core@1.5.1/dist/signals-core.module.js",
+ *       "yoga-layout/load": "https://cdn.jsdelivr.net/npm/yoga-layout@3.2.1/dist/src/load.js",
+ *       "node-html-parser": "https://cdn.jsdelivr.net/npm/node-html-parser@6.1.13/+esm",
+ *       "inline-style-parser": "https://cdn.jsdelivr.net/npm/inline-style-parser@0.2.3/+esm",
+ *       "tw-to-css": "https://cdn.jsdelivr.net/npm/tw-to-css@0.0.12/+esm"
  *     }
  *   }
  *   </script>
  *
- * Note: jsDelivr serves the published @pmndrs/uikit ESM bundle from
- * `dist/index.js`. user verifies, if `@pmndrs/uikit@latest` shifts its
- * entry, pin to a known-good version (e.g. `@pmndrs/uikit@0.8.x`) and
- * point at the resolved file. The fallback below makes a wrong path
- * non-fatal: createPanel still returns a working Object3D, just rendered
- * via CanvasTexture instead of yoga flex.
+ * NOTE on peer deps: uikit@0.8.13 dist/index.js is NOT a single bundle.
+ * dist/components/container.js and text.js both import dist/internals.js,
+ * which re-exports dist/convert/html/internals.js, pulling in
+ * node-html-parser, inline-style-parser, and tw-to-css as bare specifiers.
+ * All three need importmap entries (use jsDelivr +esm for the CJS ones).
+ * IMPORTANT: page must be served over http://, not file://. The +esm bundles
+ * for node-html-parser include absolute CDN paths (/npm/he@...) that only
+ * resolve correctly against the cdn.jsdelivr.net host. The local HTTP server
+ * in render-video.js --mode=3d handles this automatically.
+ * The fallback below makes a wrong path non-fatal: createPanel still
+ * returns a working Object3D rendered via CanvasTexture.
  *
  * --- USAGE ---
  *
@@ -228,9 +241,9 @@ function mountUikit(state, host, uikit) {
   // Some builds of uikit also ship Image; fall back to a Container if missing.
   const ImageNode = uikit.Image || uikit.Container;
 
-  // Root needs camera + renderer to handle pointer events and pixel sizing.
+  // uikit@0.8.x vanilla Root: constructor(camera, renderer, properties, ...)
   // sizeX/sizeY are world units, matching the recipe's width/height contract.
-  const rootNode = new Root({
+  const properties = {
     sizeX: opts.width != null ? opts.width : 2,
     sizeY: opts.height != null ? opts.height : 1.2,
     flexDirection: opts.layout === 'flex-row' ? 'row' : 'column',
@@ -239,19 +252,15 @@ function mountUikit(state, host, uikit) {
     padding: opts.padding != null ? opts.padding : 24,
     backgroundColor: opts.background || theme.surface,
     borderRadius: opts.borderRadius != null ? opts.borderRadius : 24,
-    borderColor: theme.border,
-  });
+    borderColor: opts.borderColor || theme.border,
+    borderWidth: opts.borderWidth != null ? opts.borderWidth : 0,
+  };
 
-  // uikit's Root extends Object3D, so we add it directly to our host group.
-  // Cameras are picked up off threeApi at attach time.
-  if (typeof rootNode.bind === 'function') {
-    // Newer API: bind(camera, renderer) wires interaction.
-    try {
-      rootNode.bind(threeApi.camera, threeApi.renderer);
-    } catch (err) {
-      // Older builds bind via attach; ignore.
-    }
-  }
+  const rootNode = new Root(
+    threeApi.camera,
+    threeApi.renderer,
+    properties,
+  );
 
   host.add(rootNode);
   state.uikitRoot = rootNode;
@@ -351,6 +360,15 @@ function mountFallback(state, host) {
   ctx.fillStyle = opts.background || theme.surface;
   roundRect(ctx, 0, 0, cw, ch, radius);
   ctx.fill();
+
+  // optional border stroke (maps to opts.borderWidth + opts.borderColor)
+  if (opts.borderWidth && opts.borderWidth > 0) {
+    const bw = opts.borderWidth * (cw / (w * pxPerUnit));
+    ctx.strokeStyle = opts.borderColor || theme.border;
+    ctx.lineWidth = Math.max(1, bw);
+    roundRect(ctx, bw * 0.5, bw * 0.5, cw - bw, ch - bw, Math.max(0, radius - bw * 0.5));
+    ctx.stroke();
+  }
 
   // Children layout. Only text and nested containers are honored in fallback.
   const layout = opts.layout || 'flex-col';

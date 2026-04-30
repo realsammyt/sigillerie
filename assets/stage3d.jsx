@@ -513,7 +513,7 @@
               window.__sceneReady = true;
             }
           };
-          if (typeof requestAnimationFrame === 'function') {
+          if (typeof requestAnimationFrame === 'function' && !window.__recording) {
             requestAnimationFrame(() => requestAnimationFrame(finalize));
           } else {
             setTimeout(finalize, 32);
