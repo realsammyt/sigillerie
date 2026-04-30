@@ -7,18 +7,22 @@ description: Discovery Phase 1, 6 intake questions, bilingual EN/ZH, vague-answe
 
 Phase 1 listens. No options yet, no moodboard, no logo talk. Six questions, asked one at a time, answers landed in `discovery.json#intake`. If user names a real existing product, agent fills gaps from public sources and tags inferred fields. Locale captured here threads through every later phase. Budget: 4–7 min wall-clock, 8–12 turns, 0–2 web searches.
 
+Postel's Law (be conservative in what you send, liberal in what you accept) governs intake. Accept any answer shape: short, long, vague, off-topic. The vague-answer recovery table normalizes input into the rubric. Don't ask the user to retry in a particular format; restate as a forced choice instead.
+
 ---
 
 ## The Six Questions
 
+Parkinson's Law applies here: open scope produces open answers; bounded scope produces bounded answers. Each question below carries an `answer format:` note. Use it to set scope before the user replies, not after.
+
 | # | EN (canonical) | ZH (canonical) | Why | Good answer | If vague |
 |---|---|---|---|---|---|
-| 1 | What is the thing? | 这是个什么东西？ | Anchors the noun. Product, service, app, or company shapes every later choice. | Concrete noun + one-sentence frame. "iOS app for tide-pool ID." | Reflect back nearest concrete reading. Ask: "App, site, hardware, or service?" |
-| 2 | Who's it for? | 用户是谁？ | One archetypal customer, plain words. Not a TAM slide. | One human in one sentence. "Field biologists who shoot in tide pools at dawn." | Pin to one. Ask: "If only one person bought this, who?" |
-| 3 | What problem does it kill? | 它解决什么问题？ | Forces the value claim. Vibe lives downstream of stakes. | Pain in user's own words, not feature-speak. | Reflect feature, ask for cost. "iNaturalist is slow at 5am offline" beats "fast offline ID." |
-| 4 | Three vibe-words. | 三个气质词。 | Triangulates taste. Three is the minimum that locates a point. | Three adjectives, comma-separated. "Calm, technical, irreverent." | Offer 5 paired contrasts: warm/cool, loud/quiet, dry/playful, dense/airy, classic/strange. User picks one from each, agent compresses to three. |
-| 5 | What you're not. | 你绝对不是什么？ | Anti-brand sharpens the brand. One adjacent thing user actively rejects beats ten things they like. | One or two named adjacent brands or descriptors. "Not Apple-clean. Not REI-rugged." | Ask: "Pick a brand close to yours that you'd hate being mistaken for." |
-| 6 | Where will it ship first? | 第一站在哪里上线？ | Locks the first surface. Determines aspect ratios, asset list, 3D lane on/off. | One of: landing page, App Store screenshots, pitch deck, AR preview, slide deck, dashboard. | Ask: "Where does the first stranger see this?" |
+| 1 | What is the thing? | 这是个什么东西？ | Anchors the noun. Product, service, app, or company shapes every later choice. | Concrete noun + one-sentence frame. "iOS app for tide-pool ID." answer format: 1-2 sentences. | Reflect back nearest concrete reading. Ask: "App, site, hardware, or service?" |
+| 2 | Who's it for? | 用户是谁？ | One archetypal customer, plain words. Not a TAM slide. | One human in one sentence. "Field biologists who shoot in tide pools at dawn." answer format: 1 sentence. | Pin to one. Ask: "If only one person bought this, who?" |
+| 3 | What problem does it kill? | 它解决什么问题？ | Forces the value claim. Vibe lives downstream of stakes. | Pain in user's own words, not feature-speak. answer format: 1-2 sentences. | Reflect feature, ask for cost. "iNaturalist is slow at 5am offline" beats "fast offline ID." |
+| 4 | Three vibe-words. | 三个气质词。 | Triangulates taste. Three is the minimum that locates a point. | Three adjectives, comma-separated. "Calm, technical, irreverent." answer format: three words, comma-separated. | Offer 5 paired contrasts: warm/cool, loud/quiet, dry/playful, dense/airy, classic/strange. User picks one from each, agent compresses to three. |
+| 5 | What you're not. | 你绝对不是什么？ | Anti-brand sharpens the brand. One adjacent thing user actively rejects beats ten things they like. | One or two named adjacent brands or descriptors. "Not Apple-clean. Not REI-rugged." answer format: 1-2 brand names or short descriptors, comma-separated. | Ask: "Pick a brand close to yours that you'd hate being mistaken for." |
+| 6 | Where will it ship first? | 第一站在哪里上线？ | Locks the first surface. Determines aspect ratios, asset list, 3D lane on/off. | One of: landing page, App Store screenshots, pitch deck, AR preview, slide deck, dashboard. answer format: one item from the list above. | Ask: "Where does the first stranger see this?" |
 
 ---
 
