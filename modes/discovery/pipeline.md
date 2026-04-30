@@ -51,6 +51,17 @@ Failure paths (§F):
 - **Discovery cannot make it**: real photo of nonexistent hardware. `status: gap, severity: high`. Producer mode flags or refuses.
 - **Skip to producer**: respected. Minimal spec written, fields tagged `inferred` or `missing`. Warning surfaced.
 
+## Phase 3 direction reveal authoring rule (§I)
+
+Phase 3 is the session's peak. First moment the user sees their brand come to life. Treat it as a deliberate hero moment. (applies Peak-End Rule: the peak experience sets the memory of the whole session)
+
+Rules for the reveal:
+
+- **Full HTML render, not a list.** Emit `choosers/phase-3-directions.html` as the output. Three tiles side by side. No markdown bullet recap.
+- **Warm copy per direction.** Each tile opens with a sentence that names the user's chosen vibe words and maps them to the direction's philosophy. Example: "You said 'calm' and 'literary' — this direction answers with white-space discipline inherited from Kenya Hara."
+- **One-paragraph rationale per direction.** Explains the design logic: what the kept moodboard images share with this direction, what the flinch image rejects. One paragraph only, no sub-bullets.
+- **No winner signaling until the user picks.** All three tiles render at equal visual weight. Agent does not editorialize a preferred direction before the choose-point resolves.
+
 ## discovery.json schema (§D)
 
 Append-only events log. Every `chosen` cites `alternatives`. Re-picks fork to `discovery.v2.json`.
@@ -219,3 +230,11 @@ Severity rules:
 - **low**: cosmetic. Producer ships clean.
 
 Producer preflight reads `gaps` first. If any high-severity gap, producer prompts user before proceeding. Discovery's job ends at hand-off; producer owns delivery quality from there.
+
+Phase 6 close authoring rule: the hand-off message is the session's end — users remember peaks and ends. Make it deliberate. (applies Peak-End Rule: end carries disproportionate memory weight)
+
+Rules for the close:
+
+- **Single concrete CTA.** One next action stated as a direct command. Example: "Run `/produce [brand]` to start your first deliverable." Not a list of remaining gaps.
+- **No open loops in the close copy.** Gaps are documented in `discovery.json#gaps`, not enumerated in the closing message. Keep the end emotionally clean.
+- **Acknowledge what was built.** One sentence naming what the user now has: a locked brand spec, named direction, populated assets folder. Ground the close in the concrete output before handing off.
