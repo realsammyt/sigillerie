@@ -40,6 +40,8 @@
  *   { THREE, scene, camera, renderer }
  */
 
+import { applyRecipeBaseline } from '../three3d/recipe-baseline.js';
+
 const PAN_SPEEDS = {
   'slow-orbital': 12.0,   // sec per revolution
   'medium-orbital': 9.0,
@@ -75,9 +77,9 @@ function hexToVec3(THREE, hex) {
  */
 function buildLayout(count, spacing) {
   const slots = [];
-  // dominant in middle, slightly forward
+  // dominant off-center per aesthetic §8 (hero on third-line, slight headroom)
   slots.push({
-    x: 0, y: 0.05, z: 0.4,
+    x: 0.18, y: 0.10, z: 0.4,
     tilt: { x: -0.18, y: 0.10, z: -0.03 },
     ring: 0,
   });
@@ -223,32 +225,49 @@ export function createHeroShot(threeApi, opts = {}) {
     disposables.push(backdrop, floor);
   }
 
-  // lights, soft key + fill + per-card rim hint via a moving subtle directional
-  const ambient = new THREE.AmbientLight(0xfff4e6, 0.55);
-  scene.add(ambient);
-  const key = new THREE.DirectionalLight(0xffffff, 0.85);
-  key.position.set(3.2, 4.5, 2.8);
-  key.castShadow = true;
-  key.shadow.mapSize.set(1024, 1024);
-  key.shadow.radius = 6;
-  key.shadow.bias = -0.0005;
-  key.shadow.camera.left   = -6;
-  key.shadow.camera.right  =  6;
-  key.shadow.camera.top    =  4;
-  key.shadow.camera.bottom = -4;
-  key.shadow.camera.near = 0.5;
-  key.shadow.camera.far  = 18;
-  scene.add(key);
-  const fill = new THREE.DirectionalLight(0xcfd6e0, 0.30);
-  fill.position.set(-3.5, 2.0, -1.5);
-  scene.add(fill);
-  const rim = new THREE.DirectionalLight(0xffe6cc, 0.45);
-  rim.position.set(-1.5, 2.5, -3.5);
-  scene.add(rim);
-
+  // lights: use applyCoolStudio from lighting-moods.js (aesthetic §2 / anti-#5).
+  // Falls back to an inline three-point with ambient dropped to 0.12 if the
+  // library isn't loaded yet.
   if (renderer) {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  }
+
+  let lightCtrl = null;
+  const sigLighting = typeof window !== 'undefined' && window.SigillerieLighting;
+  if (sigLighting && sigLighting.applyCoolStudio) {
+    lightCtrl = sigLighting.applyCoolStudio(THREE, scene, { castShadow: true });
+  } else {
+    // fallback inline three-point (ambient at 0.12, not 0.55 -- anti-#5 fix)
+    const ambient = new THREE.AmbientLight(0xfff4e6, 0.12);
+    scene.add(ambient);
+    const key = new THREE.DirectionalLight(0xffffff, 6.5);
+    key.position.set(3.2, 4.5, 2.8);
+    key.castShadow = true;
+    key.shadow.mapSize.set(1024, 1024);
+    key.shadow.radius = 6;
+    key.shadow.bias = -0.0005;
+    key.shadow.camera.left   = -6;
+    key.shadow.camera.right  =  6;
+    key.shadow.camera.top    =  4;
+    key.shadow.camera.bottom = -4;
+    key.shadow.camera.near = 0.5;
+    key.shadow.camera.far  = 18;
+    scene.add(key);
+    const fill = new THREE.DirectionalLight(0xa8c8ff, 1.6);
+    fill.position.set(-3.0, 2.4, 1.6);
+    scene.add(fill);
+    const rim = new THREE.DirectionalLight(0xffffff, 4.0);
+    rim.position.set(-1.2, 2.6, -3.2);
+    scene.add(rim);
+    // synthetic ctrl so dispose path is uniform
+    lightCtrl = {
+      lights: [ambient, key, fill, rim],
+      update() {},
+      dispose() {
+        for (const l of [ambient, key, fill, rim]) scene.remove(l);
+      },
+    };
   }
 
   // build cards
@@ -319,6 +338,14 @@ export function createHeroShot(threeApi, opts = {}) {
     rimMesh.userData.parentCard = mesh;
     root.add(rimMesh);
     mesh.userData.rim = rimMesh;
+  }
+
+  // postprocessing baseline: bloom + vignette via recipe-baseline.js (aesthetic §4 / §12)
+  const post = applyRecipeBaseline(threeApi, {
+    bloom: { strength: 0.6, radius: 0.8, threshold: 0.85 },
+  });
+  if (post.composer) {
+    threeApi.draw = () => post.composer.render();
   }
 
   // camera setup, slow orbital
@@ -451,10 +478,8 @@ export function createHeroShot(threeApi, opts = {}) {
       floor.geometry.dispose();
       floor.material.dispose();
     }
-    scene.remove(ambient);
-    scene.remove(key);
-    scene.remove(fill);
-    scene.remove(rim);
+    if (lightCtrl) lightCtrl.dispose();
+    post.dispose();
   }
 
   return {
