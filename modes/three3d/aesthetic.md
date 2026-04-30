@@ -139,6 +139,12 @@ Each is a failure the critic agent (G4) scans for by name.
 | **Equal weight** | every element same size + brightness | hierarchy table in §1 |
 | **Stacked-z parallel** | content panels arrayed on z-axis | curved arc or hero+overlay (see `architecture.md`) |
 | **No focal point** | eye lands nowhere | one hero, force the rest down |
+| **Choice Paralysis** | 3D chooser presents 5+ equal-weight direction tiles with no visual hierarchy or default highlight. User stalls. | Choice Overload, Hick's Law | Mark one tile as "Recommended" or visually distinguish with scale/brightness. |
+| **Cognitive Blowout** | Scene has 7+ independent focal elements at the same z-depth, all at full brightness. Eye has no path. | Miller's Law, Cognitive Load | Collapse to 1 hero + 4 max supporting. Everything else is context or background. |
+| **Spatial Orphan** | Related UI panels float in 3D space without a shared bounding box or visual connector. User can't tell what belongs together. | Law of Common Region | Wrap related panels in a uikit container or add a subtle backdrop plane behind them. |
+| **Angular Midget** | Interactive button rendered at a size that looks fine on a 27" monitor but subtends under 1.5° at spatial viewing distance. Users can't point at it. | Fitts's Law | Check angular size at target viewing distance. Minimum 2° for all interactive targets. |
+| **Invisible Peak** | Hero animation has no discernible moment of maximum interest. All stages run at the same visual intensity. | Peak-End Rule | Identify the climax keyframe explicitly. Boost bloom, scale, or camera speed at that moment. |
+| **Terminal Anticlimax** | A 3D sequence ends on a context element (background, atmosphere) rather than on the hero or CTA. | Peak-End Rule, Serial Position | Route the closing camera to the hero or CTA panel. The last thing seen is most remembered. |
 
 ## 11. Where to apply
 
