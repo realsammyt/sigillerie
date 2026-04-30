@@ -9,6 +9,11 @@
  * grows 1.4x, second-ring satellites drop to 0.4 alpha. Soft shadows on a
  * procedural horizon gradient. One subtle rim light per card.
  *
+ * UX Law: Miller's Law (§13). 7 cards is the working-memory ceiling.
+ * The recipe clamps at 7 (see `cardsIn.length < 3` guard and `.slice(0, 7)`).
+ * At 7 the viewer is at the limit — consider 5 as the practical default.
+ * Each additional card past 5 costs attention without gaining recall.
+ *
  * Self-contained. Caveman English. No em-dashes, no banned vocab.
  *
  * Usage:
@@ -402,6 +407,12 @@ export function createHeroShot(threeApi, opts = {}) {
     state.focusProgress = Math.min(1, sinceSwitch / FOCUS_FADE);
     const fp = easeInOutCubic(state.focusProgress);
 
+    // UX Law: Von Restorff Effect (§13). Exactly one card per frame is the
+    // conspicuous outlier: FOCUS_SCALE (1.4x) + full alpha. All others shrink
+    // to 0.85 alpha; ring-2 satellites drop to SATELLITE_ALPHA (0.4).
+    // Do not break the rhythm in two places at once — two outliers cancel
+    // each other's isolation effect. The focusedIdx is the single anomaly.
+    //
     // 3. per-card target scale + alpha
     for (let i = 0; i < cardObjects.length; i++) {
       const card = cardObjects[i];
