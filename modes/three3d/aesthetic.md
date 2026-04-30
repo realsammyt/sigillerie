@@ -139,6 +139,12 @@ Each is a failure the critic agent (G4) scans for by name.
 | **Equal weight** | every element same size + brightness | hierarchy table in §1 |
 | **Stacked-z parallel** | content panels arrayed on z-axis | curved arc or hero+overlay (see `architecture.md`) |
 | **No focal point** | eye lands nowhere | one hero, force the rest down |
+| **Choice Paralysis** | 3D chooser presents 5+ equal-weight direction tiles with no visual hierarchy or default highlight. User stalls. | Choice Overload, Hick's Law | Mark one tile as "Recommended" or visually distinguish with scale/brightness. |
+| **Cognitive Blowout** | Scene has 7+ independent focal elements at the same z-depth, all at full brightness. Eye has no path. | Miller's Law, Cognitive Load | Collapse to 1 hero + 4 max supporting. Everything else is context or background. |
+| **Spatial Orphan** | Related UI panels float in 3D space without a shared bounding box or visual connector. User can't tell what belongs together. | Law of Common Region | Wrap related panels in a uikit container or add a subtle backdrop plane behind them. |
+| **Angular Midget** | Interactive button rendered at a size that looks fine on a 27" monitor but subtends under 1.5° at spatial viewing distance. Users can't point at it. | Fitts's Law | Check angular size at target viewing distance. Minimum 2° for all interactive targets. |
+| **Invisible Peak** | Hero animation has no discernible moment of maximum interest. All stages run at the same visual intensity. | Peak-End Rule | Identify the climax keyframe explicitly. Boost bloom, scale, or camera speed at that moment. |
+| **Terminal Anticlimax** | A 3D sequence ends on a context element (background, atmosphere) rather than on the hero or CTA. | Peak-End Rule, Serial Position | Route the closing camera to the hero or CTA panel. The last thing seen is most remembered. |
 
 ## 11. Where to apply
 
@@ -164,3 +170,64 @@ Every recipe in `assets/recipes/` should respect these defaults unless the calle
 - Background: gradient sphere or HDRI, not flat color
 
 Recipes that violate these are the place where ugly leaks in. Audit recipes when you change this doc.
+
+## 13. UX laws in spatial context
+
+Core UX laws don't stop at 2D. These are the spatial restatements.
+
+### Fitts's Law: angular hit floor
+
+Interactive targets in spatial UI have a minimum angular size, not a minimum pixel size.
+
+| Platform | Viewing distance | Minimum target |
+|---|---|---|
+| Vision Pro (eyes + hand tracking) | 0.5-0.8 m | 44 pt physical = ~3.1° at 0.8 m |
+| Quest 3 (ray-cast) | 0.6-1.2 m | 80 x 80 px at 72 PPI = ~3.6° at 0.9 m |
+| Desktop WebGL (mouse) | 0.5-0.7 m | 32 x 32 px screen = ~2.6° at 0.6 m |
+| Generic 3D infographic (no interaction) | n/a | Not applicable, no interaction targets |
+
+For uikit panels: interactive buttons must have `padding` that brings the visual + hit area to the floor above. Use `pointerEvents: auto` only on regions that meet the floor.
+
+### Jakob's Law: platform conventions before invention
+
+Before designing any spatial UI:
+
+1. State the target platform: Vision Pro / Quest / Desktop WebGL / abstract scene.
+2. Map the critical conventions of that platform.
+3. Deviate only with explicit rationale.
+
+| Platform | Key conventions |
+|---|---|
+| Vision Pro | Glass panels, close button top-left, system ornaments white/translucent |
+| Quest 3 | Social UI panels at 0.7 m, controls below content, Meta Sans or system font |
+| Desktop WebGL | Orbital camera, panel in screen-space overlay OR world-anchored at hero distance |
+| Abstract 3D | No fixed conventions. Focal hierarchy (§1) is the only rule. |
+
+### Pragnanz: scene resolution to one reading
+
+A 3D scene should resolve to one simple Gestalt from any stable camera position.
+
+Test: describe the scene in one sentence without naming individual elements. If you can't, the scene has no Gestalt. Reduce until you can.
+
+Per z-layer: maximum three distinct focal elements. Beyond three, the layer loses its reading.
+
+### Cognitive Load: scene complexity cap
+
+| Category | Maximum count |
+|---|---|
+| Hero elements (z = 0, full focus) | 1 |
+| Supporting elements (z = 1-2 back) | 4 |
+| Context elements (z = 3-5 back, slight blur) | 8 |
+| Background / atmosphere (z = 8+) | unlimited |
+
+Exceeding the supporting-element cap requires a spatial justification (carousel with one focus slot, sequential reveal that clears previous elements).
+
+### Serial Position: first and last panels carry
+
+Camera starts on panel A. Camera ends on panel B. The viewer best remembers A and B.
+
+Put the product hero at the initial camera target. Put the CTA or closing message at the scene the camera rests on last. The journey between them can carry context, it won't anchor memory.
+
+### Von Restorff: one conspicuous element per frame
+
+One element per frame should break the visual rhythm. The focused card in `hero-shot.js` (1.4x scale, other cards at 0.85 alpha) is the canonical implementation. Do not break the rhythm in two places simultaneously, two anomalies cancel each other's isolation effect.

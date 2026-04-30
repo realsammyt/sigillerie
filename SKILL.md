@@ -1,6 +1,6 @@
 ---
 name: sigillerie
-description: Sigillerie · AI design studio that ships single-file HTML deliverables (animations, prototypes, slide decks, infographics, data viz, knowledge graphs, 3D / immersive, generative audio). Three modes (Discovery / Producer / 3D) × four capabilities (Hi-Fi Base / Data Viz / Knowledge Graph / Generative Audio). Triggers EN/ZH — discover, studio, brand, design, prototype, app mockup, iOS prototype, slide deck, presentation, animation, hero, MP4 export, GIF export, infographic, dashboard, chart, viz, data-story, scrollytelling, knowledge graph, ontology, network, vault explorer, agent-os swarm, 3D, spatial, AR, AR Quick Look, model-viewer, WebXR, Vision Pro, Quest, walkthrough, generative audio, BGM, SFX, audio brand, parametric SFX, sonification, expert review, critique, 评审, 做原型, 设计变体, 推荐风格, 沉浸式, 立体展示, 动画 Demo, 数据可视化, 知识图谱, 生成音频. English-canonical docs.
+description: Sigillerie · AI design studio that ships single-file HTML deliverables (animations, prototypes, slide decks, infographics, data viz, knowledge graphs, 3D / immersive, generative audio). Three modes (Discovery / Producer / 3D) × four capabilities (Hi-Fi Base / Data Viz / Knowledge Graph / Generative Audio). Triggers EN/ZH — discover, studio, brand, design, prototype, app mockup, iOS prototype, slide deck, presentation, animation, hero, MP4 export, GIF export, infographic, dashboard, chart, viz, data-story, scrollytelling, knowledge graph, ontology, network, vault explorer, agent-os swarm, 3D, spatial, AR, AR Quick Look, model-viewer, WebXR, Vision Pro, Quest, walkthrough, generative audio, BGM, SFX, audio brand, parametric SFX, sonification, expert review, critique, ux audit, ux review, heuristic review, usability check, cognitive load review, decision fatigue, 评审, 做原型, 设计变体, 推荐风格, 沉浸式, 立体展示, 动画 Demo, 数据可视化, 知识图谱, 生成音频. English-canonical docs.
 ---
 
 # Sigillerie
@@ -44,6 +44,17 @@ Modes compose. `/discover` then `/3d product hero` is normal.
 - **Anti-AI-slop discipline.** Each capability has its own catalog (`modes/producer/content-guidelines.md`, `capabilities/data-viz/anti-patterns.md`, `capabilities/knowledge-graph/anti-patterns.md`, `capabilities/generative-audio/anti-patterns.md`). Critic agent scans by name.
 - **Caveman docs.** Tight prose. Tables over paragraphs. One idea per sentence.
 
+## UX law self-check (pre-delivery gate)
+
+Before shipping any deliverable, Claude applies this four-question rubric. No rubric section -> no ship.
+
+1. **Cognitive load check.** Count independent focal elements. If over 5 on a flat surface or over 4 in a 3D supporting layer, reduce.
+2. **Serial position check.** The most important claim is at position 1 or position N in its sequence. If it's in the middle, move it.
+3. **Peak-End check.** The deliverable has an identifiable peak (highest-value moment) and a deliberate close. If both aren't named, design them before shipping.
+4. **Doherty check.** Anything that takes over 400 ms to first meaningful content has a loading state. If not, add it.
+
+These four gates cover the must-cite laws most likely to fail silently (no visual defect, just a cognitive UX defect).
+
 ## Page contract (every recordable HTML)
 
 | Variable | Required when | Purpose |
@@ -70,6 +81,7 @@ Modes compose. `/discover` then `/3d product hero` is normal.
 | Knowledge graph stack + storytelling + dogfood | `capabilities/knowledge-graph/` |
 | Generative audio (Tone.js + Stable Audio + ElevenLabs) | `capabilities/generative-audio/` |
 | brand-spec.md schema | `capabilities/_shared/brand-spec-schema.md` |
+| UX laws rubric + integration plan | `_planning/UX-LAWS-INTEGRATION.md` |
 
 ## What this skill does NOT do
 
