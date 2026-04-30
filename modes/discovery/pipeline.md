@@ -208,6 +208,21 @@ Per-phase additions:
 
 Non-destructive. Re-running phase 4 with different prompts adds new option files. Never overwrites.
 
+## Phase-end progress signal (§H) — Goal-Gradient Effect
+
+At each phase end, after writing checkpoint files, agent emits a progress line to the user. (applies Goal-Gradient Effect: explicit phase countdown keeps motivation high as the session nears completion) Exact text per phase:
+
+| Phase complete | Signal to user |
+|---|---|
+| 1 | "Phase 1 of 6 complete. Intake locked. Five phases remain: moodboard, directions, asset build, spec, hand-off." |
+| 2 | "Phase 2 of 6 complete. Moodboard curated. Four phases remain: directions, asset build, spec, hand-off." |
+| 3 | "Phase 3 of 6 complete. Direction chosen. Three phases remain: asset build, spec, hand-off." |
+| 4 | "Phase 4 of 6 complete. Assets built. Two phases remain: spec consolidation, hand-off." |
+| 5 | "Phase 5 of 6 complete. Brand spec written. One phase remains: hand-off." |
+| 6 | "Phase 6 of 6 complete. Discovery done." |
+
+Signal is one line, literal text. No elaboration at this moment -- the progress line is the only output before the next phase prompt or close. (applies Goal-Gradient Effect: proximity to goal increases motivation; explicit countdown lifts completion rate in the final phases)
+
 ## Hand-off contract
 
 Producer mode receives:
