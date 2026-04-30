@@ -9,6 +9,8 @@
 //
 // Self-contained. Uses three-helpers.js for loadGLTF / loadHDRI / createGroundShadow.
 
+import { applyRecipeBaseline } from '../three3d/recipe-baseline.js';
+
 const HELPERS = (typeof window !== 'undefined' && window.Sigillerie3D && window.Sigillerie3D.helpers) || {};
 
 export function createTurntable(threeApi, opts = {}) {
@@ -85,6 +87,7 @@ export function createTurntable(threeApi, opts = {}) {
   // --- product mesh ----------------------------------------------------------
   function makeFallback() {
     // slate body, copper accents, torus knot proxy
+    // TODO(aesthetic §10 anti-#8): real recipes ship user GLB; bevel/displacement on this fallback would be cosmetic noise.
     const geo = new THREE.TorusKnotGeometry(0.55, 0.18, 220, 32);
     const mat = new THREE.MeshPhysicalMaterial({
       color: 0x6b7280,        // slate
@@ -131,18 +134,36 @@ export function createTurntable(threeApi, opts = {}) {
     productGroup.add(productMesh);
   }
 
-  // --- key + ambient fill ----------------------------------------------------
-  const keyLight = new THREE.DirectionalLight(0xffffff, 1.6);
-  keyLight.position.set(2.5, 3.0, 2.0);
-  keyLight.castShadow = true;
-  keyLight.shadow.mapSize.set(1024, 1024);
-  keyLight.shadow.bias = -0.0005;
-  scene.add(keyLight);
-  sceneAdds.push(keyLight);
-
-  const fill = new THREE.HemisphereLight(0xbfd4ff, 0x222227, 0.35);
-  scene.add(fill);
-  sceneAdds.push(fill);
+  // --- lighting (aesthetic §2 / anti-#5: no hemisphere-only fill) -----------
+  // TURN-1: replace HemisphereLight fill with applyCoolStudio three-point rig.
+  // Falls back to inline key + fill if window.SigillerieLighting not loaded.
+  let moodCtrl = null;
+  const sigLighting = typeof window !== 'undefined' && window.SigillerieLighting;
+  if (sigLighting && sigLighting.applyCoolStudio) {
+    moodCtrl = sigLighting.applyCoolStudio(THREE, scene, { castShadow: true });
+    for (const l of moodCtrl.lights) sceneAdds.push(l);
+  } else {
+    const keyLight = new THREE.DirectionalLight(0xffffff, 6.5);
+    keyLight.position.set(3.2, 4.0, 2.6);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(1024, 1024);
+    keyLight.shadow.bias = -0.0005;
+    scene.add(keyLight);
+    sceneAdds.push(keyLight);
+    const fillLight = new THREE.DirectionalLight(0xa8c8ff, 1.6);
+    fillLight.position.set(-3.0, 2.4, 1.6);
+    scene.add(fillLight);
+    sceneAdds.push(fillLight);
+    const rimLight2 = new THREE.DirectionalLight(0xffffff, 4.0);
+    rimLight2.position.set(-1.2, 2.6, -3.2);
+    scene.add(rimLight2);
+    sceneAdds.push(rimLight2);
+    moodCtrl = {
+      lights: [keyLight, fillLight, rimLight2],
+      update() {},
+      dispose() {},
+    };
+  }
 
   // --- moving rim-light (hero sweep) -----------------------------------------
   let rimLight = null;
@@ -198,6 +219,12 @@ export function createTurntable(threeApi, opts = {}) {
     return tex;
   }
 
+  // --- postprocessing baseline (TURN-2, aesthetic §4 / §12) -----------------
+  const post = applyRecipeBaseline(threeApi);
+  if (post.composer) {
+    threeApi.draw = () => post.composer.render();
+  }
+
   // --- per-frame update ------------------------------------------------------
   // t = absolute seconds from sprite start, sprite_t = 0..1 normalized
   function update(t, sprite_t) {
@@ -249,6 +276,8 @@ export function createTurntable(threeApi, opts = {}) {
     if (scene.environment && scene.environment.dispose) {
       // do not dispose if a sibling sprite still uses it, caller owns scene-level env
     }
+    if (moodCtrl) moodCtrl.dispose();
+    post.dispose();
   }
 
   return {
