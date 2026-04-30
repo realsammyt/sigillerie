@@ -14,16 +14,28 @@
  *   hero.dispose();
  */
 
+import {
+  createComposer,
+  addBloom,
+  addDOF,
+  addVignette,
+  addOutputPass,
+} from '../tsl-effects.js';
+
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // Real glass IOR sits 1.45 to 1.52. Crystal pushes 1.6+. attenuationColor
 // with short attenuationDistance gives sea-glass tint without killing alpha.
+//
+// GLASS-1 (aesthetic §3): transmission default dropped from 1.0 to 0.4 so
+// panels catch direct light visibly. Override to 0.7+ when the scene has a
+// high-contrast envMap the user can see refracting through the body.
 const DEFAULTS = {
   tint: '#ffffff',
   roughness: 0.05,
-  transmission: 1.0,
+  transmission: 0.4,
   thickness: 1.0,
   ior: 1.45,
   attenuationDistance: 0.5,
@@ -253,6 +265,36 @@ export function createGlassHero(threeApi, opts = {}) {
   // Stash an optional background hint for the host scene to read.
   if (o.background) group.userData.background = o.background;
 
+  // GLASS-3 (aesthetic §4): bloom + DOF + vignette. DOF slots between bloom
+  // and vignette so it can blur context while bloom stays on the hero body.
+  // Uses tsl-effects directly, NOT recipe-baseline, so the pass order is
+  // controlled (render -> bloom -> dof -> vignette -> output).
+  let glassPost = null;
+  if (threeApi && threeApi.renderer && threeApi.scene && threeApi.camera) {
+    try {
+      const composer = createComposer(threeApi.renderer, threeApi.scene, threeApi.camera);
+      addBloom(composer, { strength: 0.8, radius: 0.8, threshold: 0.85 });
+      addDOF(composer, { focus: 4.5, aperture: 0.04 / 1000, maxblur: 0.012 });
+      addVignette(composer, { offset: 0.95, darkness: 1.4 });
+      addOutputPass(composer);
+      if (threeApi.draw !== undefined) {
+        threeApi.draw = () => composer.render();
+      }
+      glassPost = {
+        composer,
+        dispose() {
+          if (composer && composer.passes) {
+            composer.passes.forEach((p) => {
+              if (p && typeof p.dispose === 'function') p.dispose();
+            });
+          }
+        },
+      };
+    } catch (err) {
+      console.warn('[glass-material] postprocessing setup failed', err);
+    }
+  }
+
   // Tick. t is wall time in seconds, sprite_t is local 0..1 progress.
   // Spin slow, breathe slower.
   function update(t = 0, sprite_t = 0) {
@@ -284,6 +326,7 @@ export function createGlassHero(threeApi, opts = {}) {
     }
     if (pmrem) pmrem.dispose();
     if (envTex && !opts.envMap) envTex.dispose && envTex.dispose();
+    if (glassPost) glassPost.dispose();
   }
 
   return {
