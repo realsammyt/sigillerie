@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sigillerie · Data Viz Anti-Pattern Showcase</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<style>
+  /* ── Reset ───────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ── Design tokens ───────────────────────────────────────── */
+  :root {
+    --bg:        #0f1117;
+    --surface:   #181c27;
+    --border:    #252b3b;
+    --text-head: #f0f2f8;
+    --text-body: #9098b0;
+    --text-dim:  #525b72;
+
+    /* Accent — used ONLY on the headline chart (Buried Lead fix) */
+    --accent:    #3b82f6;
+
+    /* Categorical palette — 5 hues max (Rainbow Categorical fix) */
+    --cat-1:     #60a5fa;   /* blue   */
+    --cat-2:     #34d399;   /* green  */
+    --cat-3:     #f59e0b;   /* amber  */
+    --cat-4:     #a78bfa;   /* violet */
+    --cat-other: #4b5568;   /* neutral for any 5th bucket */
+
+    /* Spacing — 8pt grid */
+    --sp1: 8px;
+    --sp2: 16px;
+    --sp3: 24px;
+    --sp4: 32px;
+    --sp5: 40px;
+    --sp6: 48px;
+
+    --radius: 6px;
+    --font: 'Inter', 'IBM Plex Sans', system-ui, sans-serif;
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text-head);
+    font-family: var(--font);
+    min-height: 100vh;
+    min-width: 1024px;
+  }
+
+  /* ── Page shell ──────────────────────────────────────────── */
+  .page {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: var(--sp6) var(--sp6) 80px;
+  }
+
+  .page-header {
+    margin-bottom: var(--sp6);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: var(--sp4);
+  }
+
+  .page-header h1 {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .page-header p {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-head);
+    margin-top: var(--sp1);
+    line-height: 1.2;
+  }
+
+  /* ── Grid ────────────────────────────────────────────────── */
+  .deck {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: var(--sp4);
+  }
+
+  /* Panel 1 spans full width — twice the weight (Flat Deck fix) */
+  .panel-hero {
+    grid-column: 1 / -1;
+  }
+
+  /* ── Panel card ──────────────────────────────────────────── */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--sp4);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Accent ring only on the hero panel (Von Restorff — one differentiator) */
+  .panel-hero {
+    border-color: var(--accent);
+    border-width: 1px;
+  }
+
+  .panel-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: var(--sp1);
+  }
+
+  .panel-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-head);
+    margin-bottom: 4px;
+    line-height: 1.3;
+  }
+
+  .panel-hero .panel-title {
+    font-size: 26px;
+  }
+
+  .panel-sub {
+    font-size: 13px;
+    color: var(--text-body);
+    margin-bottom: var(--sp3);
+    line-height: 1.5;
+  }
+
+  .chart-wrap {
+    position: relative;
+  }
+
+  .panel-hero .chart-wrap {
+    height: 300px;
+  }
+
+  .panel .chart-wrap {
+    height: 210px;
+  }
+
+  .panel-closing .chart-wrap {
+    height: 160px;
+  }
+
+  /* ── Skeleton state (Loading Void fix) ───────────────────── */
+  .skeleton {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    padding: 16px 12px 24px;
+    background: var(--surface);
+    border-radius: var(--radius);
+    z-index: 10;
+    transition: opacity 0.3s ease;
+  }
+
+  .skeleton.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .skeleton-bar {
+    flex: 1;
+    background: var(--border);
+    border-radius: 2px 2px 0 0;
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+
+  .skeleton-line {
+    height: 10px;
+    background: var(--border);
+    border-radius: 3px;
+    margin-bottom: 8px;
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    0%, 100% { opacity: 0.4; }
+    50%       { opacity: 0.8; }
+  }
+
+  /* Skeleton for line chart variant */
+  .skeleton-line-chart {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px 12px 24px;
+    background: var(--surface);
+    border-radius: var(--radius);
+    z-index: 10;
+    transition: opacity 0.3s ease;
+  }
+
+  .skeleton-line-chart.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  canvas { display: block; }
+
+  /* ── Closing panel stat (Anticlimactic Summary fix) ──────── */
+  .closing-stat {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp2);
+    margin-bottom: var(--sp3);
+    padding: var(--sp3);
+    background: var(--bg);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+  }
+
+  .closing-stat-number {
+    font-size: 56px;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+
+  .closing-stat-context {
+    font-size: 14px;
+    color: var(--text-body);
+    line-height: 1.5;
+    max-width: 280px;
+  }
+
+  .closing-stat-context strong {
+    color: var(--text-head);
+    font-weight: 600;
+    display: block;
+    font-size: 16px;
+    margin-bottom: 2px;
+  }
+
+  /* Panel 3+4 share the second row */
+  .panel-closing {
+    grid-column: 1 / -1;
+  }
+
+  /* ── Legend inline (Legend Orphan fix) ───────────────────── */
+  .inline-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px var(--sp3);
+    margin-top: var(--sp2);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-body);
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ── Axis label helper (Unlabeled Axis fix) ──────────────── */
+  .axis-note {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 6px;
+  }
+
+  /* ── Footer ──────────────────────────────────────────────── */
+  .footnote {
+    margin-top: var(--sp6);
+    padding-top: var(--sp3);
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  /* ── Recipe badges (reference layer, not decoration) ────── */
+  .badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: var(--sp2);
+  }
+
+  .badge {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 3px;
+    background: rgba(59,130,246,0.12);
+    color: var(--accent);
+    border: 1px solid rgba(59,130,246,0.25);
+  }
+</style>
+</head>
+<body>
+<script>
+  // ── Sigillerie contract ──────────────────────────────────────
+  window.__ready = false;
+  window.__recording = false;
+</script>
+
+<div class="page">
+
+  <div class="page-header">
+    <h1>Sigillerie · Data Viz Capability</h1>
+    <p>Meridian Software — 2025 Annual Performance</p>
+  </div>
+
+  <div class="deck">
+
+    <!-- ═══════════════════════════════════════════════════════
+         PANEL 1 · Hero · Headline insight first
+         Recipe: Buried Lead fix — insight in position 1
+         Recipe: Flat Deck fix — 2x visual weight, accent color
+         Recipe: Unlabeled Axis fix — every axis labeled with units
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="panel panel-hero" id="panel1">
+      <div class="panel-label">Panel 1 · Primary Insight</div>
+      <div class="panel-title">APAC led revenue growth at +34% YoY — the only region to accelerate</div>
+      <div class="panel-sub">Q4 2025 quarterly revenue by region (USD millions). APAC broke from the pack in Q2 and widened its lead through year-end.</div>
+
+      <div class="chart-wrap" id="wrap1">
+        <!-- Skeleton: visible immediately, held at least 600 ms -->
+        <div class="skeleton" id="skel1">
+          <div class="skeleton-bar" style="height:45%"></div>
+          <div class="skeleton-bar" style="height:72%"></div>
+          <div class="skeleton-bar" style="height:55%"></div>
+          <div class="skeleton-bar" style="height:88%"></div>
+          <div class="skeleton-bar" style="height:38%"></div>
+          <div class="skeleton-bar" style="height:65%"></div>
+          <div class="skeleton-bar" style="height:51%"></div>
+          <div class="skeleton-bar" style="height:79%"></div>
+          <div class="skeleton-bar" style="height:43%"></div>
+          <div class="skeleton-bar" style="height:68%"></div>
+          <div class="skeleton-bar" style="height:56%"></div>
+          <div class="skeleton-bar" style="height:92%"></div>
+        </div>
+        <canvas id="chart1"></canvas>
+      </div>
+
+      <div class="axis-note">Y-axis: revenue in USD millions · X-axis: calendar quarter</div>
+
+      <!-- Inline legend — no orphan (Legend Orphan fix) -->
+      <div class="inline-legend" id="legend1">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>APAC</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--cat-2)"></div>EMEA</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--cat-3)"></div>Americas</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--cat-other)"></div>Other</div>
+      </div>
+
+      <div class="badge-row">
+        <span class="badge">Buried Lead → fix</span>
+        <span class="badge">Flat Deck → fix</span>
+        <span class="badge">Unlabeled Axis → fix</span>
+        <span class="badge">Legend Orphan → fix</span>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         PANEL 2 · Supporting context
+         Recipe: Flat Deck fix — smaller, neutral palette
+         Recipe: Rainbow Categorical fix — 4 colors, neutral for overflow
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="panel" id="panel2">
+      <div class="panel-label">Panel 2 · Supporting Context</div>
+      <div class="panel-title">Customer mix shifted toward Enterprise</div>
+      <div class="panel-sub">Revenue share by segment, Q1–Q4 2025 (%). Top 4 segments named; remainder grouped as Other.</div>
+
+      <div class="chart-wrap" id="wrap2">
+        <div class="skeleton" id="skel2">
+          <div class="skeleton-bar" style="height:90%"></div>
+          <div class="skeleton-bar" style="height:65%"></div>
+          <div class="skeleton-bar" style="height:45%"></div>
+          <div class="skeleton-bar" style="height:30%"></div>
+          <div class="skeleton-bar" style="height:20%"></div>
+        </div>
+        <canvas id="chart2"></canvas>
+      </div>
+
+      <div class="axis-note">Y-axis: revenue share (%) · X-axis: quarter</div>
+
+      <div class="inline-legend" id="legend2">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--cat-1)"></div>Enterprise</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--cat-2)"></div>Mid-Market</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--cat-3)"></div>SMB</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--cat-other)"></div>Other</div>
+      </div>
+
+      <div class="badge-row">
+        <span class="badge">Flat Deck → fix</span>
+        <span class="badge">Rainbow Categorical → fix</span>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         PANEL 3 · Supporting context
+         Recipe: Flat Deck fix — same smaller weight as panel 2
+         Recipe: Unlabeled Axis fix
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="panel" id="panel3">
+      <div class="panel-label">Panel 3 · Supporting Context</div>
+      <div class="panel-title">Net revenue retention held above 110% all year</div>
+      <div class="panel-sub">Monthly NRR (%) for existing customers. Expansion revenue more than offset churn in every month.</div>
+
+      <div class="chart-wrap" id="wrap3">
+        <div class="skeleton-line-chart" id="skel3">
+          <div class="skeleton-line" style="width:90%"></div>
+          <div class="skeleton-line" style="width:75%"></div>
+          <div class="skeleton-line" style="width:80%"></div>
+          <div class="skeleton-line" style="width:60%"></div>
+          <div class="skeleton-line" style="width:85%"></div>
+          <div class="skeleton-line" style="width:70%"></div>
+          <div class="skeleton-line" style="width:90%"></div>
+          <div class="skeleton-line" style="width:65%"></div>
+          <div class="skeleton-line" style="width:78%"></div>
+          <div class="skeleton-line" style="width:72%"></div>
+        </div>
+        <canvas id="chart3"></canvas>
+      </div>
+
+      <div class="axis-note">Y-axis: NRR (%) · X-axis: month · Baseline: 100% = flat retention</div>
+
+      <div class="badge-row">
+        <span class="badge">Flat Deck → fix</span>
+        <span class="badge">Unlabeled Axis → fix</span>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         PANEL 4 · Closing — peak at the end, not attribution
+         Recipe: Anticlimactic Summary fix — headline number last
+         Recipe: Peak-End Rule applied
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="panel panel-closing" id="panel4">
+      <div class="panel-label">Panel 4 · Takeaway</div>
+
+      <!-- The headline number is the closing beat — not a methodology note -->
+      <div class="closing-stat" id="stat-wrap">
+        <!-- Skeleton for the stat block -->
+        <div id="stat-skel" style="display:flex;align-items:center;gap:16px;width:100%">
+          <div class="skeleton-line" style="width:120px;height:56px;border-radius:4px"></div>
+          <div style="flex:1">
+            <div class="skeleton-line" style="width:180px;height:18px;margin-bottom:8px"></div>
+            <div class="skeleton-line" style="width:260px;height:13px"></div>
+          </div>
+        </div>
+        <div id="stat-content" style="display:none;align-items:baseline;gap:16px">
+          <div class="closing-stat-number">$487M</div>
+          <div class="closing-stat-context">
+            <strong>Total 2025 ARR</strong>
+            Up from $312M in 2024. APAC expansion accounts for 58% of the $175M increase.
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-wrap panel-closing" id="wrap4" style="height:160px">
+        <div class="skeleton" id="skel4">
+          <div class="skeleton-bar" style="height:40%"></div>
+          <div class="skeleton-bar" style="height:55%"></div>
+          <div class="skeleton-bar" style="height:68%"></div>
+          <div class="skeleton-bar" style="height:80%"></div>
+          <div class="skeleton-bar" style="height:90%"></div>
+          <div class="skeleton-bar" style="height:100%"></div>
+        </div>
+        <canvas id="chart4"></canvas>
+      </div>
+
+      <div class="axis-note">Y-axis: ARR in USD millions · X-axis: fiscal year</div>
+
+      <div class="badge-row" style="margin-top:var(--sp2)">
+        <span class="badge">Anticlimactic Summary → fix</span>
+        <span class="badge">Flat Deck → fix</span>
+      </div>
+    </div>
+
+  </div><!-- /.deck -->
+
+  <!-- Attribution moves to collapsed footnote (Anticlimactic Summary fix) -->
+  <details class="footnote">
+    <summary style="cursor:pointer;color:var(--text-dim);list-style:none">Data sources &amp; methodology</summary>
+    <p style="margin-top:8px">
+      Data is illustrative and synthetic. Figures represent a fictional SaaS company, Meridian Software, for demo purposes only.
+      Anti-patterns demonstrated: Buried Lead, Flat Deck, Loading Void, Rainbow Categorical, Unlabeled Axis, Legend Orphan, Anticlimactic Summary.
+      Positive demonstration only — every pattern shown as its fix, not its violation.
+    </p>
+  </details>
+
+</div><!-- /.page -->
+
+<script>
+// ── Chart.js global defaults ─────────────────────────────────
+Chart.defaults.color = '#9098b0';
+Chart.defaults.borderColor = '#252b3b';
+Chart.defaults.font.family = "'Inter', 'IBM Plex Sans', system-ui, sans-serif";
+Chart.defaults.font.size = 11;
+
+// ── Static data (no DuckDB needed; Loading Void recipe still applies) ──
+const QUARTERS = ['Q1 2024', 'Q2 2024', 'Q3 2024', 'Q4 2024',
+                  'Q1 2025', 'Q2 2025', 'Q3 2025', 'Q4 2025'];
+
+const data = {
+  chart1: {
+    labels: QUARTERS,
+    datasets: [
+      {
+        label: 'APAC',
+        data: [28, 31, 35, 38, 44, 56, 68, 79],
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59,130,246,0.12)',
+        borderWidth: 2.5,
+        pointRadius: 3,
+        tension: 0.35,
+        fill: true,
+      },
+      {
+        label: 'EMEA',
+        data: [42, 44, 46, 49, 51, 53, 54, 56],
+        borderColor: '#34d399',
+        backgroundColor: 'transparent',
+        borderWidth: 1.5,
+        pointRadius: 2,
+        tension: 0.35,
+      },
+      {
+        label: 'Americas',
+        data: [61, 63, 65, 67, 70, 71, 73, 74],
+        borderColor: '#f59e0b',
+        backgroundColor: 'transparent',
+        borderWidth: 1.5,
+        pointRadius: 2,
+        tension: 0.35,
+      },
+      {
+        label: 'Other',
+        data: [8, 9, 9, 10, 11, 11, 12, 13],
+        borderColor: '#4b5568',
+        backgroundColor: 'transparent',
+        borderWidth: 1,
+        pointRadius: 2,
+        tension: 0.35,
+        borderDash: [4, 3],
+      },
+    ],
+  },
+  chart2: {
+    labels: ['Q1 2025', 'Q2 2025', 'Q3 2025', 'Q4 2025'],
+    datasets: [
+      {
+        label: 'Enterprise',
+        data: [38, 42, 47, 53],
+        backgroundColor: 'rgba(96,165,250,0.7)',
+      },
+      {
+        label: 'Mid-Market',
+        data: [31, 30, 28, 26],
+        backgroundColor: 'rgba(52,211,153,0.7)',
+      },
+      {
+        label: 'SMB',
+        data: [22, 20, 18, 16],
+        backgroundColor: 'rgba(245,158,11,0.7)',
+      },
+      {
+        label: 'Other',
+        data: [9, 8, 7, 5],
+        backgroundColor: 'rgba(75,85,104,0.7)',
+      },
+    ],
+  },
+  chart3: {
+    labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+    datasets: [
+      {
+        label: 'NRR (%)',
+        data: [112, 113, 114, 111, 115, 116, 118, 117, 119, 121, 122, 124],
+        borderColor: '#60a5fa',
+        backgroundColor: 'rgba(96,165,250,0.08)',
+        borderWidth: 2,
+        pointRadius: 3,
+        tension: 0.4,
+        fill: true,
+      },
+      {
+        label: 'Breakeven (100%)',
+        data: Array(12).fill(100),
+        borderColor: '#525b72',
+        borderWidth: 1,
+        pointRadius: 0,
+        borderDash: [4, 4],
+        fill: false,
+      },
+    ],
+  },
+  chart4: {
+    labels: ['2021','2022','2023','2024','2025'],
+    datasets: [
+      {
+        label: 'ARR (USD M)',
+        data: [89, 148, 221, 312, 487],
+        backgroundColor: [
+          'rgba(59,130,246,0.35)',
+          'rgba(59,130,246,0.45)',
+          'rgba(59,130,246,0.55)',
+          'rgba(59,130,246,0.65)',
+          'rgba(59,130,246,0.85)',
+        ],
+        borderColor: '#3b82f6',
+        borderWidth: 1.5,
+        borderRadius: 3,
+      },
+    ],
+  },
+};
+
+// ── Chart configs ────────────────────────────────────────────
+function makeLineConfig(d, yLabel) {
+  return {
+    type: 'line',
+    data: d,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#181c27',
+          borderColor: '#252b3b',
+          borderWidth: 1,
+          titleColor: '#f0f2f8',
+          bodyColor: '#9098b0',
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y}${yLabel}`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { color: '#1e2433' },
+          ticks: { maxRotation: 0 },
+        },
+        y: {
+          grid: { color: '#1e2433' },
+          title: { display: false }, // label in .axis-note below chart
+          ticks: { callback: v => v + yLabel },
+        },
+      },
+    },
+  };
+}
+
+function makeStackedBarConfig(d) {
+  return {
+    type: 'bar',
+    data: d,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#181c27',
+          borderColor: '#252b3b',
+          borderWidth: 1,
+          titleColor: '#f0f2f8',
+          bodyColor: '#9098b0',
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y}%`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          stacked: true,
+          grid: { display: false },
+        },
+        y: {
+          stacked: true,
+          grid: { color: '#1e2433' },
+          max: 100,
+          ticks: { callback: v => v + '%' },
+        },
+      },
+    },
+  };
+}
+
+function makeBarConfig(d, yLabel) {
+  return {
+    type: 'bar',
+    data: d,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#181c27',
+          borderColor: '#252b3b',
+          borderWidth: 1,
+          titleColor: '#f0f2f8',
+          bodyColor: '#9098b0',
+          callbacks: {
+            label: ctx => ` ARR: $${ctx.parsed.y}M`,
+          },
+        },
+      },
+      scales: {
+        x: { grid: { display: false } },
+        y: {
+          grid: { color: '#1e2433' },
+          ticks: { callback: v => '$' + v + 'M' },
+        },
+      },
+    },
+  };
+}
+
+// ── Skeleton helpers ─────────────────────────────────────────
+function hideSkeleton(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.add('hidden');
+}
+
+// ── Main init ────────────────────────────────────────────────
+// Minimum skeleton display: 600 ms (Loading Void recipe)
+const SKEL_MIN_MS = 600;
+
+function mountCharts() {
+  // Panel 1 — line chart, accent dataset first
+  new Chart(
+    document.getElementById('chart1').getContext('2d'),
+    makeLineConfig(data.chart1, 'M')
+  );
+
+  // Panel 2 — stacked bar, 4 segments (Rainbow Categorical: ≤5 hues)
+  new Chart(
+    document.getElementById('chart2').getContext('2d'),
+    makeStackedBarConfig(data.chart2)
+  );
+
+  // Panel 3 — line chart, NRR
+  new Chart(
+    document.getElementById('chart3').getContext('2d'),
+    makeLineConfig(data.chart3, '%')
+  );
+
+  // Panel 4 — bar chart, ARR growth
+  new Chart(
+    document.getElementById('chart4').getContext('2d'),
+    makeBarConfig(data.chart4, 'M')
+  );
+
+  // Show stat block in panel 4
+  const statSkel = document.getElementById('stat-skel');
+  const statContent = document.getElementById('stat-content');
+  if (statSkel) statSkel.style.display = 'none';
+  if (statContent) statContent.style.display = 'flex';
+}
+
+function revealAll() {
+  hideSkeleton('skel1');
+  hideSkeleton('skel2');
+  hideSkeleton('skel3');
+  hideSkeleton('skel4');
+}
+
+// Simulate async data load (static JSON, but skeleton recipe must be visible)
+const loadStart = Date.now();
+
+function onDataReady() {
+  mountCharts();
+  const elapsed = Date.now() - loadStart;
+  const wait = Math.max(0, SKEL_MIN_MS - elapsed);
+
+  // Hold skeleton until MIN display time is satisfied, then fade out
+  setTimeout(() => {
+    revealAll();
+    window.__ready = true;
+  }, wait);
+}
+
+// If __recording is set, collapse animation and skip min-display time
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.__recording) {
+    // Recordings don't need the skeleton delay; collapse immediately
+    mountCharts();
+    revealAll();
+    window.__ready = true;
+    return;
+  }
+
+  // Normal path: small artificial tick to let first paint happen, then load
+  setTimeout(onDataReady, 80);
+});
+</script>
+</body>
+</html>
