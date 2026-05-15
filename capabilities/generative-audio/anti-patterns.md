@@ -62,7 +62,7 @@ const player = new Tone.Player({
 }).toDestination();
 ```
 
-For Track B assets, confirm the loop region in a DAW before export. A loop that sounds seamless at 44.1 kHz may still click at the sample boundary if the waveform isn't zero-crossing-aligned.
+For Track B assets, confirm the loop region in a DAW before export. A loop that sounds clean at 44.1 kHz may still click at the sample boundary if the waveform isn't zero-crossing-aligned.
 
 ### Node Leak: disposal pattern
 
@@ -120,8 +120,8 @@ function playSfx(url) {
 
 ## What this catalog does NOT cover
 
-- Detailed Tone.js audio graph topology patterns (parametric-sfx.md territory — deferred to Phase 8).
-- Full license-trail audit procedure including chain-of-title verification for commercial delivery (license-trail.md territory — deferred to Phase 8).
-- Spatial audio mixdown specifics: HRTF database selection, binaural render chain, head-tracking latency budgets (spatial-audio.md territory — deferred to Phase 8).
-- Brand audio composition guidance: motif architecture, key-signature rules, brand DNA to sonic palette translation (brand-audio-spec.md territory — deferred to Phase 8).
-- Streaming and adaptive bitrate considerations for audio assets in web delivery (capture-pipeline.md territory — deferred to Phase 8).
+- Detailed Tone.js audio graph topology patterns (parametric-sfx.md territory, deferred to Phase 8).
+- Full license-trail audit procedure including chain-of-title verification for commercial delivery (license-trail.md territory, deferred to Phase 8).
+- Spatial audio mixdown specifics: HRTF database selection, binaural render chain, head-tracking latency budgets (spatial-audio.md territory, deferred to Phase 8).
+- Brand audio composition guidance: motif architecture, key-signature rules, brand DNA to sonic palette translation (brand-audio-spec.md territory, deferred to Phase 8).
+- Streaming and adaptive bitrate considerations for audio assets in web delivery (capture-pipeline.md territory, deferred to Phase 8).
