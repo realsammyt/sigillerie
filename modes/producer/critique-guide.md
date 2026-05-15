@@ -169,6 +169,26 @@ Relevant law: Doherty Threshold.
 | **Jakob's Law** | Interaction pattern deviates from platform convention without rationale. | Custom swipe gesture replaces standard scroll on a web landing page. |
 | **Selective Attention** | Decorative element captures attention at the same level as functional content. | Animated background gradient moves faster than the hero text, pulling focus away. |
 
+## Capability-specific anti-pattern scan
+
+When the deliverable's capability is known (data viz, knowledge graph, generative audio), the critic agent runs a third pass against that capability's anti-pattern catalog. The five-dimension rubric catches aesthetic and craft failures. The UX-law violation scan catches cognitive failures. This pass catches capability-specific failures that look fine on the rubrics but are broken inside the medium.
+
+**Gate logic.** When the capability is known at G4 time (set by the producer or inferred from file output), load the capability's anti-pattern catalog. Each named pattern hit drops innovation by 1 and is listed in the critique report. Two or more capability hits cap innovation at 6, same rule as the generic Cliche Scan above.
+
+**Catalogs** (full pattern definitions live in each file; this table is the routing registry):
+
+| Capability | Catalog | Pattern names to scan |
+|---|---|---|
+| **Data Viz** | `capabilities/data-viz/anti-patterns.md` | Buried Lead, Flat Deck, Loading Void, Rainbow Categorical, Unlabeled Axis, Dual-Y Deception, Legend Orphan, Uniform Tick Density, Table Hairball, Anticlimactic Summary, Unchunked Legend, Monochrome Sequential Trap |
+| **Knowledge Graph** | `capabilities/knowledge-graph/anti-patterns.md` | Hairball-at-Load, No Entry Node, Isotropic Nodes, Edge Spaghetti, Offscreen Legend, Unlabeled Edges, Flat Degree Sizing, Camera Spin at Load (3D), Label Collision, Drift Zone (WebXR), Undifferentiated Cluster Mass, Depth Occlusion (3D) |
+| **Generative Audio** | `capabilities/generative-audio/anti-patterns.md` | Cold Audio Start, Uniform Texture, BGM Mask, Loop Seam, Tab-Throttle Drift, Spatial Fallback Void, Node Leak, Uncanny Voice, License Trail Break, Hallucinated Lyrics, Motif Overload, Audio-Only State Signal, Flat First Three Seconds |
+| **3D / Immersive** | `modes/three3d/aesthetic.md §10` | (already scanned during the standard cliche pass; listed here for routing completeness) |
+| **Hi-Fi Base** | (none capability-specific) | Standard cliche scan + UX law violation scan only |
+
+**Capability inference.** If the producer didn't declare the capability, infer from output type: file is a chart deck or contains DuckDB/chart.js imports → Data Viz. File is a graph render or contains Sigma/vis.js/three-forcegraph imports → Knowledge Graph. File contains Tone.js or `<audio>` driven by `__audioCues` → Generative Audio. File is a WebGL/WebGPU scene without the above → 3D. Otherwise → Hi-Fi Base. If a single deliverable spans capabilities (e.g., a 3D knowledge graph with audio), run all applicable catalogs.
+
+**No partial matches.** If a deliverable hits a capability pattern by name, list the full name (e.g., "Edge Spaghetti") in the critique report, not a paraphrase. The names are the gate vocabulary; matching them lets the producer pull the fix from the right catalog without translation.
+
 ## Per-Medium Weighting
 
 The five dimensions matter unequally by medium. The floor rule still applies; this just guides where to push first when scores tie.
@@ -200,6 +220,7 @@ The five dimensions matter unequally by medium. The floor rule still applies; th
 
 **Anti-patterns detected**: [list, or "none"]
 **UX law violations**: [list from violation scan, or "none"]
+**Capability anti-patterns**: [list from capability-specific scan with capability tag, e.g. "Edge Spaghetti (KG), Loop Seam (Audio)", or "none / N/A"]
 
 ### Keep
 - [specific moves that work, in design language]
@@ -235,6 +256,7 @@ Fictional landing page for a SaaS analytics tool. Hero shows a gradient sphere o
 
 **Anti-patterns detected**: AI-orb, neon-cyber-default, template-grid, glass-everywhere
 **UX law violations**: Serial Position Effect (CTA buried mid-page), Von Restorff Effect (nothing differentiates), Selective Attention (orb competes with headline)
+**Capability anti-patterns**: N/A (Hi-Fi Base; no capability-specific catalog)
 
 ### Keep
 - Vertical rhythm in the card region tracks the 8pt grid.
@@ -263,9 +285,10 @@ When active, the floor rule extends: lowest of seven wins. Critic-agent will gat
 ## Critic-Agent Integration
 
 - Trigger: every G4 (demo gate) run.
-- Input: the demo artifact plus the declared philosophy.
+- Input: the demo artifact, the declared philosophy, the declared or inferred capability.
 - Output: this template, written to the demo's review log.
-- Gate logic: floor score below 7 routes back to producer mode; floor 7 or 8 ships with a fix list; floor 9-10 ships clean.
+- Scan order: (1) five-dimension rubric, (2) generic Cliche Scan, (3) UX law violation scan, (4) capability-specific anti-pattern scan if the capability is known or inferable.
+- Gate logic: floor score below 7 routes back to producer mode; floor 7 or 8 ships with a fix list; floor 9-10 ships clean. A capability anti-pattern hit drops innovation by 1 per hit; two or more capability hits cap innovation at 6.
 - Override: human reviewer can force-pass with a written justification logged alongside the report.
 
-The critic does not propose redesigns. It scores, names anti-patterns, and lists fixes. The producer-agent or the human owner decides what to change.
+The critic does not propose redesigns. It scores, names anti-patterns by their exact catalog name, and lists fixes. The producer-agent or the human owner decides what to change.
