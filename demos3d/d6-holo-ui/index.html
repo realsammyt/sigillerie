@@ -427,8 +427,11 @@ function computePanelSpecs(layout) {
   //   surface with a coral accent stripe; supporting and context panels
   //   carry a cool indigo so the warm/cool axis reads. Background panels
   //   are darker so luminance delta vs panels is visible.
-  const titleColor    = '#FFF4E2'; // warm white
-  const supportColor  = '#E8EEF8'; // cool white
+  // Title color stays under bloom threshold (0.72 in applySpatialVitrine).
+  // FFF4E2 was tripping the bloom and clipping to nuclear white. E8C8A0 is
+  // a warm pearl that reads as the hero color without saturating the bloom.
+  const titleColor    = '#E8C8A0'; // warm pearl, kept under bloom threshold
+  const supportColor  = '#D6DEF0'; // cool pale, also below bloom threshold
   const mutedColor    = '#A8B5D6';
   const labelColor    = '#FF9A6A'; // warm coral, used as accent eyebrow
   const labelCool     = '#7E8DB8';
@@ -447,27 +450,32 @@ function computePanelSpecs(layout) {
   // Common children definitions, reused across layouts. Title fontSize is
   // sized to fit inside hero width 3.0 with padding; uikit doesn't shrink to
   // fit so we keep the glyph budget under what the box can hold.
+  // fontSize + letterSpacing chosen so the SIGILLERIE glyph string fits
+  // inside the hero panel width (2.4 to 2.8 world units depending on layout).
+  // The middle-dot character U+00B7 isn't in the uikit font glyph set;
+  // it renders as a fallback question mark. Using a forward slash with
+  // surrounding spaces instead.
   const titleChildren = [
     { type: 'text', text: 'STUDIO  /  2026',
       fontSize: 12, color: labelColor,
       textAlign: 'left', letterSpacing: 6, marginBottom: 14 },
     { type: 'text', text: 'SIGILLERIE',
-      fontSize: 78, color: titleColor, fontWeight: 'bold',
-      textAlign: 'left', letterSpacing: 6 },
+      fontSize: 48, color: titleColor, fontWeight: 'bold',
+      textAlign: 'left', letterSpacing: 2 },
     { type: 'text', text: 'spatial design studio',
-      fontSize: 18, color: mutedColor,
-      textAlign: 'left', marginTop: 14, letterSpacing: 5 },
-    { type: 'text', text: 'Holo-UI  ·  v0.2',
-      fontSize: 20, color: labelColor,
-      textAlign: 'left', marginTop: 22, letterSpacing: 3 },
+      fontSize: 16, color: mutedColor,
+      textAlign: 'left', marginTop: 14, letterSpacing: 4 },
+    { type: 'text', text: 'Holo-UI  /  v0.2',
+      fontSize: 16, color: labelColor,
+      textAlign: 'left', marginTop: 18, letterSpacing: 3 },
   ];
   const subtitleChildren = [
     { type: 'text', text: 'ADAPTIVE 3D',
-      fontSize: 32, color: supportColor, fontWeight: 'bold', letterSpacing: 3 },
-    { type: 'text', text: 'one scene  ·  four shapes',
-      fontSize: 17, color: mutedColor, marginTop: 10 },
+      fontSize: 24, color: supportColor, fontWeight: 'bold', letterSpacing: 3 },
+    { type: 'text', text: 'one scene / four shapes',
+      fontSize: 15, color: mutedColor, marginTop: 10 },
     { type: 'text', text: 'wide / square / portrait / ultrawide',
-      fontSize: 13, color: labelCool, marginTop: 16, letterSpacing: 2 },
+      fontSize: 12, color: labelCool, marginTop: 14, letterSpacing: 2 },
   ];
   // micro-panel accent bar: thin amber stripe at top, dimmer than hero stripe.
   // Acts as eyebrow chrome so the panel reads as a proper card at small scale.
