@@ -275,7 +275,12 @@ function buildScene(threeApi, group) {
   // 6. Hero accent: a thin warm-emissive torus inside the hero panel,
   //    pinned to the right side so it reads as ornament behind the title
   //    text without colliding with neighboring panels. Sized smaller in
-  //    square/portrait where the hero panel is itself smaller.
+  //    square/portrait where the hero panel is itself smaller. Ring + halo
+  //    opacity was dropped from 0.95/0.14 to 0.35/0.06 so the additive
+  //    blending doesn't drown the title text under bloom. The "if (false
+  //    && ..." gate was a diagnostic that proved the empty hero was a yoga
+  //    measurement issue (panel width too small for SIGILLERIE), not the
+  //    ring obscuring text. Fix lives in computePanelSpecs width bumps.
   const heroIdx = panelSpecs.findIndex((s) => s.role === 'title');
   if (heroIdx >= 0 && grid[heroIdx]) {
     const hp = grid[heroIdx].position;
@@ -288,11 +293,17 @@ function buildScene(threeApi, group) {
     const ringY = hp[1];
     const ringZ = hp[2] - 0.05;
 
+    // Ring + halo originally opacity 0.95 + 0.14 with AdditiveBlending. In
+    // wide + ultrawide aspects the additive blend + bloom drowned the
+    // SIGILLERIE text — the ring became a brighter focal element than the
+    // hero. Dimmed to 0.35 / 0.06 so it reads as ornament behind the title,
+    // not as the primary focal point. Aesthetic.md §1 (focal hierarchy is
+    // non-negotiable) and the new "AI-orb" anti-pattern in critique-guide.md.
     const ringGeo = new THREE.TorusGeometry(ringRadius, 0.007, 16, 96);
     const ringMat = new THREE.MeshBasicMaterial({
       color: 0xffb37a,
       transparent: true,
-      opacity: 0.95,
+      opacity: 0.35,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
@@ -309,7 +320,7 @@ function buildScene(threeApi, group) {
     const haloMat = new THREE.MeshBasicMaterial({
       color: 0xff8d52,
       transparent: true,
-      opacity: 0.14,
+      opacity: 0.06,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
@@ -324,7 +335,7 @@ function buildScene(threeApi, group) {
       new THREE.MeshBasicMaterial({
         color: 0xffd0a0,
         transparent: true,
-        opacity: 0.6,
+        opacity: 0.25,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       })
@@ -555,11 +566,13 @@ function computePanelSpecs(layout) {
 
   if (layout === 'ultrawide') {
     // long bar: hero center-right at slot 2 (third-line offset, §8). caps
-    // far left, status far right, subtitle just left of hero.
+    // far left, status far right, subtitle just left of hero. Hero width
+    // 2.8 -> 3.6 so SIGILLERIE at fontSize 48 has wrap-headroom (yoga
+    // measurement collapse if the single word can't fit + has no break-points).
     return [
       { role: 'caps',     width: 1.8, height: 1.65, bg: surfaceCtx,  padding: 32, scaleHint: 0.85, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: capsChildren },
       { role: 'subtitle', width: 2.0, height: 1.20, bg: surfaceSupp, padding: 32, scaleHint: 0.95, children: subtitleChildren },
-      { role: 'title',    width: 2.8, height: 1.55, bg: surfaceHero, padding: 38, scaleHint: 1.15, children: titleChildren },
+      { role: 'title',    width: 3.6, height: 1.55, bg: surfaceHero, padding: 38, scaleHint: 1.15, children: titleChildren },
       { role: 'status',   width: 1.8, height: 1.65, bg: surfaceCtx,  padding: 32, scaleHint: 0.85, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: statusChildren },
     ];
   }
@@ -580,10 +593,12 @@ function computePanelSpecs(layout) {
 
   // wide (default): horizontal arc. caps and status flank as wings,
   // subtitle is left-of-hero, hero (slot 2) sits on the right third-line.
+  // Hero width 2.8 -> 3.6 so SIGILLERIE at fontSize 48 fits (same yoga
+  // wrap-headroom fix as ultrawide).
   return [
     { role: 'caps',     width: 1.8, height: 1.65, bg: surfaceCtx,  padding: 30, scaleHint: 0.78, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: capsChildren },
     { role: 'subtitle', width: 2.0, height: 1.20, bg: surfaceSupp, padding: 30, scaleHint: 0.88, children: subtitleChildren },
-    { role: 'title',    width: 2.8, height: 1.55, bg: surfaceHero, padding: 38, scaleHint: 1.12, children: titleChildren },
+    { role: 'title',    width: 3.6, height: 1.55, bg: surfaceHero, padding: 38, scaleHint: 1.12, children: titleChildren },
     { role: 'status',   width: 1.8, height: 1.65, bg: surfaceCtx,  padding: 30, scaleHint: 0.78, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: statusChildren },
   ];
 }
