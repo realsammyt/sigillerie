@@ -279,8 +279,12 @@ function buildUikitChild(spec, ctx) {
   const type = spec.type || 'container';
 
   if (type === 'text') {
-    const node = new Text({
-      text: spec.text != null ? String(spec.text) : '',
+    // uikit 0.8.x Text constructor: new Text(text, properties, defaultProperties).
+    // Text is the FIRST POSITIONAL arg, not a property of the properties object.
+    // Passing { text: ..., ... } as the first arg makes uikit stringify the
+    // whole object via toString() and you get "[object Object]" rendered.
+    const textStr = spec.text != null ? String(spec.text) : '';
+    const node = new Text(textStr, {
       fontSize: spec.fontSize != null ? spec.fontSize : 32,
       color: spec.color || theme.text,
       fontWeight: spec.fontWeight || 'normal',
