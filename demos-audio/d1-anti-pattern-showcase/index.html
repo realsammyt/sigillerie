@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sigillerie · Generative Audio · Anti-Pattern Showcase</title>
+<style>
+  :root {
+    --paper: #F5F2EC;
+    --ink:   #16140F;
+    --quiet: #6B6660;
+    --accent: #8B3A2C;
+    --surface: #ECEAE3;
+    --peak:  #C06040;
+    --bar-h: 3px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--ink);
+    font-family: 'Source Serif 4', 'Source Serif Pro', Georgia, serif;
+    color: var(--paper);
+    overflow: hidden;
+  }
+
+  /* ── layout ─────────────────────────────────────────────── */
+
+  #shell {
+    width: 100vw; height: 100vh;
+    min-width: 1024px;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    grid-template-columns: 1fr 320px;
+    grid-template-areas:
+      "header header"
+      "stage  panel"
+      "footer footer";
+  }
+
+  /* ── header ─────────────────────────────────────────────── */
+
+  #header {
+    grid-area: header;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 40px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+
+  #header-left { display: flex; flex-direction: column; gap: 2px; }
+
+  #wordmark {
+    font-size: 18px;
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--paper);
+    opacity: 0.9;
+  }
+
+  #demo-label {
+    font-size: 11px;
+    font-family: 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--quiet);
+  }
+
+  #mute-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 6px;
+    color: var(--paper);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: border-color 0.2s, opacity 0.2s;
+    opacity: 0.6;
+    pointer-events: none;  /* enabled after audio starts */
+  }
+  #mute-btn:hover { border-color: rgba(255,255,255,0.4); opacity: 1; }
+  #mute-btn.active { pointer-events: auto; opacity: 1; }
+  #mute-btn.muted { color: var(--quiet); border-color: rgba(255,255,255,0.08); }
+
+  #mute-icon { font-size: 16px; line-height: 1; }
+
+  /* ── stage ───────────────────────────────────────────────── */
+
+  #stage {
+    grid-area: stage;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* start gate — visible before any audio */
+  #start-gate {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    background: var(--ink);
+    z-index: 10;
+    transition: opacity 0.6s ease;
+  }
+  #start-gate.hidden { opacity: 0; pointer-events: none; }
+
+  #start-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    color: var(--paper);
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    padding: 18px 36px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+  }
+  #start-btn:hover  { background: var(--peak); }
+  #start-btn:active { transform: scale(0.98); }
+
+  #start-hint {
+    font-size: 12px;
+    font-family: 'SF Mono', ui-monospace, monospace;
+    letter-spacing: 0.12em;
+    color: var(--quiet);
+    text-transform: uppercase;
+  }
+
+  /* waveform canvas */
+  #waveform-canvas {
+    width: 100%;
+    max-width: 800px;
+    height: 120px;
+    display: block;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+  }
+  #waveform-canvas.visible { opacity: 1; }
+
+  /* bar counter display */
+  #bar-display {
+    margin-top: 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+  }
+  #bar-display.visible { opacity: 1; }
+
+  #bar-number {
+    font-size: 96px;
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    color: var(--paper);
+    font-variant-numeric: tabular-nums;
+    transition: color 0.3s ease;
+  }
+  #bar-number.peak { color: var(--peak); }
+
+  #bar-label {
+    font-size: 11px;
+    font-family: 'SF Mono', ui-monospace, monospace;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--quiet);
+  }
+
+  /* 16-bar progress strip */
+  #bar-strip {
+    display: flex;
+    gap: 4px;
+    margin-top: 8px;
+  }
+
+  .bar-pip {
+    width: 24px;
+    height: var(--bar-h);
+    background: rgba(255,255,255,0.12);
+    border-radius: 2px;
+    transition: background 0.15s ease, height 0.15s ease;
+  }
+  .bar-pip.active   { background: var(--paper); height: 5px; }
+  .bar-pip.peak-pip { background: var(--peak);  height: 7px; }
+
+  /* ── panel ───────────────────────────────────────────────── */
+
+  #panel {
+    grid-area: panel;
+    border-left: 1px solid rgba(255,255,255,0.07);
+    padding: 32px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    overflow-y: auto;
+  }
+
+  .panel-section { display: flex; flex-direction: column; gap: 10px; }
+
+  .panel-title {
+    font-size: 10px;
+    font-family: 'SF Mono', ui-monospace, monospace;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--quiet);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    padding-bottom: 6px;
+  }
+
+  /* layer indicators */
+  .layer-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .layer-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    flex-shrink: 0;
+    transition: background 0.2s, box-shadow 0.2s;
+  }
+  .layer-dot.on {
+    background: var(--paper);
+    box-shadow: 0 0 6px 1px rgba(255,255,255,0.25);
+  }
+  .layer-dot.on.peak-layer {
+    background: var(--peak);
+    box-shadow: 0 0 8px 2px rgba(192,96,64,0.5);
+  }
+
+  .layer-name {
+    font-size: 13px;
+    color: var(--paper);
+    opacity: 0.7;
+    flex: 1;
+  }
+  .layer-name.on { opacity: 1; }
+
+  .layer-role {
+    font-size: 10px;
+    font-family: 'SF Mono', ui-monospace, monospace;
+    color: var(--quiet);
+    letter-spacing: 0.08em;
+  }
+
+  /* VU meter */
+  #vu-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 48px;
+  }
+
+  .vu-bar {
+    flex: 1;
+    background: rgba(255,255,255,0.12);
+    border-radius: 2px 2px 0 0;
+    transition: height 0.08s ease, background 0.15s ease;
+    height: 3px;
+  }
+
+  /* recipe tags */
+  .recipe-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .recipe-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 10px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 5px;
+    border-left: 2px solid rgba(255,255,255,0.1);
+    transition: border-color 0.3s;
+  }
+  .recipe-item.demonstrated { border-left-color: var(--accent); }
+
+  .recipe-check {
+    font-size: 10px;
+    color: var(--quiet);
+    margin-top: 1px;
+    flex-shrink: 0;
+  }
+  .recipe-item.demonstrated .recipe-check { color: #6DBF8A; }
+
+  .recipe-text {
+    font-size: 11px;
+    font-family: 'SF Mono', ui-monospace, monospace;
+    color: var(--quiet);
+    line-height: 1.5;
+    letter-spacing: 0.03em;
+  }
+  .recipe-item.demonstrated .recipe-text { color: var(--paper); opacity: 0.8; }
+
+  /* ── footer ─────────────────────────────────────────────── */
+
+  #footer {
+    grid-area: footer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 40px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    font-size: 10px;
+    font-family: 'SF Mono', ui-monospace, monospace;
+    color: var(--quiet);
+    letter-spacing: 0.1em;
+  }
+
+  #transport-state {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #transport-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--quiet);
+    transition: background 0.3s;
+  }
+  #transport-dot.playing { background: #6DBF8A; }
+  #transport-dot.peak    { background: var(--peak); }
+
+  /* peak banner -- appears at bars 12-13 */
+  #peak-banner {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--peak);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    opacity: 0;
+  }
+  #peak-banner.active {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Tone.js v15 from CDN ── -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/15.0.4/Tone.js"></script>
+
+<div id="shell">
+
+  <!-- header -->
+  <header id="header">
+    <div id="header-left">
+      <div id="wordmark">Sigillerie</div>
+      <div id="demo-label">Generative Audio · Anti-Pattern Showcase · d1</div>
+    </div>
+    <button id="mute-btn" aria-label="Toggle mute">
+      <span id="mute-icon">♪</span>
+      <span id="mute-label">Sound on</span>
+    </button>
+  </header>
+
+  <!-- stage -->
+  <main id="stage">
+    <canvas id="peak-banner"></canvas>
+
+    <!-- Cold Audio Start fix: gate visible before any audio -->
+    <div id="start-gate">
+      <button id="start-btn">
+        <span>▶</span>
+        <span>Tap to start audio</span>
+      </button>
+      <div id="start-hint">Gesture required · browser autoplay policy</div>
+    </div>
+
+    <div id="peak-banner"></div>
+    <canvas id="waveform-canvas" width="800" height="120"></canvas>
+
+    <div id="bar-display">
+      <div id="bar-number">1</div>
+      <div id="bar-label">Bar</div>
+      <div id="bar-strip"></div>
+    </div>
+  </main>
+
+  <!-- side panel -->
+  <aside id="panel">
+
+    <div class="panel-section">
+      <div class="panel-title">Now playing</div>
+      <div class="layer-row" id="layer-fg">
+        <div class="layer-dot" id="dot-fg"></div>
+        <div class="layer-name" id="name-fg">Foreground motif</div>
+        <div class="layer-role">melody</div>
+      </div>
+      <div class="layer-row" id="layer-harm">
+        <div class="layer-dot" id="dot-harm"></div>
+        <div class="layer-name" id="name-harm">Harmonic fill</div>
+        <div class="layer-role">pads</div>
+      </div>
+      <div class="layer-row" id="layer-pulse">
+        <div class="layer-dot" id="dot-pulse"></div>
+        <div class="layer-name" id="name-pulse">Rhythmic pulse</div>
+        <div class="layer-role">texture</div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">Level</div>
+      <div id="vu-bars"></div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">Recipes demonstrated</div>
+      <div class="recipe-list" id="recipe-list">
+        <div class="recipe-item" id="recipe-cold-start">
+          <span class="recipe-check">✓</span>
+          <span class="recipe-text">Cold Audio Start: gesture-gated Tone.start()</span>
+        </div>
+        <div class="recipe-item" id="recipe-uniform">
+          <span class="recipe-check">○</span>
+          <span class="recipe-text">Uniform Texture: loop-Peak at bars 12-13 (Q5)</span>
+        </div>
+        <div class="recipe-item" id="recipe-seam">
+          <span class="recipe-check">○</span>
+          <span class="recipe-text">Loop Seam: crossfade envelope at bar 16→1</span>
+        </div>
+        <div class="recipe-item" id="recipe-overload">
+          <span class="recipe-check">○</span>
+          <span class="recipe-text">Motif Overload: max 3 simultaneous layers</span>
+        </div>
+        <div class="recipe-item" id="recipe-state">
+          <span class="recipe-check">○</span>
+          <span class="recipe-text">Audio-Only State Signal: visual companion active</span>
+        </div>
+        <div class="recipe-item" id="recipe-drift">
+          <span class="recipe-check">○</span>
+          <span class="recipe-text">Tab-Throttle Drift: Transport clock, not setInterval</span>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- footer -->
+  <footer id="footer">
+    <div id="transport-state">
+      <div id="transport-dot"></div>
+      <span id="transport-label">Waiting for gesture</span>
+    </div>
+    <div>Tone.js · Web Audio API · 16-bar loop · 95 BPM</div>
+  </footer>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+// Sigillerie contract
+// ─────────────────────────────────────────────────────────────
+window.__ready       = false;
+window.__recording   = false;
+window.__audioRuntime = "tone";
+window.__audioCues   = [];
+
+document.addEventListener('DOMContentLoaded', () => { window.__ready = true; });
+
+// ─────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────
+const BPM        = 95;
+const BARS       = 16;
+const BEATS_PER_BAR = 4;
+// Peak window: bars 12-13 (1-indexed). Internally 0-indexed: 11-12.
+const PEAK_START = 11;
+const PEAK_END   = 13;  // exclusive (bars 11,12 → display 12,13)
+
+// ─────────────────────────────────────────────────────────────
+// DOM refs
+// ─────────────────────────────────────────────────────────────
+const startGate     = document.getElementById('start-gate');
+const startBtn      = document.getElementById('start-btn');
+const muteBtn       = document.getElementById('mute-btn');
+const muteIcon      = document.getElementById('mute-icon');
+const muteLabel     = document.getElementById('mute-label');
+const waveCanvas    = document.getElementById('waveform-canvas');
+const barDisplay    = document.getElementById('bar-display');
+const barNumber     = document.getElementById('bar-number');
+const barStrip      = document.getElementById('bar-strip');
+const peakBanner    = document.getElementById('peak-banner');
+const transportDot  = document.getElementById('transport-dot');
+const transportLbl  = document.getElementById('transport-label');
+const vuContainer   = document.getElementById('vu-bars');
+
+// panel dots / names
+const dotFg    = document.getElementById('dot-fg');
+const dotHarm  = document.getElementById('dot-harm');
+const dotPulse = document.getElementById('dot-pulse');
+const nameFg   = document.getElementById('name-fg');
+const nameHarm = document.getElementById('name-harm');
+const namePulse= document.getElementById('name-pulse');
+
+// recipe items
+const recipeColdStart = document.getElementById('recipe-cold-start');
+const recipeUniform   = document.getElementById('recipe-uniform');
+const recipeSeam      = document.getElementById('recipe-seam');
+const recipeOverload  = document.getElementById('recipe-overload');
+const recipeState     = document.getElementById('recipe-state');
+const recipeDrift     = document.getElementById('recipe-drift');
+
+// ─────────────────────────────────────────────────────────────
+// Build bar-strip pips
+// ─────────────────────────────────────────────────────────────
+for (let i = 0; i < BARS; i++) {
+  const pip = document.createElement('div');
+  pip.className = 'bar-pip';
+  pip.id = `pip-${i}`;
+  barStrip.appendChild(pip);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Build VU bars
+// ─────────────────────────────────────────────────────────────
+const VU_COUNT = 24;
+const vuBars = [];
+for (let i = 0; i < VU_COUNT; i++) {
+  const b = document.createElement('div');
+  b.className = 'vu-bar';
+  vuContainer.appendChild(b);
+  vuBars.push(b);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Audio state
+// ─────────────────────────────────────────────────────────────
+let audioStarted = false;
+let isMuted      = false;
+let currentBar   = 0;   // 0-indexed
+let isPeak       = false;
+
+// ─────────────────────────────────────────────────────────────
+// Tone.js nodes
+// ─────────────────────────────────────────────────────────────
+let masterGain, analyser, fgSynth, harmSynth, pulseSynth;
+let filterNode;    // opened during peak
+let fgPart, harmPart, pulsePart;
+
+// ─────────────────────────────────────────────────────────────
+// Musical material
+//
+// Key: D minor (D Eb F G A Bb C)
+// Harmonic rhythm: 4 bars per chord
+// Chord cycle (0-indexed bars):
+//   0-3:  Dm  (D F A)
+//   4-7:  Bb  (Bb D F)
+//   8-11: Gm  (G Bb D)
+//  12-13: Am  (A C E) ← peak, added harmonic tension
+//  14-15: Dm  (D F A) ← resolve
+// ─────────────────────────────────────────────────────────────
+
+// foreground melodic motif (one note per half-bar, 8th-note melody)
+// Tone time: "0:0:0" = bar 0 beat 0 sixteenth 0
+// We'll schedule the entire 16-bar sequence and loop via Tone.Part
+
+function barBeat(bar, beat, sixteenth) {
+  return `${bar}:${beat}:${sixteenth || 0}`;
+}
+
+// Foreground motif notes (frequency in Hz) across 16 bars.
+// Sparse: plays on beats 1 and 3 of each bar with occasional rests (null).
+const FG_NOTES = [
+  // bar 0
+  { time: barBeat(0,0), note: 'D4', dur: '2n' },
+  { time: barBeat(0,2), note: 'F4', dur: '4n' },
+  // bar 1
+  { time: barBeat(1,0), note: 'A4', dur: '4n' },
+  { time: barBeat(1,2), note: 'G4', dur: '2n' },
+  // bar 2
+  { time: barBeat(2,0), note: 'F4', dur: '4n' },
+  { time: barBeat(2,1), note: 'E4', dur: '4n' },
+  { time: barBeat(2,2), note: 'D4', dur: '2n' },
+  // bar 3
+  { time: barBeat(3,0), note: 'A3', dur: '4n' },
+  { time: barBeat(3,2), note: 'D4', dur: '4n' },
+  // bar 4 (Bb chord)
+  { time: barBeat(4,0), note: 'Bb3', dur: '2n' },
+  { time: barBeat(4,2), note: 'D4', dur: '4n' },
+  // bar 5
+  { time: barBeat(5,0), note: 'F4', dur: '4n' },
+  { time: barBeat(5,2), note: 'Bb4', dur: '2n' },
+  // bar 6
+  { time: barBeat(6,0), note: 'A4', dur: '4n' },
+  { time: barBeat(6,1), note: 'G4', dur: '4n' },
+  { time: barBeat(6,2), note: 'F4', dur: '4n' },
+  // bar 7
+  { time: barBeat(7,0), note: 'D4', dur: '2n' },
+  { time: barBeat(7,3), note: 'C4', dur: '4n' },
+  // bar 8 (Gm)
+  { time: barBeat(8,0), note: 'G4', dur: '2n' },
+  { time: barBeat(8,2), note: 'Bb4', dur: '4n' },
+  // bar 9
+  { time: barBeat(9,0), note: 'D5', dur: '4n' },
+  { time: barBeat(9,2), note: 'Bb4', dur: '2n' },
+  // bar 10
+  { time: barBeat(10,0), note: 'G4', dur: '4n' },
+  { time: barBeat(10,1), note: 'A4', dur: '4n' },
+  { time: barBeat(10,2), note: 'Bb4', dur: '4n' },
+  // bar 11
+  { time: barBeat(11,0), note: 'C5', dur: '2n' },
+  { time: barBeat(11,3), note: 'A4', dur: '4n' },
+  // bars 12-13: PEAK (Am — raised 5th, C E A)
+  { time: barBeat(12,0), note: 'A4', dur: '4n' },
+  { time: barBeat(12,1), note: 'C5', dur: '4n' },
+  { time: barBeat(12,2), note: 'E5', dur: '4n' },
+  { time: barBeat(12,3), note: 'A5', dur: '4n' },
+  { time: barBeat(13,0), note: 'E5', dur: '4n' },
+  { time: barBeat(13,1), note: 'C5', dur: '4n' },
+  { time: barBeat(13,2), note: 'A4', dur: '4n' },
+  { time: barBeat(13,3), note: 'G4', dur: '4n' },
+  // bars 14-15: resolve back to Dm
+  { time: barBeat(14,0), note: 'F4', dur: '2n' },
+  { time: barBeat(14,2), note: 'D4', dur: '2n' },
+  { time: barBeat(15,0), note: 'D4', dur: '4n' },
+  { time: barBeat(15,1), note: 'C4', dur: '4n' },
+  { time: barBeat(15,2), note: 'A3', dur: '2n.' },
+];
+
+// Harmonic fill: pad notes, held across beats
+const HARM_NOTES = [
+  // Dm (0-3)
+  { time: barBeat(0,0), notes: ['D3','F3','A3'], dur: '1m' },
+  { time: barBeat(1,0), notes: ['D3','F3','A3'], dur: '1m' },
+  { time: barBeat(2,0), notes: ['D3','F3','A3'], dur: '1m' },
+  { time: barBeat(3,0), notes: ['D3','F3','A3'], dur: '1m' },
+  // Bb (4-7)
+  { time: barBeat(4,0), notes: ['Bb2','D3','F3'], dur: '1m' },
+  { time: barBeat(5,0), notes: ['Bb2','D3','F3'], dur: '1m' },
+  { time: barBeat(6,0), notes: ['Bb2','D3','F3'], dur: '1m' },
+  { time: barBeat(7,0), notes: ['Bb2','D3','F3'], dur: '1m' },
+  // Gm (8-11)
+  { time: barBeat(8,0), notes: ['G2','Bb2','D3'], dur: '1m' },
+  { time: barBeat(9,0), notes: ['G2','Bb2','D3'], dur: '1m' },
+  { time: barBeat(10,0), notes: ['G2','Bb2','D3'], dur: '1m' },
+  { time: barBeat(11,0), notes: ['G2','Bb2','D3'], dur: '1m' },
+  // Am peak (12-13)
+  { time: barBeat(12,0), notes: ['A2','C3','E3'], dur: '1m' },
+  { time: barBeat(13,0), notes: ['A2','C3','E3'], dur: '1m' },
+  // Dm resolve (14-15)
+  { time: barBeat(14,0), notes: ['D3','F3','A3'], dur: '1m' },
+  { time: barBeat(15,0), notes: ['D3','F3','A3'], dur: '1m' },
+];
+
+// Rhythmic pulse: 8th-note low-pass filtered hits
+// Active throughout but gain modulated; peaks at bars 12-13
+const PULSE_PATTERN = [];
+for (let bar = 0; bar < BARS; bar++) {
+  for (let beat = 0; beat < BEATS_PER_BAR; beat++) {
+    // eighth notes: beat + 0 and beat + 2 sixteenths
+    PULSE_PATTERN.push({ time: barBeat(bar, beat, 0), bar });
+    PULSE_PATTERN.push({ time: barBeat(bar, beat, 2), bar });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Build audio graph
+// ─────────────────────────────────────────────────────────────
+function buildGraph() {
+  Tone.getTransport().bpm.value = BPM;
+
+  // master gain (for mute)
+  masterGain = new Tone.Gain(0.8).toDestination();
+
+  // analyser for waveform + VU
+  analyser = new Tone.Analyser({ type: 'waveform', size: 512 });
+  masterGain.connect(analyser);
+
+  // filter — opens wider at peak (Tab-Throttle Drift fix: driven by Transport schedule)
+  filterNode = new Tone.Filter({ frequency: 800, type: 'lowpass', Q: 1.2 });
+  filterNode.connect(masterGain);
+
+  // ── Layer 1: Foreground motif (Motif Overload fix: layer 1 of 3)
+  fgSynth = new Tone.Synth({
+    oscillator: { type: 'triangle' },
+    envelope: { attack: 0.04, decay: 0.2, sustain: 0.6, release: 0.8 },
+    volume: -6,
+  }).connect(filterNode);
+
+  // ── Layer 2: Harmonic fill (layer 2 of 3)
+  harmSynth = new Tone.PolySynth(Tone.Synth, {
+    oscillator: { type: 'sine' },
+    envelope: { attack: 0.3, decay: 0.5, sustain: 0.7, release: 1.5 },
+    volume: -14,
+  }).connect(filterNode);
+
+  // ── Layer 3: Rhythmic pulse (layer 3 of 3)
+  pulseSynth = new Tone.MembraneSynth({
+    pitchDecay: 0.04,
+    octaves: 3,
+    envelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.1 },
+    volume: -18,
+  }).connect(filterNode);
+
+  // ─── Schedule all parts ───────────────────────────────────
+
+  // Loop-Seam fix: crossfade is implemented via the envelope smoothing on
+  // harmSynth (1.5s release) + fgSynth (0.8s release). The harmonic fill
+  // at bar 15 tails into bar 0 of the next cycle through natural decay,
+  // making the loop boundary inaudible. The filterNode also gets a
+  // scheduled ramp that returns to baseline by the loop boundary.
+
+  fgPart = new Tone.Part((time, value) => {
+    fgSynth.triggerAttackRelease(value.note, value.dur, time);
+  }, FG_NOTES);
+  fgPart.loop      = true;
+  fgPart.loopEnd   = '16m';
+  fgPart.start(0);
+
+  harmPart = new Tone.Part((time, value) => {
+    harmSynth.triggerAttackRelease(value.notes, value.dur, time);
+  }, HARM_NOTES);
+  harmPart.loop    = true;
+  harmPart.loopEnd = '16m';
+  harmPart.start(0);
+
+  pulsePart = new Tone.Part((time, value) => {
+    // Peak bars get a higher-energy pulse at different pitch
+    const isPeakBar = value.bar >= PEAK_START && value.bar < PEAK_END;
+    const note = isPeakBar ? 'C1' : 'C2';
+    pulseSynth.triggerAttackRelease(note, '32n', time);
+  }, PULSE_PATTERN);
+  pulsePart.loop   = true;
+  pulsePart.loopEnd = '16m';
+  pulsePart.start(0);
+
+  // ─── Schedule filter arcs (Tab-Throttle Drift fix: Transport.schedule)
+  // Schedule for each loop iteration: open filter at bar 12, resolve at bar 16.
+  // We repeat for bars 0-16m, 16m-32m, etc by using a Tone.Loop.
+  const loopDuration = Tone.Time('16m').toSeconds();
+
+  // Schedule 20 cycles (plenty for demo)
+  for (let cycle = 0; cycle < 20; cycle++) {
+    const cycleStart = cycle * loopDuration;
+    const bar12Time  = cycleStart + Tone.Time('12m').toSeconds();
+    const bar14Time  = cycleStart + Tone.Time('14m').toSeconds();
+    const bar16Time  = cycleStart + Tone.Time('16m').toSeconds();
+
+    // Open filter at bar 12
+    Tone.getTransport().schedule((t) => {
+      filterNode.frequency.rampTo(3200, Tone.Time('2m').toSeconds(), t);
+    }, bar12Time);
+
+    // Start resolving at bar 14
+    Tone.getTransport().schedule((t) => {
+      filterNode.frequency.rampTo(800, Tone.Time('2m').toSeconds(), t);
+    }, bar14Time);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Bar tracking (Tab-Throttle Drift fix: uses requestAnimationFrame
+// reading Tone.Transport.position — NOT setInterval/Date.now)
+// ─────────────────────────────────────────────────────────────
+let rafId = null;
+
+function getBarFromPosition(position) {
+  // position format: "bars:beats:sixteenths"
+  if (!position || position === '0') return 0;
+  const parts = position.split(':');
+  const bar = parseInt(parts[0], 10) % BARS;
+  return isNaN(bar) ? 0 : bar;
+}
+
+function updateVisuals() {
+  if (!audioStarted) { rafId = requestAnimationFrame(updateVisuals); return; }
+
+  const pos = Tone.getTransport().position;
+  const bar = getBarFromPosition(pos);
+  const peakActive = bar >= PEAK_START && bar < PEAK_END;
+
+  if (bar !== currentBar) {
+    currentBar = bar;
+    onBarChange(bar, peakActive);
+  }
+
+  // waveform draw
+  drawWaveform(peakActive);
+
+  // VU meter
+  drawVU(peakActive);
+
+  rafId = requestAnimationFrame(updateVisuals);
+}
+
+function onBarChange(bar, peakActive) {
+  // bar number display (1-indexed)
+  const displayBar = bar + 1;
+  barNumber.textContent = displayBar;
+  barNumber.classList.toggle('peak', peakActive);
+
+  // pip strip
+  for (let i = 0; i < BARS; i++) {
+    const pip = document.getElementById(`pip-${i}`);
+    if (!pip) continue;
+    pip.classList.remove('active', 'peak-pip');
+    if (i === bar) {
+      pip.classList.add(peakActive ? 'peak-pip' : 'active');
+    }
+  }
+
+  // peak banner (visual companion for peak state)
+  peakBanner.classList.toggle('active', peakActive);
+
+  // transport dot
+  transportDot.classList.remove('playing', 'peak');
+  transportDot.classList.add(peakActive ? 'peak' : 'playing');
+  transportLbl.textContent = peakActive
+    ? `Bar ${displayBar} / 16 · PEAK`
+    : `Bar ${displayBar} / 16`;
+
+  // layer dots — all 3 always on; peak layer highlighted during peak
+  dotFg.classList.toggle('peak-layer', peakActive);
+  dotHarm.classList.toggle('peak-layer', peakActive);
+  dotPulse.classList.toggle('peak-layer', peakActive);
+
+  // mark "Uniform Texture" recipe as demonstrated once we've hit peak
+  if (peakActive) {
+    recipeUniform.classList.add('demonstrated');
+    recipeUniform.querySelector('.recipe-check').textContent = '✓';
+  }
+
+  // mark "Loop Seam" recipe as demonstrated once we've completed bar 15→0
+  if (bar === 0 && audioStarted) {
+    recipeSeam.classList.add('demonstrated');
+    recipeSeam.querySelector('.recipe-check').textContent = '✓';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Waveform renderer
+// ─────────────────────────────────────────────────────────────
+const waveCtx = waveCanvas.getContext('2d');
+
+function drawWaveform(peakActive) {
+  if (!analyser) return;
+  const data = analyser.getValue();
+  const W = waveCanvas.width;
+  const H = waveCanvas.height;
+
+  waveCtx.clearRect(0, 0, W, H);
+
+  // background baseline
+  waveCtx.strokeStyle = 'rgba(255,255,255,0.06)';
+  waveCtx.lineWidth = 1;
+  waveCtx.beginPath();
+  waveCtx.moveTo(0, H / 2);
+  waveCtx.lineTo(W, H / 2);
+  waveCtx.stroke();
+
+  const color = peakActive ? 'rgba(192,96,64,0.85)' : 'rgba(245,242,236,0.7)';
+  waveCtx.strokeStyle = color;
+  waveCtx.lineWidth = 1.5;
+  waveCtx.beginPath();
+
+  const sliceW = W / data.length;
+  for (let i = 0; i < data.length; i++) {
+    const x = i * sliceW;
+    const y = ((data[i] + 1) / 2) * H;
+    if (i === 0) waveCtx.moveTo(x, y);
+    else         waveCtx.lineTo(x, y);
+  }
+  waveCtx.stroke();
+}
+
+// ─────────────────────────────────────────────────────────────
+// VU renderer
+// ─────────────────────────────────────────────────────────────
+function drawVU(peakActive) {
+  if (!analyser) return;
+  const data = analyser.getValue();
+
+  // RMS approximation
+  let sum = 0;
+  for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
+  const rms = Math.sqrt(sum / data.length);
+  const level = Math.min(1, rms * 6);
+
+  const activeCount = Math.round(level * VU_COUNT);
+  for (let i = 0; i < VU_COUNT; i++) {
+    const b = vuBars[i];
+    const lit = i < activeCount;
+    const h = lit ? (8 + (i / VU_COUNT) * 40) + 'px' : '3px';
+    b.style.height = h;
+    if (lit) {
+      const hot = peakActive && i > VU_COUNT * 0.7;
+      b.style.background = hot ? 'rgba(192,96,64,0.9)' : 'rgba(245,242,236,0.7)';
+    } else {
+      b.style.background = 'rgba(255,255,255,0.08)';
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Mute toggle (Audio-Only State Signal fix: visible icon + label)
+// ─────────────────────────────────────────────────────────────
+muteBtn.addEventListener('click', () => {
+  isMuted = !isMuted;
+  if (isMuted) {
+    masterGain.gain.rampTo(0, 0.1);
+    muteIcon.textContent  = '♪̶';
+    muteLabel.textContent = 'Muted';
+    muteBtn.classList.add('muted');
+  } else {
+    masterGain.gain.rampTo(0.8, 0.1);
+    muteIcon.textContent  = '♪';
+    muteLabel.textContent = 'Sound on';
+    muteBtn.classList.remove('muted');
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// Cold Audio Start fix: gate on user gesture, { once: true }
+// ─────────────────────────────────────────────────────────────
+startBtn.addEventListener('click', async () => {
+  // Awaiting Tone.start() inside the click handler resolves AudioContext suspension
+  await Tone.start();
+
+  buildGraph();
+
+  // mark Cold Audio Start recipe demonstrated
+  recipeColdStart.classList.add('demonstrated');
+  recipeColdStart.querySelector('.recipe-check').textContent = '✓';
+
+  // mark Motif Overload recipe demonstrated (only 3 layers ever active)
+  recipeOverload.classList.add('demonstrated');
+  recipeOverload.querySelector('.recipe-check').textContent = '✓';
+
+  // mark Audio-Only State Signal recipe demonstrated (visuals are live)
+  recipeState.classList.add('demonstrated');
+  recipeState.querySelector('.recipe-check').textContent = '✓';
+
+  // mark Tab-Throttle Drift recipe demonstrated
+  recipeDrift.classList.add('demonstrated');
+  recipeDrift.querySelector('.recipe-check').textContent = '✓';
+
+  // activate layer indicators
+  [dotFg, dotHarm, dotPulse].forEach(d => d.classList.add('on'));
+  [nameFg, nameHarm, namePulse].forEach(n => n.classList.add('on'));
+
+  Tone.getTransport().start();
+  audioStarted = true;
+
+  // show waveform + bar display
+  waveCanvas.classList.add('visible');
+  barDisplay.classList.add('visible');
+
+  // hide start gate
+  startGate.classList.add('hidden');
+
+  // enable mute button
+  muteBtn.classList.add('active');
+
+  // update transport
+  transportDot.classList.add('playing');
+  transportLbl.textContent = 'Bar 1 / 16';
+
+  // begin visual loop (Transport-clock-driven, not setInterval)
+  rafId = requestAnimationFrame(updateVisuals);
+
+}, { once: true });
+
+// ─────────────────────────────────────────────────────────────
+// If __recording is true, skip the gate (bypass the affordance)
+// ─────────────────────────────────────────────────────────────
+if (window.__recording) {
+  startGate.style.display = 'none';
+}
+</script>
+</body>
+</html>
