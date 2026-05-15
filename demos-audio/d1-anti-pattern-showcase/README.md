@@ -14,7 +14,7 @@ Positive demonstration: every listed anti-pattern is shown by its fix, not its v
 | **Audio-Only State Signal** | Waveform canvas, bar counter, VU meter, peak banner, and mute button label all update with audio state. Mute toggle changes icon and label text. Peak at bars 12-13 turns the waveform, bar number, VU hot zone, and transport dot to the accent color. |
 | **Tab-Throttle Drift** | All visual updates read `Tone.Transport.position` inside `requestAnimationFrame`. Filter automation uses `Tone.getTransport().schedule`. No `setInterval` or `Date.now` in timing-sensitive paths. |
 
-## Q5 stance — loop-Peak
+## Q5 stance: loop-Peak
 
 Per `capabilities/generative-audio/anti-patterns.md` §Peak-End for ambient loops:
 > In a 16-bar loop the peak sits at bars 12-13; bar 16 resolves to bar 1 with a crossfade that makes the join inaudible.
