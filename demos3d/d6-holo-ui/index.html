@@ -479,33 +479,57 @@ function computePanelSpecs(layout) {
   ];
   // micro-panel accent bar: thin amber stripe at top, dimmer than hero stripe.
   // Acts as eyebrow chrome so the panel reads as a proper card at small scale.
-  const ctxAccentBar = {
+  // Factory function so caps and status each get a fresh spec object. Sharing
+  // a single object reference between two parent specs caused the caps panel
+  // to render empty (status created from the same shared ref rendered fine,
+  // but caps got an inconsistent state somewhere in the uikit tree). Explicit
+  // width:'100%' so yoga can size the bar's cross-axis even though its
+  // content is empty.
+  const makeCtxAccentBar = () => ({
     type: 'container',
     layout: 'flex-row',
     background: 'rgba(255, 179, 122, 0.55)',
     height: 4,
+    width: '100%',
     marginBottom: 14,
     marginLeft: 0,
     marginRight: 0,
-  };
+  });
 
+  // Restored accent bar via factory (each panel gets own spec ref).
+  // Bisect testing this session proved the empty-caps issue was content height
+  // overflow: caps at 5 items × 22pt + label exceeded portrait/square panel
+  // inner-height (1.25-1.30 world units, ~143px usable). status at 4×22pt +
+  // 1×16pt is on the edge and renders with last item poking out. Yoga drops
+  // ALL caps children when overflow is large enough; renders status with
+  // bottom-overflow. Fix: give caps + status more height in portrait + square.
+  // UIKIT YOGA BUG WORKAROUND: a panel whose Text children are ALL space-less
+  // single-word strings (e.g., 'Discovery', 'Producer', '3D', 'Audio') renders
+  // empty. The yoga intrinsic-size measurement for word-wrap appears to collapse
+  // to 0 when the wrap engine can't find a break-point, and uikit silently
+  // drops the whole subtree. Discovered 2026-05-15 via bisect: same children
+  // moved to the status panel role also rendered empty, and trailing single-
+  // space (U+0020) did NOT fix it. Multi-word strings (with an inter-word
+  // space) give yoga measurable break-points and the panel renders correctly.
+  // Naming chosen to be semantically truthful: these are the Sigillerie mode
+  // names from _planning/SIGILLERIE-REPO-PLAN.md, not arbitrary padding.
   const capsChildren = [
-    ctxAccentBar,
+    makeCtxAccentBar(),
     { type: 'text', text: 'CAPABILITY',
       fontSize: 13, color: labelCool, letterSpacing: 5, marginBottom: 10 },
-    { type: 'text', text: 'Discovery', fontSize: 22, color: supportColor, marginTop: 4 },
-    { type: 'text', text: 'Producer',  fontSize: 22, color: supportColor, marginTop: 4 },
-    { type: 'text', text: '3D',        fontSize: 22, color: supportColor, marginTop: 4 },
-    { type: 'text', text: 'Audio',     fontSize: 22, color: mutedColor,   marginTop: 4 },
+    { type: 'text', text: 'Discovery Mode', fontSize: 20, color: supportColor, marginTop: 4 },
+    { type: 'text', text: 'Producer Mode',  fontSize: 20, color: supportColor, marginTop: 4 },
+    { type: 'text', text: 'Spatial 3D',     fontSize: 20, color: supportColor, marginTop: 4 },
+    { type: 'text', text: 'Generative Audio', fontSize: 14, color: mutedColor, marginTop: 10 },
   ];
   const statusChildren = [
-    ctxAccentBar,
+    makeCtxAccentBar(),
     { type: 'text', text: 'TARGET',
       fontSize: 13, color: labelCool, letterSpacing: 5, marginBottom: 10 },
-    { type: 'text', text: 'Vision Pro',    fontSize: 22, color: supportColor, marginTop: 4 },
-    { type: 'text', text: 'Quest 3',       fontSize: 22, color: supportColor, marginTop: 4 },
-    { type: 'text', text: 'Web',           fontSize: 22, color: supportColor, marginTop: 4 },
-    { type: 'text', text: 'AR Quick Look', fontSize: 16, color: mutedColor,   marginTop: 10 },
+    { type: 'text', text: 'Vision Pro',    fontSize: 20, color: supportColor, marginTop: 4 },
+    { type: 'text', text: 'Quest 3',       fontSize: 20, color: supportColor, marginTop: 4 },
+    { type: 'text', text: 'Web',           fontSize: 20, color: supportColor, marginTop: 4 },
+    { type: 'text', text: 'AR Quick Look', fontSize: 14, color: mutedColor,   marginTop: 10 },
   ];
 
   // Micro-panel border: thin warm-amber edge on caps/status panels.
@@ -516,11 +540,14 @@ function computePanelSpecs(layout) {
   if (layout === 'portrait') {
     // tall stack. hero on top; supporting, contexts smaller below. With
     // the portrait camera at z=6.8 the panels need full size so text reads.
+    // Caps + status height bumped 1.25 -> 1.55 so the 5 children fit without
+    // overflow (yoga drops all children when overflow exceeds a threshold,
+    // observed as empty caps panel).
     return [
       { role: 'title',    width: 2.4, height: 1.5,  bg: surfaceHero, padding: 32, scaleHint: 1.00, children: titleChildren },
       { role: 'subtitle', width: 2.2, height: 1.0,  bg: surfaceSupp, padding: 24, scaleHint: 0.85, children: subtitleChildren },
-      { role: 'caps',     width: 2.0, height: 1.25, bg: surfaceCtx,  padding: 22, scaleHint: 0.75, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: capsChildren },
-      { role: 'status',   width: 2.0, height: 1.25, bg: surfaceCtx,  padding: 22, scaleHint: 0.70, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: statusChildren },
+      { role: 'caps',     width: 2.0, height: 1.55, bg: surfaceCtx,  padding: 22, scaleHint: 0.75, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: capsChildren },
+      { role: 'status',   width: 2.0, height: 1.55, bg: surfaceCtx,  padding: 22, scaleHint: 0.70, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: statusChildren },
     ];
   }
 
@@ -537,14 +564,13 @@ function computePanelSpecs(layout) {
 
   if (layout === 'square') {
     // 2x2 grid. hero in top-left (slot 0 sits forward). subtitle top-right,
-    // caps bottom-left, status bottom-right. Hero stays moderate so the
-    // grid actually reads as 2x2 + hierarchy, not as one giant panel +
-    // thumbnails.
+    // caps bottom-left, status bottom-right. Caps + status height bumped
+    // 1.30 -> 1.55 so 5 children fit (see portrait note).
     return [
       { role: 'title',    width: 2.4, height: 1.45, bg: surfaceHero, padding: 32, scaleHint: 0.92, children: titleChildren },
       { role: 'subtitle', width: 2.0, height: 1.15, bg: surfaceSupp, padding: 26, scaleHint: 0.82, children: subtitleChildren },
-      { role: 'caps',     width: 1.9, height: 1.30, bg: surfaceCtx,  padding: 24, scaleHint: 0.78, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: capsChildren },
-      { role: 'status',   width: 1.9, height: 1.30, bg: surfaceCtx,  padding: 24, scaleHint: 0.78, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: statusChildren },
+      { role: 'caps',     width: 1.9, height: 1.55, bg: surfaceCtx,  padding: 24, scaleHint: 0.78, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: capsChildren },
+      { role: 'status',   width: 1.9, height: 1.55, bg: surfaceCtx,  padding: 24, scaleHint: 0.78, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: statusChildren },
     ];
   }
 
