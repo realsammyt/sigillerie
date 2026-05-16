@@ -92,8 +92,9 @@
     switch (layout) {
       case 'ultrawide':
         // closer in + flatter fov so caps/status read at proper size, not
-        // as thumbnails on the wings.
-        return { fov: 28, pos: [0, 0.1, 7.2], target: [0, 0, 0] };
+        // as thumbnails on the wings. FOV 28 -> 42 + z 7.2 -> 10 + paired
+        // with arcRadius drop 9 -> 6 below so the wide panels fit the camera.
+        return { fov: 42, pos: [0, 0.1, 10.0], target: [0, 0, 0] };
       case 'square':
         // back enough that 2x2 grid breathes; flatter z-recede (below) means
         // the bottom row no longer reads tiny.
@@ -105,7 +106,9 @@
       case 'wide':
       default:
         // classic hero: third-line offset, slight tilt-up for headroom.
-        return { fov: 34, pos: [0.2, 0.25, 5.6], target: [-0.05, -0.05, 0] };
+        // FOV 34 -> 46, z 5.6 -> 8.0 so the full arc fits without right-edge
+        // crop on the hero panel. Paired with arcRadius tighten below.
+        return { fov: 46, pos: [0.2, 0.25, 8.0], target: [0, -0.05, 0] };
     }
   }
 
@@ -173,6 +176,7 @@
 
     if (layout === 'ultrawide') {
       // shallow arc across a long horizontal span. flatter than wide arc.
+      // arcRadius unchanged; camera widened (fov 42 + z 10.0) to fit.
       const arcRadius = 9.0;
       const arcSpan = Math.min(Math.PI * 0.36, n * 0.20);
       for (let i = 0; i < n; i += 1) {
@@ -191,7 +195,8 @@
 
     // default: wide, horizontal arc. Each panel rotated toward center.
     // tighter angle + bigger radius so the arc curves elegantly without
-    // panels eating each other.
+    // panels eating each other. arcRadius 5.2 unchanged; camera widened
+    // (fov 46 + z 8.0) to fit the full arc.
     const arcRadius = 5.2;
     const arcSpan = Math.min(Math.PI * 0.46, n * 0.27);
     for (let i = 0; i < n; i += 1) {
