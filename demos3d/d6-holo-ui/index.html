@@ -293,17 +293,17 @@ function buildScene(threeApi, group) {
     const ringY = hp[1];
     const ringZ = hp[2] - 0.05;
 
-    // Ring + halo originally opacity 0.95 + 0.14 with AdditiveBlending. In
-    // wide + ultrawide aspects the additive blend + bloom drowned the
-    // SIGILLERIE text — the ring became a brighter focal element than the
-    // hero. Dimmed to 0.35 / 0.06 so it reads as ornament behind the title,
-    // not as the primary focal point. Aesthetic.md §1 (focal hierarchy is
-    // non-negotiable) and the new "AI-orb" anti-pattern in critique-guide.md.
+    // Per critique-2026-05-16 ornament-tax + AI-orb + Default torus hits:
+    // the inner-ring + halo + opacity-0.35 outer ring trio survived the
+    // deletion test (the demo communicates brand without it) and tripped
+    // three named anti-patterns. Dropped inner-ring + halo entirely.
+    // Outer ring kept at opacity 0.15 as a single subtle accent rather
+    // than a focal-competing emissive cluster.
     const ringGeo = new THREE.TorusGeometry(ringRadius, 0.007, 16, 96);
     const ringMat = new THREE.MeshBasicMaterial({
       color: 0xffb37a,
       transparent: true,
-      opacity: 0.35,
+      opacity: 0.15,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
@@ -313,36 +313,6 @@ function buildScene(threeApi, group) {
     ring.rotation.x = 0.04;
     group.add(ring);
     group.userData.heroRing = ring;
-
-    // Inner disc for extra bloom catch. Soft warm glow behind the ring.
-    const haloSize = ringRadius * 3.0;
-    const haloGeo = new THREE.PlaneGeometry(haloSize, haloSize);
-    const haloMat = new THREE.MeshBasicMaterial({
-      color: 0xff8d52,
-      transparent: true,
-      opacity: 0.06,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const halo = new THREE.Mesh(haloGeo, haloMat);
-    halo.position.set(ringX, ringY, ringZ - 0.05);
-    group.add(halo);
-    group.userData.heroHalo = halo;
-
-    // A second tiny inner ring for layered detail (cinema-grade ornament).
-    const inner = new THREE.Mesh(
-      new THREE.TorusGeometry(ringRadius * 0.42, 0.004, 12, 64),
-      new THREE.MeshBasicMaterial({
-        color: 0xffd0a0,
-        transparent: true,
-        opacity: 0.25,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      })
-    );
-    inner.position.set(ringX, ringY, ringZ + 0.01);
-    group.add(inner);
-    group.userData.heroInner = inner;
   }
 
   // 7. Backdrop gradient sphere. Inverted normals so we render the inside.
@@ -713,14 +683,15 @@ function tickScene(threeApi, group, t) {
     heroRing.rotation.z = t * 0.06;
     heroRing.position.y = bp[1] + Math.sin(t * 0.4) * 0.03;
     // gentle pulse on opacity so the bloom breathes.
+    // Baseline 0.15 (matches creation opacity) + small pulse amplitude.
+    // Previously 0.78 + 0.10 amplitude which negated the static 0.35 dim
+    // from PR #28 and made the ring read as a focal element again.
     if (heroRing.material) {
-      heroRing.material.opacity = 0.78 + Math.sin(t * 0.5) * 0.10;
+      heroRing.material.opacity = 0.15 + Math.sin(t * 0.5) * 0.04;
     }
   }
-  const heroHalo = group.userData.heroHalo;
-  if (heroHalo && heroHalo.material) {
-    heroHalo.material.opacity = 0.08 + Math.sin(t * 0.35) * 0.03;
-  }
+  // heroHalo + heroInner dropped per critique-2026-05-16. No per-frame
+  // update needed.
 
   // 3. Camera drift, preset-driven. Only when not recording AND user is not
   //    actively dragging. OrbitControls.update() handles damping when present.
