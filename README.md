@@ -39,6 +39,21 @@ Modes compose. Capabilities compose with modes. A `/walkthrough` of a `/kg` deli
 /audio brand for [brand]
 ```
 
+## Showcase
+
+Four single-file HTML demos, one per capability. Each demonstrates the FIX side of the named anti-patterns in its capability's catalog. Open in a browser (most need `http://` not `file://`, start a static server in this repo root with `python -m http.server 8080`).
+
+| Demo | Path | Recipes demonstrated |
+|---|---|---|
+| **Data Viz** | `demos-viz/d1-anti-pattern-showcase/` | Buried Lead, Flat Deck, Loading Void, Rainbow Categorical, Unlabeled Axis, Legend Orphan, Anticlimactic Summary |
+| **Knowledge Graph** | `demos-kg/d1-anti-pattern-showcase/` | Hairball-at-Load, No Entry Node, Isotropic Nodes, Edge Spaghetti, Undifferentiated Cluster Mass, Offscreen Legend, Unlabeled Edges |
+| **Generative Audio** | `demos-audio/d1-anti-pattern-showcase/` | Cold Audio Start, Uniform Texture (loop-Peak at bars 12-13), Loop Seam, Motif Overload, Audio-Only State Signal, Tab-Throttle Drift |
+| **3D / Immersive** | `demos3d/d6-holo-ui/` | Adaptive Holo-UI across 4 aspect ratios (wide / square / portrait / ultrawide). Uses `@pmndrs/uikit` with `applySpatialVitrine` preset (frosted glass + warm sunset + bloom + chromatic). |
+
+Open one in a browser to verify it renders, then check the demo's `README.md` for the anti-patterns avoided and the recipe behind each.
+
+For design review iteration, `scripts/screenshot-demo.mjs` captures all four aspect ratios (1920x1080 / 1080x1080 / 1080x1920 / 3440x1440) at once. Pair with the global `visual-review` skill to score a demo against the project's own critique rubric.
+
 ## What it doesn't do
 
 - iOS Safari WebXR (does not exist in 2026 — uses AR Quick Look instead)
