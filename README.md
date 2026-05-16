@@ -73,4 +73,11 @@ Discipline borrowed from [`alchaincyf/huashu-design`](https://github.com/alchain
 
 ## Status
 
-Pre-v1, building. See `SKILL.md` for routing rules and `_planning/` (workspace) for the build plan.
+v0.9, capabilities shipped. The skill registers globally, all three modes route, all five capability layers (Hi-Fi Base + Data Viz + Knowledge Graph + Generative Audio + 3D / Immersive) have anti-pattern catalogs the critic agent scans by name, and four reference demos live in `demos-viz/`, `demos-kg/`, `demos-audio/`, `demos3d/`.
+
+Known carry-overs toward v1.0:
+- AR Quick Look (Phase 5) waiting on the USDZ-on-Windows decision.
+- WebXR Track B (Phase 6) scaffolding not started.
+- d6-holo-ui spatial UI flagship demo holds at floor 6 in the critique guide due to a stacked-z arc that visually compresses (tracked in `_planning/HANDOFF-2026-05-15.md` Option J3).
+
+See `SKILL.md` for routing rules and `_planning/` (workspace) for the build plan. The latest handoff lives at `_planning/HANDOFF-2026-05-15.md`.
