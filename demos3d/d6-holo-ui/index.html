@@ -530,7 +530,7 @@ function computePanelSpecs(layout) {
     makeCtxAccentBar(),
     { type: 'text', text: 'CAPABILITY',
       fontSize: 13, color: labelCool, letterSpacing: 5, marginBottom: 10 },
-    { type: 'text', text: 'Discovery Mode', fontSize: 20, color: supportColor, marginTop: 4 },
+    { type: 'text', text: 'Discovery',      fontSize: 20, color: supportColor, marginTop: 4 },
     { type: 'text', text: 'Producer Mode',  fontSize: 20, color: supportColor, marginTop: 4 },
     { type: 'text', text: 'Spatial 3D',     fontSize: 20, color: supportColor, marginTop: 4 },
     { type: 'text', text: 'Generative Audio', fontSize: 14, color: mutedColor, marginTop: 10 },
@@ -569,11 +569,13 @@ function computePanelSpecs(layout) {
     // far left, status far right, subtitle just left of hero. Hero width
     // 2.8 -> 3.6 so SIGILLERIE at fontSize 48 has wrap-headroom (yoga
     // measurement collapse if the single word can't fit + has no break-points).
+    // Caps + status width 1.8 -> 2.1 so 'Discovery Mode' fits one line
+    // (consistent with PR #29 square fix).
     return [
-      { role: 'caps',     width: 1.8, height: 1.65, bg: surfaceCtx,  padding: 32, scaleHint: 0.85, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: capsChildren },
+      { role: 'caps',     width: 2.1, height: 1.65, bg: surfaceCtx,  padding: 32, scaleHint: 0.85, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: capsChildren },
       { role: 'subtitle', width: 2.0, height: 1.20, bg: surfaceSupp, padding: 32, scaleHint: 0.95, children: subtitleChildren },
       { role: 'title',    width: 3.6, height: 1.55, bg: surfaceHero, padding: 38, scaleHint: 1.15, children: titleChildren },
-      { role: 'status',   width: 1.8, height: 1.65, bg: surfaceCtx,  padding: 32, scaleHint: 0.85, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: statusChildren },
+      { role: 'status',   width: 2.1, height: 1.65, bg: surfaceCtx,  padding: 32, scaleHint: 0.85, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: statusChildren },
     ];
   }
 
@@ -592,12 +594,13 @@ function computePanelSpecs(layout) {
   // wide (default): horizontal arc. caps and status flank as wings,
   // subtitle is left-of-hero, hero (slot 2) sits on the right third-line.
   // Hero width 2.8 -> 3.6 so SIGILLERIE at fontSize 48 fits (same yoga
-  // wrap-headroom fix as ultrawide).
+  // wrap-headroom fix as ultrawide). Caps + status width 1.8 -> 2.1 so
+  // 'Discovery Mode' fits one line (consistent with PR #29 square fix).
   return [
-    { role: 'caps',     width: 1.8, height: 1.65, bg: surfaceCtx,  padding: 30, scaleHint: 0.78, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: capsChildren },
+    { role: 'caps',     width: 2.1, height: 1.65, bg: surfaceCtx,  padding: 30, scaleHint: 0.78, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: capsChildren },
     { role: 'subtitle', width: 2.0, height: 1.20, bg: surfaceSupp, padding: 30, scaleHint: 0.88, children: subtitleChildren },
     { role: 'title',    width: 3.6, height: 1.55, bg: surfaceHero, padding: 38, scaleHint: 1.12, children: titleChildren },
-    { role: 'status',   width: 1.8, height: 1.65, bg: surfaceCtx,  padding: 30, scaleHint: 0.78, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: statusChildren },
+    { role: 'status',   width: 2.1, height: 1.65, bg: surfaceCtx,  padding: 30, scaleHint: 0.78, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: statusChildren },
   ];
 }
 
