@@ -259,11 +259,29 @@ function buildScene(threeApi, group) {
       panel.root.add(stripe);
     }
 
-    panel.root.position.set(xform.position[0], xform.position[1], xform.position[2]);
+    // Hero+overlay depth ladder: pull hero z forward by 0.8 units in wide
+    // and ultrawide. The arc geometry puts theta=0 panels DEEPER (z negative)
+    // than theta=edge panels, which inverts focal depth — hero ends up behind
+    // caps + status. The "Stacked-z parallel" §10 anti-pattern fires because
+    // depth doesn't read as a foreground/background separation. Pulling hero
+    // forward restores the hierarchy: hero pops, supporting panels recede.
+    // Portrait + square already have hero depth via their own z-stagger so
+    // they don't need this adjustment.
+    let posZ = xform.position[2];
+    if (spec.role === 'title' && (layout === 'wide' || layout === 'ultrawide')) {
+      posZ = xform.position[2] + 0.8;
+    }
+    if ((spec.role === 'caps' || spec.role === 'status') && (layout === 'wide' || layout === 'ultrawide')) {
+      // push supporting panels slightly back to widen the depth ladder.
+      // -0.2 keeps them visible behind hero rather than fully occluded.
+      posZ = xform.position[2] - 0.2;
+    }
+
+    panel.root.position.set(xform.position[0], xform.position[1], posZ);
     panel.root.rotation.set(xform.rotation[0], xform.rotation[1], xform.rotation[2]);
     panel.root.scale.set(sx, sy, sz);
     panel.root.userData.role = spec.role;
-    panel.root.userData.basePos = [xform.position[0], xform.position[1], xform.position[2]];
+    panel.root.userData.basePos = [xform.position[0], xform.position[1], posZ];
     panel.root.userData.baseScale = [sx, sy, sz];
     panel.root.userData.phase = i * 0.6;
 
