@@ -265,23 +265,33 @@ function buildScene(threeApi, group) {
     // caps + status. The "Stacked-z parallel" §10 anti-pattern fires because
     // depth doesn't read as a foreground/background separation. Pulling hero
     // forward restores the hierarchy: hero pops, supporting panels recede.
+    // Subtitle recedes furthest (-0.5) so it stops competing in x-overlap
+    // with the wide hero. Caps + status recede -0.2 to widen the ladder.
+    // Caps + status x is nudged inward 0.30 in wide so the rightmost panel
+    // fits inside the 16:9 frame at vfov 34 (right edge previously clipped).
     // Portrait + square already have hero depth via their own z-stagger so
     // they don't need this adjustment.
     let posZ = xform.position[2];
+    let posX = xform.position[0];
     if (spec.role === 'title' && (layout === 'wide' || layout === 'ultrawide')) {
       posZ = xform.position[2] + 0.8;
     }
     if ((spec.role === 'caps' || spec.role === 'status') && (layout === 'wide' || layout === 'ultrawide')) {
-      // push supporting panels slightly back to widen the depth ladder.
-      // -0.2 keeps them visible behind hero rather than fully occluded.
       posZ = xform.position[2] - 0.2;
     }
+    if (spec.role === 'subtitle' && (layout === 'wide' || layout === 'ultrawide')) {
+      posZ = xform.position[2] - 0.5;
+    }
+    if (layout === 'wide') {
+      if (spec.role === 'caps')   posX = xform.position[0] + 0.30;
+      if (spec.role === 'status') posX = xform.position[0] - 0.30;
+    }
 
-    panel.root.position.set(xform.position[0], xform.position[1], posZ);
+    panel.root.position.set(posX, xform.position[1], posZ);
     panel.root.rotation.set(xform.rotation[0], xform.rotation[1], xform.rotation[2]);
     panel.root.scale.set(sx, sy, sz);
     panel.root.userData.role = spec.role;
-    panel.root.userData.basePos = [xform.position[0], xform.position[1], posZ];
+    panel.root.userData.basePos = [posX, xform.position[1], posZ];
     panel.root.userData.baseScale = [sx, sy, sz];
     panel.root.userData.phase = i * 0.6;
 
@@ -584,9 +594,13 @@ function computePanelSpecs(layout) {
   // Hero width 2.8 -> 3.6 so SIGILLERIE at fontSize 48 fits (same yoga
   // wrap-headroom fix as ultrawide). Caps + status width 1.8 -> 2.1 so
   // 'Discovery Mode' fits one line (consistent with PR #29 square fix).
+  // Subtitle scaleHint 0.88 -> 0.72: reduces visual weight so the subtitle
+  // panel recedes behind the larger hero and stops competing with it for
+  // attention. Pair with the subtitle z-recession in buildScene (post-grid
+  // depth ladder) so the smaller panel also sits clearly farther back.
   return [
     { role: 'caps',     width: 2.1, height: 1.65, bg: surfaceCtx,  padding: 30, scaleHint: 0.78, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: capsChildren },
-    { role: 'subtitle', width: 2.0, height: 1.20, bg: surfaceSupp, padding: 30, scaleHint: 0.88, children: subtitleChildren },
+    { role: 'subtitle', width: 2.0, height: 1.20, bg: surfaceSupp, padding: 30, scaleHint: 0.72, children: subtitleChildren },
     { role: 'title',    width: 3.6, height: 1.55, bg: surfaceHero, padding: 38, scaleHint: 1.12, children: titleChildren },
     { role: 'status',   width: 2.1, height: 1.65, bg: surfaceCtx,  padding: 30, scaleHint: 0.78, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: statusChildren },
   ];

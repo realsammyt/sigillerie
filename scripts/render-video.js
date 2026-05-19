@@ -844,13 +844,26 @@ async function renderMode3D({ browser, t0, tmpDir, url, output }) {
   // ─── MODE DETECT ───────────────────────────────────────────────────────────
   // For auto mode, peek at the page (in a fresh non-record context) to look
   // for window.__renderFrame. If present, it's a 3D scene driven by CDP
-  // beginFrame and this script can't record it (Phase 4 stub).
+  // beginFrame and the recorder owns the clock.
+  //
+  // Page-contract setters can be installed asynchronously: Stage3D sets
+  // __renderFrame inside its scene-init useEffect, AFTER the load event.
+  // Probing immediately after `load` falsely classifies Stage3D-driven demos
+  // as html and produces frozen recordings (animation-pitfalls.md §16).
+  // Wait briefly for either __ready or __renderFrame, whichever fires first,
+  // before reading the contract.
   let mode = MODE_ARG;
   if (mode === 'auto' || mode === '3d') {
     const peekCtx = await browser.newContext({ viewport: { width: WIDTH, height: HEIGHT } });
     const peekPage = await peekCtx.newPage();
     try {
       await peekPage.goto(URL, { waitUntil: 'load', timeout: 30_000 });
+      // Give async contract setters a chance. 15s is conservative; Stage3D
+      // typically installs within a few hundred ms post-load.
+      await peekPage.waitForFunction(
+        () => window.__ready === true || typeof window.__renderFrame === 'function',
+        { timeout: 15_000 },
+      ).catch(() => {});
       const has3D = await peekPage.evaluate(
         () => typeof window.__renderFrame === 'function',
       ).catch(() => false);
