@@ -48,15 +48,15 @@ This file is the master entry point for visual, brand, and typography slop. Capa
 |---|---|---|
 | **Emoji decoration** (rocket before "Fast", lightbulb before "Idea", checkmark in feature lists) | Reads as toy. Anthropic, Stripe, Linear never do this | Real icons (Lucide, Phosphor, Heroicons). Or no icon |
 | **Excessive iconography** (every section header, every feature row) | Visual noise, no hierarchy | One icon per section max. Often zero |
-| **SVG hero illustration** (AI-drawn people, scenes, devices) | Childish, instantly AI | A grey rectangle labeled "Illustration 1200x800" beats any AI-generated SVG hero. SVG is for icons (16-32px), geometric decoration, charts. Nothing else |
+| **SVG hero illustration** (AI-drawn people, scenes, devices) | Childish, instantly AI | A grey rectangle labeled "Illustration 1200x800" beats any AI-generated SVG hero. SVG is for icons (16-32px), geometric decoration, charts. Nothing else. For deterministic photo placeholders use `https://picsum.photos/seed/<name>/1200/800` (Lorem Picsum is free, seeded, repeatable) |
 | **AI-generated logo** (perfect mirror symmetry, gradient orb plus abstract symbol, four-color blob) | The fingerprints are unmistakable: forced symmetry, vague abstract glyph, rainbow gradient inside | Wordmark in a real font. Real letterform with real intent. Or commission a designer |
 
 ### Manufactured Content
 
 | Cliché | Why it's slop | What to do instead |
 |---|---|---|
-| **Data slop** ("10,000+ happy customers", "99.9% uptime", made-up metric cards) | Fabricated stats are lies. Real users notice | Placeholder. Ask for real numbers. Or remove the section |
-| **Quote slop** (invented testimonials, fake names, fake company logos) | Same problem. Unethical | Placeholder card with "Real quote pending." Ask user for actual quotes |
+| **Data slop** / **Jane Doe Content** ("10,000+ happy customers", "99.9% uptime", made-up metric cards) | Fabricated stats are lies. Real users notice. Round numbers like 99.9 and 50% are AI tells | Placeholder. Ask for real numbers. Or remove the section. If a stat must render in the mockup, mark it `[placeholder]` inline so the reviewer can't miss it |
+| **Quote slop** / **Jane Doe Content** (invented testimonials, fake names, fake company logos, "Sarah Chan from Acme") | Same problem. Unethical | Placeholder card with "Real quote pending." Ask user for actual quotes. Generic-sounding names (John Doe, Sarah Chan, Jack Su) and generic-sounding companies (Acme, Nexus, SmartFlow) are explicit tells |
 | **AI-stock-photography defaults** (vaguely diverse team in vaguely modern office, smiling at vaguely a laptop) | The 2026 update of Getty stock. Same energy | Real photo from a real session. Wikimedia Commons. Met Open Access. Or labeled placeholder |
 
 ---
@@ -99,6 +99,26 @@ Approach:
 ```
 
 OKLCH keeps perceived hue stable across the lightness ramp.
+
+---
+
+## Copy Slop
+
+The visual side is half the work. Copy carries the other half, and AI defaults are just as recognizable. The voice catalog applies to body copy, headlines, button labels, and any user-facing string the deliverable renders. CLAUDE.md keeps the global banned-vocab list for AI prose; the entries below are the deliverable-content version of the same discipline.
+
+| Cliché | Why it's slop | What to do instead |
+|---|---|---|
+| **Filler-verb headline** ("Elevate your workflow", "Unleash productivity", "Seamlessly integrate", "Leverage AI", "Robust and comprehensive", "Foster collaboration") | These verbs say nothing. They are the SaaS-template voice. AI defaults to them. The viewer's eye skips them | Use a concrete verb plus a concrete object. "Edit 4K video in your browser" beats "Unleash creative potential" |
+| **Trend-bait adjectives** ("cutting-edge", "best-in-class", "next-gen", "revolutionary", "world-class", "game-changing") | Marketing taxonomy. Reads as filler. No buyer believes any of these claims | Cut. The product either is, or it isn't. Show evidence (specific feature, specific number) instead |
+| **AI-tell vocab** ("delve", "tapestry", "navigate this challenge", "in the realm of", "embark on a journey") | These five phrases are the highest-signal AI tells in 2026. ChatGPT-3 era. They mark the copy as machine-written instantly | Strip on sight. The CLAUDE.md banned list is the source of truth |
+| **Hedge clutter** ("perhaps", "somewhat", "quite", "fairly", "rather", "arguably") | Adds tokens without adding meaning. AI hedges by default; humans commit | Delete the hedge. If the claim is uncertain, restate it as a measured claim ("works for projects under 1M rows") instead of hedging the unmeasured one |
+| **Vague closer** ("This represents a significant step forward", "An exciting new chapter", "We're thrilled to share") | Press-release closer. Says nothing. AI loves it | End on the most concrete thing the deliverable does. The closer earns its place or gets cut |
+| **Listicle parallelism** (three bullets, each starting with the same gerund: "Building...", "Creating...", "Delivering...") | Reads as filler. The parallelism is a substitute for substance | Vary the structure. Mix declarative, question, and short fragment. Force the eye to actually read each item |
+| **Number-stat hallucination** ("99.9% uptime", "10x faster", "Save 70% of your time") | Same problem as Jane Doe data slop. If the number isn't real, it's a lie | Ask for the real number. If it doesn't exist yet, omit the stat. "Faster than the previous version" with no number beats a fabricated multiplier |
+
+Banned vocabulary list (deliverable copy, not just AI prose): delve, leverage, navigate (as verb), robust, comprehensive, seamless, ensure, foster, utilize, elevate, unleash, embark, tapestry, realm, journey (metaphor), game-changer, cutting-edge, best-in-class, next-gen, world-class, revolutionary, synergy, streamline, optimize (without object).
+
+If the copy fails this section, the design's surface polish does not rescue it. Copy slop is a critic-G4 fail.
 
 ---
 

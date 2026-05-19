@@ -41,6 +41,7 @@ Modes compose. `/discover` then `/3d product hero` is normal.
 - **Existing context beats invented context.** Brand-spec drives every asset reference. Caps at 60-65 points without it.
 - **Junior pass before Full pass.** Show assumptions + placeholders early. Cheaper to fix at minute 10 than minute 60.
 - **Variations, not single answers.** 3+ differentiated options at any choice point. Mix-and-match supported.
+- **Dial-gated rules.** Three numeric dials (`DESIGN_VARIANCE` / `MOTION_INTENSITY` / `VISUAL_DENSITY`, 1-10 each) decide which downstream rules are in force per deliverable. See `modes/producer/dials.md`. Producer states the active dials in the Junior Pass; critic honors the active dial state.
 - **Anti-AI-slop discipline.** Each capability has its own catalog (`modes/producer/content-guidelines.md`, `capabilities/data-viz/anti-patterns.md`, `capabilities/knowledge-graph/anti-patterns.md`, `capabilities/generative-audio/anti-patterns.md`). Critic agent scans by name.
 - **Caveman docs.** Tight prose. Tables over paragraphs. One idea per sentence.
 
@@ -76,6 +77,7 @@ These four gates cover the must-cite laws most likely to fail silently (no visua
 |---|---|
 | Discovery (6 phases, options UX, JSON schema) | `modes/discovery/` |
 | Producer workflow + asset protocol + critique | `modes/producer/` |
+| Producer dials (VARIANCE / MOTION / DENSITY) | `modes/producer/dials.md` |
 | 3D Track A vs B + page contract + recipes | `modes/three3d/` |
 | Data viz stack + ingestion + print export | `capabilities/data-viz/` |
 | Knowledge graph stack + storytelling + dogfood | `capabilities/knowledge-graph/` |
@@ -96,3 +98,5 @@ These four gates cover the must-cite laws most likely to fail silently (no visua
 ## Lineage
 
 Discipline borrowed from [`alchaincyf/huashu-design`](https://github.com/alchaincyf/huashu-design) (花叔Design). Re-authored English-canonical, extended with Discovery, three new capabilities, and 3D / immersive layer. License posture matches huashu (personal use unrestricted, commercial use requires authorization). See `LICENSE`.
+
+The dial system shape (DESIGN_VARIANCE / MOTION_INTENSITY / VISUAL_DENSITY) is influenced by [`Leonxlnx/taste-skill`](https://github.com/Leonxlnx/taste-skill), re-grounded in sigillerie's single-file HTML / three.js / R3F stack rather than the original's React+Tailwind+shadcn target. Sigillerie's `Copy Slop` section in `content-guidelines.md` also draws from taste-skill's "AI Tells" filler-verb ban.
