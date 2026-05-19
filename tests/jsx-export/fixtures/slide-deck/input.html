@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Slide Deck</title>
+<style>
+:root { --bg: #0A0A0A; --fg: #FAFAFA; --accent: #D97757; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; }
+.slide { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; padding: 64px; }
+.slide h1 { font-size: 80px; font-weight: 700; text-align: center; }
+.accent { color: var(--accent); }
+</style>
+<script type="importmap">
+{"imports":{"react":"https://esm.sh/react@18","react-dom/client":"https://esm.sh/react-dom@18/client","leva":"https://esm.sh/leva@0.9?deps=react@18"}}
+</script>
+</head>
+<body>
+<div id="root"></div>
+<script type="module">
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { useControls } from 'leva';
+
+function App() {
+  const { theme, density } = useControls({
+    theme: { value: 'dark', options: ['dark', 'light', 'brand'] },
+    density: { value: 'standard', options: ['minimal', 'standard', 'dense'] },
+  });
+  return (
+    <div className="slide" data-theme={theme} data-density={density}>
+      <h1>The <span className="accent">future</span> of editing</h1>
+    </div>
+  );
+}
+
+createRoot(document.getElementById('root')).render(<App />);
+window.__ready = true;
+</script>
+</body>
+</html>
