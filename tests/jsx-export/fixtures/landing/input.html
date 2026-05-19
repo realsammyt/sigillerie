@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Static Landing</title>
+<style>
+:root { --primary: #D97757; --ink: #1A1A1A; --surface: #F0EEE6; }
+body { margin: 0; font-family: system-ui, sans-serif; color: var(--ink); background: var(--surface); }
+.hero { display: flex; flex-direction: column; padding: 64px; gap: 24px; }
+.hero h1 { font-size: 48px; font-weight: 700; line-height: 1.1; }
+.hero p { font-size: 18px; line-height: 1.6; max-width: 640px; }
+.cta { display: inline-block; padding: 12px 24px; background: var(--primary); color: white; border-radius: 8px; text-decoration: none; }
+.cta:hover { background: #C56847; }
+.features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; padding: 64px; }
+.feature h3 { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+.feature p { font-size: 14px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<section class="hero">
+  <h1>Edit 4K video in your browser</h1>
+  <p>No render farms. No downloads. Open a tab, drop a file, ship the cut.</p>
+  <a href="#start" class="cta">Get started</a>
+</section>
+<section class="features">
+  <div class="feature">
+    <h3>Real-time preview</h3>
+    <p>Scrub, trim, and color-grade with no transcoding step.</p>
+  </div>
+  <div class="feature">
+    <h3>Collaborative cuts</h3>
+    <p>Multiple editors on the same timeline, conflict-free.</p>
+  </div>
+  <div class="feature">
+    <h3>Export-anywhere</h3>
+    <p>Render to MP4, ProRes, or H.265 from the same project file.</p>
+  </div>
+</section>
+</body>
+</html>

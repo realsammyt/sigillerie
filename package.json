@@ -22,7 +22,9 @@
     "verify": "python scripts/verify.py",
     "render": "node scripts/render-video.js",
     "seed-audio": "node scripts/seed-audio-library.mjs",
-    "archon-sync": "bash scripts/archon-sync.sh"
+    "archon-sync": "bash scripts/archon-sync.sh",
+    "export-jsx": "node scripts/jsx-export/index.mjs",
+    "test:jsx-export": "node --test scripts/jsx-export/transformers/css.test.mjs scripts/jsx-export/transformers/js.test.mjs scripts/jsx-export/transformers/markup.test.mjs scripts/jsx-export/templates/render.test.mjs tests/jsx-export/integration.test.mjs"
   },
   "dependencies": {
     "playwright": "^1.49.0",
@@ -30,5 +32,12 @@
     "pptxgenjs": "^3.12.0",
     "sharp": "^0.33.0"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@babel/generator": "^7.29.1",
+    "@babel/parser": "^7.29.3",
+    "@babel/traverse": "^7.29.0",
+    "cheerio": "^1.2.0",
+    "postcss": "^8.5.15",
+    "prettier": "^3.8.3"
+  }
 }

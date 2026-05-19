@@ -78,6 +78,7 @@ These four gates cover the must-cite laws most likely to fail silently (no visua
 | Discovery (6 phases, options UX, JSON schema) | `modes/discovery/` |
 | Producer workflow + asset protocol + critique | `modes/producer/` |
 | Producer dials (VARIANCE / MOTION / DENSITY) | `modes/producer/dials.md` |
+| Producer Pass 5 (HTML to React/Tailwind export) | `modes/producer/export-jsx.md` |
 | 3D Track A vs B + page contract + recipes | `modes/three3d/` |
 | Data viz stack + ingestion + print export | `capabilities/data-viz/` |
 | Knowledge graph stack + storytelling + dogfood | `capabilities/knowledge-graph/` |
@@ -93,7 +94,7 @@ These four gates cover the must-cite laws most likely to fail silently (no visua
 - Server-side three.js rendering
 - Figma round-trip
 - Generic frontend coding (use `frontend-design`)
-- Production web-app development
+- Production web-app development (the optional Pass 5 export to React/Tailwind is a one-way snapshot for handoff, not a path into app development)
 
 ## Lineage
 
