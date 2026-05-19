@@ -175,6 +175,25 @@ Before handoff:
 3. Open browser yourself. Eyeball.
 4. Write the summary.
 
+### Pass 5: Export as JSX (optional)
+
+Only fires when the user asks to drop the deliverable into a Next.js codebase.
+
+```bash
+npm run export-jsx -- ./out/deliverable.html --out=./out/Component.tsx [--brand-spec=./brand-spec.md]
+```
+
+Produces a `.tsx` component (`'use client'`, Tailwind v4), an optional `tailwind.theme.snippet.ts` to paste into the user's tailwind config, and an `EXPORT-README.md` with five-step install instructions.
+
+One-way snapshot. The HTML deliverable stays the source of truth; re-running the exporter overwrites the JSX.
+
+Skip Pass 5 if:
+- The user is shipping HTML / MP4 / GIF only
+- The deliverable uses three.js, R3F, Tone.js, or runtime audio (v1 does not transpile these; v2 territory)
+- The deliverable did not pass critic G4
+
+Spec: `modes/producer/export-jsx.md`. Scope decisions: `_planning/JSX-EXPORT-INTEGRATION.md`.
+
 ## Handling Uncertainty
 
 | Situation | Move |

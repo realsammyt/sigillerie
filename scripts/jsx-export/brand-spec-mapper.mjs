@@ -1,0 +1,202 @@
+// brand-spec-mapper.mjs -- Parse a brand-spec.md and emit a Tailwind v4 theme snippet.
+// Also assembles the EXPORT-README that ships in every export bundle.
+
+// Match colour rows in a markdown table or list. Picks up #hex, oklch(...), rgb(...), hsl(...).
+const COLOR_VALUE_RE = /(#[0-9a-fA-F]{3,8}\b|oklch\([^)]+\)|rgb[a]?\([^)]+\)|hsl[a]?\([^)]+\))/;
+const ROW_RE = /^\s*[-*|]\s*([^|:\n]+?)\s*[|:]\s*(.+?)\s*\|?\s*$/;
+
+const COLOR_HEADINGS = [/colou?rs?/i, /palette/i, /paints?/i];
+const TYPE_HEADINGS = [/typography/i, /fonts?/i, /typefaces?/i];
+const SPACING_HEADINGS = [/spacing/i, /scale/i, /sizes?/i];
+
+function splitSections(md) {
+  const sections = {};
+  let current = null;
+  for (const raw of md.split(/\r?\n/)) {
+    const heading = raw.match(/^#{1,6}\s+(.+?)\s*$/);
+    if (heading) {
+      current = heading[1].trim();
+      sections[current] = [];
+    } else if (current) {
+      sections[current].push(raw);
+    }
+  }
+  return sections;
+}
+
+function findSection(sections, patterns) {
+  for (const [name, lines] of Object.entries(sections)) {
+    if (patterns.some(p => p.test(name))) return lines.join('\n');
+  }
+  return null;
+}
+
+function toIdentifier(s) {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-([a-z])/g, (_, c) => c.toUpperCase())
+    .replace(/^[0-9]/, m => `_${m}`);
+}
+
+function parseColors(text) {
+  if (!text) return {};
+  const out = {};
+  for (const line of text.split(/\r?\n/)) {
+    const value = line.match(COLOR_VALUE_RE);
+    if (!value) continue;
+    const row = line.match(ROW_RE);
+    let name = null;
+    if (row) name = row[1].replace(/\*\*/g, '').trim();
+    else {
+      const labelMatch = line.match(/[-*|]\s*([A-Za-z][\w\s-]{0,40})/);
+      if (labelMatch) name = labelMatch[1].trim();
+    }
+    if (!name) continue;
+    const id = toIdentifier(name);
+    if (id && !out[id]) out[id] = value[1];
+  }
+  return out;
+}
+
+function parseFonts(text) {
+  if (!text) return {};
+  const out = {};
+  for (const line of text.split(/\r?\n/)) {
+    const familyMatch =
+      line.match(/['"]([^'"]+?)['"]\s*,/) ||
+      line.match(/font[- ]?family\s*[:=]\s*([^,\n;|]+)/i) ||
+      line.match(/\b([A-Z][A-Za-z]+(?:\s[A-Z][A-Za-z]+){0,2})\b\s*(?:serif|sans|mono|display|body)?\s*/);
+    if (!familyMatch) continue;
+    let family = familyMatch[1].trim();
+    family = family.replace(/['"]/g, '');
+    if (!family || family.length > 50) continue;
+    let role = 'sans';
+    if (/serif/i.test(line)) role = 'serif';
+    else if (/mono/i.test(line)) role = 'mono';
+    else if (/display|head/i.test(line)) role = 'display';
+    else if (/body|text/i.test(line)) role = 'body';
+    if (!out[role]) out[role] = family;
+  }
+  return out;
+}
+
+function parseSpacing(text) {
+  if (!text) return {};
+  if (!text) return {};
+  const out = {};
+  for (const line of text.split(/\r?\n/)) {
+    const m = line.match(/[-*|]\s*([A-Za-z][\w\s-]{0,30})\s*[:|]\s*([0-9]+(?:\.[0-9]+)?(?:px|rem|em|%))/);
+    if (!m) continue;
+    const id = toIdentifier(m[1]);
+    if (id && !out[id]) out[id] = m[2];
+  }
+  return out;
+}
+
+export function buildBrandSpecSnippet(brandSpecMd) {
+  const sections = splitSections(brandSpecMd);
+  const colors = parseColors(findSection(sections, COLOR_HEADINGS));
+  const fonts = parseFonts(findSection(sections, TYPE_HEADINGS));
+  const spacing = parseSpacing(findSection(sections, SPACING_HEADINGS));
+
+  const lines = [
+    '// tailwind.theme.snippet.ts',
+    '// Generated from brand-spec.md by sigillerie jsx-export.',
+    '// Paste into your tailwind.config.ts under theme.extend.',
+    '',
+    'export const sigillerieTheme = {',
+  ];
+
+  if (Object.keys(colors).length) {
+    lines.push('  colors: {');
+    for (const [k, v] of Object.entries(colors)) {
+      lines.push(`    ${JSON.stringify(k)}: ${JSON.stringify(v)},`);
+    }
+    lines.push('  },');
+  }
+  if (Object.keys(fonts).length) {
+    lines.push('  fontFamily: {');
+    for (const [k, v] of Object.entries(fonts)) {
+      lines.push(`    ${JSON.stringify(k)}: [${JSON.stringify(v)}, 'system-ui', 'sans-serif'],`);
+    }
+    lines.push('  },');
+  }
+  if (Object.keys(spacing).length) {
+    lines.push('  spacing: {');
+    for (const [k, v] of Object.entries(spacing)) {
+      lines.push(`    ${JSON.stringify(k)}: ${JSON.stringify(v)},`);
+    }
+    lines.push('  },');
+  }
+  if (lines.length === 5) {
+    lines.push('  // No tokens parsed from brand-spec.md. Verify the section headings match');
+    lines.push('  // (Colors, Typography, Spacing) and that values are in conventional formats.');
+  }
+
+  lines.push('};');
+  lines.push('');
+  return lines.join('\n');
+}
+
+export function buildExportReadme(opts) {
+  const { componentName, componentFile, hasThemeSnippet, warnings, cssVarsCount, residualCSSPresent } = opts;
+  const lines = [
+    `# ${componentName} export`,
+    '',
+    `Generated by sigillerie \`jsx-export\` from a Producer HTML deliverable. One-way snapshot. Re-running the exporter overwrites this folder.`,
+    '',
+    '## Files in this bundle',
+    '',
+    `- \`${componentFile}\` -- the React component (\`'use client'\`, Tailwind v4 classes)`,
+  ];
+  if (hasThemeSnippet) {
+    lines.push(`- \`tailwind.theme.snippet.ts\` -- design tokens to paste into your \`tailwind.config.ts\``);
+  }
+  lines.push(`- \`EXPORT-README.md\` -- this file`);
+  lines.push('');
+  lines.push('## Installation steps');
+  lines.push('');
+  lines.push('1. **Tailwind v4.** Confirm your project is on Tailwind v4. The component uses OKLCH arbitrary-value classes and modern selectors that v3 does not support.');
+  if (hasThemeSnippet) {
+    lines.push('2. **Theme extension.** Open `tailwind.theme.snippet.ts`, copy the `sigillerieTheme` object, and merge into your `tailwind.config.ts` at `theme.extend`.');
+    lines.push(`3. **Component file.** Copy \`${componentFile}\` into your \`app/components/\` (or equivalent).`);
+    lines.push(`4. **Render it.** \`<${componentName} />\` in any page. The component has \`'use client'\` so it renders on the client.`);
+  } else {
+    lines.push(`2. **Component file.** Copy \`${componentFile}\` into your \`app/components/\` (or equivalent).`);
+    lines.push(`3. **Render it.** \`<${componentName} />\` in any page. The component has \`'use client'\` so it renders on the client.`);
+  }
+  lines.push('');
+
+  if (cssVarsCount > 0) {
+    lines.push('## CSS custom properties');
+    lines.push('');
+    lines.push(`This component declared \`${cssVarsCount}\` CSS custom properties at \`:root\` in the source HTML. They are now scoped to a wrapper \`<div>\` inside the component (no global leakage). If you want them global, lift the \`style\` object onto your app shell.`);
+    lines.push('');
+  }
+
+  if (residualCSSPresent) {
+    lines.push('## Residual CSS');
+    lines.push('');
+    lines.push('Some declarations could not be expressed as Tailwind utilities (typically `@keyframes`, complex `@supports`, or `:has()` chains). They are embedded as a `<style jsx>` block at the bottom of the component. Review and refactor if your project conventions discourage inline styles.');
+    lines.push('');
+  }
+
+  if (warnings && warnings.length) {
+    lines.push('## Warnings from the exporter');
+    lines.push('');
+    for (const w of warnings) lines.push(`- ${w}`);
+    lines.push('');
+    lines.push('Warnings do not block the export, but the indicated features (3D, runtime audio) are not handled by the v1 transformer. The corresponding logic was either stripped or left in place unchanged.');
+    lines.push('');
+  }
+
+  lines.push('## Editing this component');
+  lines.push('');
+  lines.push('Once exported, this file is yours. Edit freely. Re-running `jsx-export` on the source HTML will overwrite this file, so commit before re-exporting if you have downstream edits.');
+  lines.push('');
+  lines.push('The canonical source is the HTML deliverable in the sigillerie project, not this file. If a design change is needed, change it in the HTML and re-export.');
+  lines.push('');
+  return lines.join('\n');
+}

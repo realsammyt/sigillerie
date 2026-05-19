@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>iOS Prototype</title>
+<style>
+:root { --bg: #F2F2F7; --fg: #1C1C1E; --accent: #007AFF; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, system-ui, sans-serif; }
+.screen { padding: 16px; min-height: 100dvh; }
+.tab-bar { position: fixed; bottom: 0; left: 0; right: 0; display: flex; padding: 8px; background: white; border-top: 1px solid #E5E5EA; }
+.tab { flex: 1; padding: 8px; text-align: center; font-size: 14px; }
+.tab.active { color: var(--accent); font-weight: 600; }
+.row { display: flex; gap: 12px; padding: 12px; background: white; border-radius: 12px; margin-bottom: 8px; }
+.title { font-size: 17px; font-weight: 600; }
+</style>
+<script type="importmap">
+{"imports":{"react":"https://esm.sh/react@18","react-dom/client":"https://esm.sh/react-dom@18/client"}}
+</script>
+</head>
+<body>
+<div id="root"></div>
+<script type="module">
+import React, { useState } from 'react';
+import { createRoot } from 'react-dom/client';
+
+function App() {
+  const [screen, setScreen] = useState('home');
+  return (
+    <div>
+      <div className="screen">
+        {screen === 'home' && (
+          <div>
+            <div className="row"><span className="title">Inbox</span></div>
+            <div className="row"><span className="title">Drafts</span></div>
+          </div>
+        )}
+        {screen === 'settings' && (
+          <div>
+            <div className="row"><span className="title">Profile</span></div>
+            <div className="row"><span className="title">Notifications</span></div>
+          </div>
+        )}
+      </div>
+      <div className="tab-bar">
+        <div className={`tab ${screen === 'home' ? 'active' : ''}`} onClick={() => setScreen('home')}>Home</div>
+        <div className={`tab ${screen === 'settings' ? 'active' : ''}`} onClick={() => setScreen('settings')}>Settings</div>
+      </div>
+    </div>
+  );
+}
+
+createRoot(document.getElementById('root')).render(<App />);
+window.__ready = true;
+</script>
+</body>
+</html>
