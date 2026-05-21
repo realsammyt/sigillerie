@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sigillerie · Four Capabilities (wide, 1920x1080)</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400&family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --stage: #0A0A0A;
+    --paper: #FAF7F0;
+    --ink: #1B1614;
+    --quiet: #6E6862;
+    --accent: #9A4B3D;
+    --surface: #EFE9DD;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    background: var(--stage);
+    overflow: hidden;
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    color: var(--paper);
+  }
+
+  /* 1920x1080 fixed-frame canvas. Scales to viewport via transform. */
+  .frame {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 1920px;
+    height: 1080px;
+    transform: translate(-50%, -50%);
+    transform-origin: center center;
+    background: var(--stage);
+    opacity: 0;
+    animation: settle 700ms cubic-bezier(0.16, 1, 0.3, 1) 80ms forwards;
+  }
+
+  @keyframes settle {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  /* --- HEADER BAND (top 18% = ~194px) --- */
+  .header {
+    position: absolute;
+    left: 0; top: 0;
+    width: 100%;
+    height: 194px;
+    padding: 56px 96px 0 96px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .header-left {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .eyebrow {
+    font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+    font-size: 12px;
+    color: var(--quiet);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+
+  .wordmark {
+    font-family: 'Source Serif Pro', Georgia, 'Times New Roman', serif;
+    font-size: 64px;
+    font-weight: 400;
+    color: var(--paper);
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  .tagline {
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--quiet);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    text-align: right;
+    margin-top: 18px;
+    line-height: 1.4;
+  }
+
+  /* Hairline under the header, full width */
+  .rule {
+    position: absolute;
+    left: 0;
+    top: 194px;
+    width: 100%;
+    height: 1px;
+    background: var(--quiet);
+    opacity: 0.3;
+  }
+
+  /* --- GRID (lower 75% area) --- */
+  .grid {
+    position: absolute;
+    left: 50%;
+    top: 240px;
+    transform: translateX(-50%);
+    width: calc(460px * 2 + 40px);
+    height: calc(360px * 2 + 40px);
+    display: grid;
+    grid-template-columns: 460px 460px;
+    grid-template-rows: 360px 360px;
+    gap: 40px;
+  }
+
+  /* Vertical centering in lower 75% area:
+     header ends at 194px, body region = 1080 - 194 = 886.
+     grid height = 360*2 + 40 = 760. extra = 126, half = 63.
+     top offset = 194 + 63 = 257. We use 240 to bias slightly upward
+     to balance the bottom signature row visually. */
+
+  .card {
+    position: relative;
+    background: var(--paper);
+    border-radius: 6px;
+    padding: 44px 44px 40px 44px;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
+    display: flex;
+    flex-direction: column;
+    color: var(--ink);
+    overflow: hidden;
+  }
+
+  .card-title {
+    font-family: 'Source Serif Pro', Georgia, 'Times New Roman', serif;
+    font-size: 36px;
+    font-weight: 400;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    line-height: 1.05;
+    margin: 0;
+  }
+
+  .card-desc {
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    color: var(--quiet);
+    line-height: 1.45;
+    margin: 14px 0 0 0;
+    max-width: 360px;
+  }
+
+  .card-divider {
+    width: 80px;
+    height: 1px;
+    background: var(--accent);
+    margin: 28px 0 24px 0;
+  }
+
+  .card-briefs {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .card-briefs li {
+    font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+    font-size: 11px;
+    color: var(--quiet);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    line-height: 1.4;
+  }
+
+  /* Corner marks: 4px square top-right */
+  .corner {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 4px;
+    height: 4px;
+    background: var(--quiet);
+    opacity: 0.55;
+  }
+
+  .corner.accent {
+    background: var(--accent);
+    opacity: 1;
+  }
+
+  /* --- SIGNATURE ROW --- */
+  .sig {
+    position: absolute;
+    bottom: 40px;
+    font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+    font-size: 11px;
+    color: var(--quiet);
+    letter-spacing: 0.15em;
+    line-height: 1;
+  }
+
+  .sig.left {
+    left: 96px;
+    opacity: 0.85;
+  }
+
+  .sig.right {
+    right: 96px;
+    opacity: 0.6;
+  }
+
+  /* Scaling handled in JS at the bottom: keeps a true 1920x1080 frame
+     and contains-fits it into the viewport for preview. Recording / capture
+     at exactly 1920x1080 gets the frame 1:1, no scale. */
+</style>
+</head>
+<body>
+
+<div class="frame">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-left">
+      <div class="eyebrow">FOUR CAPABILITIES</div>
+      <div class="wordmark">Sigillerie</div>
+    </div>
+    <div class="tagline">One sentence in.<br>Real-studio design out.</div>
+  </header>
+
+  <div class="rule"></div>
+
+  <!-- 2x2 GRID -->
+  <div class="grid">
+
+    <!-- Card 1: Hi-Fi Base -->
+    <article class="card">
+      <span class="corner"></span>
+      <h2 class="card-title">Hi-Fi Base</h2>
+      <p class="card-desc">Animations, prototypes, slide decks, infographics.</p>
+      <div class="card-divider"></div>
+      <ul class="card-briefs">
+        <li>60s product launch animation, MP4 + GIF</li>
+        <li>iOS prototype, 4 screens, clickable</li>
+        <li>12-slide deck with PPTX export</li>
+      </ul>
+    </article>
+
+    <!-- Card 2: Data Visualization -->
+    <article class="card">
+      <span class="corner"></span>
+      <h2 class="card-title">Data Visualization</h2>
+      <p class="card-desc">Magazine infographics. Live dashboards. Scrollytelling.</p>
+      <div class="card-divider"></div>
+      <ul class="card-briefs">
+        <li>Global EV adoption, A3 print</li>
+        <li>6-widget live dashboard</li>
+        <li>Pudding-style scrollytelling story</li>
+      </ul>
+    </article>
+
+    <!-- Card 3: Knowledge Graph -->
+    <article class="card">
+      <span class="corner"></span>
+      <h2 class="card-title">Knowledge Graph</h2>
+      <p class="card-desc">Maps of vaults, ontologies, networks.</p>
+      <div class="card-divider"></div>
+      <ul class="card-briefs">
+        <li>Obsidian vault visualizer</li>
+        <li>agent-os swarm map</li>
+        <li>Wikidata neighborhood reveal</li>
+      </ul>
+    </article>
+
+    <!-- Card 4: 3D / Immersive (ACCENTED — flagship) -->
+    <article class="card">
+      <span class="corner accent"></span>
+      <h2 class="card-title">3D / Immersive</h2>
+      <p class="card-desc">three.js, R3F, model-viewer. AR Quick Look ready.</p>
+      <div class="card-divider"></div>
+      <ul class="card-briefs">
+        <li>Spatial slide deck for Vision Pro</li>
+        <li>AR product preview link, mobile-first</li>
+        <li>WebXR walkthrough</li>
+      </ul>
+    </article>
+
+  </div>
+
+  <!-- SIGNATURE ROW -->
+  <div class="sig left">github.com/realsammyt/sigillerie</div>
+  <div class="sig right">SIGILLERIE · v0.9 · LAUNCH 2026</div>
+
+</div>
+
+<script>
+  // Page contract
+  window.__duration = 5;
+
+  // Contain-fit the 1920x1080 frame into the current viewport.
+  // At exactly 1920x1080 viewport, scale is 1 (recorder/screenshot case).
+  (function fitFrame() {
+    const frame = document.querySelector('.frame');
+    function apply() {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const scale = Math.min(vw / 1920, vh / 1080);
+      frame.style.transform = 'translate(-50%, -50%) scale(' + scale + ')';
+    }
+    apply();
+    window.addEventListener('resize', apply);
+  })();
+
+  // Mark ready after first paint settles.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      window.__ready = true;
+    });
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sigillerie · The Math (1080x1080)</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400&family=Inter:wght@300;400&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --stage:   #0A0A0A;
+    --paper:   #FAF7F0;
+    --ink:     #1B1614;
+    --quiet:   #6E6862;
+    --accent:  #9A4B3D;
+    --surface: #EFE9DD;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    background: var(--stage);
+    overflow: hidden;
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  }
+  #stage-host { width: 100vw; height: 100vh; }
+</style>
+
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+
+<!-- Sigillerie animation engine -->
+<script type="text/babel" data-presets="env,react" src="../../../repo/assets/animations.jsx"></script>
+</head>
+<body>
+<div id="stage-host"></div>
+
+<script type="text/babel" data-presets="env,react">
+const { Stage, Sprite, useSprite, useTime, Easing, interpolate } = window;
+
+const DURATION = 9;
+
+// Grid geometry (canvas is 1080x1080).
+// Cells: 80x80, 16px gap. 3 columns x 4 rows.
+// Total grid: 3*80 + 2*16 = 272 wide; 4*80 + 3*16 = 368 tall.
+const CELL = 80;
+const GAP = 16;
+const COLS = 3;
+const ROWS = 4;
+const GRID_W = COLS * CELL + (COLS - 1) * GAP; // 272
+const GRID_H = ROWS * CELL + (ROWS - 1) * GAP; // 368
+
+// Anchor grid center slightly left of canvas center to leave room for "= 12"
+// payoff to the right. Canvas center is (540, 540). Shift grid left 120px.
+const GRID_CX = 540 - 120;
+const GRID_CY = 600;
+const GRID_LEFT = GRID_CX - GRID_W / 2;
+const GRID_TOP  = GRID_CY - GRID_H / 2;
+
+const COLUMNS = ['Discovery', 'Producer', '3D'];
+const ROWS_LABELS = ['Hi-Fi Base', 'Data Viz', 'Knowledge Graph', 'Generative Audio'];
+const ROW_INITIALS = ['H', 'V', 'K', 'A'];
+
+// --- 0.0-0.6s: eyebrow cap "THE MATH" ---
+function Eyebrow() {
+  const { t } = useSprite();
+  // Sprite ~8.4s. Fade-in in first 0.6s of sprite.
+  const animT = Math.min(1, t / (0.6 / 8.4));
+  const opacity = interpolate(animT, [0, 1], [0, 1], Easing.expoOut);
+  const styles = {
+    position: 'absolute',
+    left: '50%', top: '90px',
+    transform: 'translateX(-50%)',
+    fontFamily: "'JetBrains Mono', ui-monospace, 'Courier New', monospace",
+    fontSize: '12px',
+    fontWeight: 400,
+    color: 'var(--quiet)',
+    letterSpacing: '0.3em',
+    textTransform: 'uppercase',
+    whiteSpace: 'nowrap',
+    opacity,
+  };
+  return <div style={styles}>THE MATH</div>;
+}
+
+// --- 0.6-2.2s: serif headline. Phase 1 "Three modes." 0.6-1.4. Phase 2 morph 1.4-2.2. ---
+function Headline() {
+  const { t } = useSprite();
+  // Sprite is 8.4s long, started at 0.6s. Local sprite progress:
+  //   0.0 .. 0.8 / 8.4  -> Phase 1 fade in to "Three modes."
+  //   0.8 / 8.4 .. 1.6 / 8.4 -> hold short
+  //   1.6 / 8.4 onward     -> swap to long phrase, fade in
+  // Times below are in sprite-local seconds for clarity.
+  const local = t * 8.4;
+
+  // Phase 1 drop-in: opacity 0->1 and dy 24->0 across local 0.0..0.8
+  const p1T = Math.min(1, local / 0.8);
+  const p1Opacity = interpolate(p1T, [0, 1], [0, 1], Easing.expoOut);
+  const p1Dy = interpolate(p1T, [0, 1], [24, 0], Easing.expoOut);
+
+  // Phase 2 morph: at local 1.4 short fades out, long fades in by 2.2
+  const morphStart = 0.8; // local seconds
+  const morphEnd = 1.6;
+  let shortOpacity = p1Opacity;
+  let longOpacity = 0;
+  let longDy = 12;
+  if (local > morphStart) {
+    const k = Math.min(1, (local - morphStart) / (morphEnd - morphStart));
+    shortOpacity = interpolate(k, [0, 1], [p1Opacity, 0], Easing.cubicOut);
+    longOpacity = interpolate(k, [0, 1], [0, 1], Easing.cubicOut);
+    longDy = interpolate(k, [0, 1], [12, 0], Easing.expoOut);
+  }
+
+  const baseStyles = {
+    position: 'absolute',
+    left: '50%', top: '194px', // 18% of 1080 = 194
+    transform: 'translateX(-50%)',
+    fontFamily: "'Source Serif Pro', Georgia, 'Times New Roman', serif",
+    fontSize: '64px',
+    fontWeight: 400,
+    color: 'var(--paper)',
+    letterSpacing: '-0.015em',
+    lineHeight: 1,
+    whiteSpace: 'nowrap',
+  };
+
+  return (
+    <React.Fragment>
+      <div style={{ ...baseStyles, opacity: shortOpacity, transform: `translate(-50%, ${p1Dy}px)` }}>
+        Three modes.
+      </div>
+      <div style={{ ...baseStyles, opacity: longOpacity, transform: `translate(-50%, ${longDy}px)` }}>
+        Three modes &times; four capabilities.
+      </div>
+    </React.Fragment>
+  );
+}
+
+// --- 2.2-9s: matrix cells. Column-by-column cascade, within-column top->bottom 60ms. ---
+// Discovery col @0, Producer @+0.4, 3D @+0.8.
+function Cell({ col, row }) {
+  const { t } = useSprite();
+  // Sprite duration ~6.8s. Computed delays in seconds.
+  const colDelay = col * 0.4;
+  const rowDelay = row * 0.06;
+  const totalDelay = colDelay + rowDelay;
+  const local = t * 6.8 - totalDelay;
+  // Reveal lasts 0.7s.
+  const revealT = Math.max(0, Math.min(1, local / 0.7));
+  const opacity = interpolate(revealT, [0, 1], [0, 1], Easing.cubicOut);
+  const dy = interpolate(revealT, [0, 1], [16, 0], Easing.expoOut);
+  // Shadow blooms after the cell settles. Local seconds since cell appeared,
+  // shadow ramps 0->1 across local 0.7..1.1.
+  const shadowT = Math.max(0, Math.min(1, (local - 0.7) / 0.4));
+  const shadowAlpha = interpolate(shadowT, [0, 1], [0, 0.35], Easing.cubicOut);
+
+  const x = GRID_LEFT + col * (CELL + GAP);
+  const y = GRID_TOP + row * (CELL + GAP);
+
+  // The (3D x Generative Audio) cell is col=2, row=3. Pin landed by AccentPin
+  // component as a separate layer to control its independent timeline.
+
+  const styles = {
+    position: 'absolute',
+    left: `${x}px`,
+    top: `${y}px`,
+    width: `${CELL}px`,
+    height: `${CELL}px`,
+    background: 'var(--paper)',
+    borderRadius: '6px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: 'var(--ink)',
+    fontFamily: "'Inter', -apple-system, system-ui, sans-serif",
+    fontSize: '24px',
+    fontWeight: 300,
+    letterSpacing: '-0.01em',
+    transform: `translateY(${dy}px)`,
+    opacity,
+    boxShadow: `0 8px 24px rgba(0,0,0,${shadowAlpha})`,
+  };
+  return <div style={styles}>{ROW_INITIALS[row]}</div>;
+}
+
+function MatrixGrid() {
+  const cells = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      cells.push(<Cell key={`${c}-${r}`} col={c} row={r} />);
+    }
+  }
+  return <React.Fragment>{cells}</React.Fragment>;
+}
+
+// --- 4.5-5.0s: row headers fade in to LEFT of grid, right-aligned ---
+function RowHeaders() {
+  const { t } = useSprite();
+  // Sprite ~4.5s long (starts at 4.5). Fade in over 0.5s.
+  const animT = Math.min(1, t / (0.5 / 4.5));
+  const opacity = interpolate(animT, [0, 1], [0, 1], Easing.cubicOut);
+  const dx = interpolate(animT, [0, 1], [-8, 0], Easing.expoOut);
+
+  return (
+    <React.Fragment>
+      {ROWS_LABELS.map((label, r) => {
+        const y = GRID_TOP + r * (CELL + GAP) + CELL / 2;
+        const styles = {
+          position: 'absolute',
+          right: `${1080 - (GRID_LEFT - 20)}px`, // right edge anchored
+          top: `${y}px`,
+          transform: `translate(${dx}px, -50%)`,
+          fontFamily: "'Inter', -apple-system, system-ui, sans-serif",
+          fontSize: '14px',
+          fontWeight: 400,
+          color: 'var(--quiet)',
+          letterSpacing: '0.04em',
+          textAlign: 'right',
+          whiteSpace: 'nowrap',
+          opacity,
+        };
+        return <div key={label} style={styles}>{label}</div>;
+      })}
+    </React.Fragment>
+  );
+}
+
+// --- 4.5-5.0s: column headers fade in ABOVE grid, centered per column ---
+function ColumnHeaders() {
+  const { t } = useSprite();
+  const animT = Math.min(1, t / (0.5 / 4.5));
+  const opacity = interpolate(animT, [0, 1], [0, 1], Easing.cubicOut);
+  const dy = interpolate(animT, [0, 1], [-8, 0], Easing.expoOut);
+
+  return (
+    <React.Fragment>
+      {COLUMNS.map((label, c) => {
+        const x = GRID_LEFT + c * (CELL + GAP) + CELL / 2;
+        const styles = {
+          position: 'absolute',
+          left: `${x}px`,
+          top: `${GRID_TOP - 28}px`,
+          transform: `translate(-50%, ${dy}px)`,
+          fontFamily: "'Inter', -apple-system, system-ui, sans-serif",
+          fontSize: '14px',
+          fontWeight: 400,
+          color: 'var(--quiet)',
+          letterSpacing: '0.04em',
+          textAlign: 'center',
+          whiteSpace: 'nowrap',
+          opacity,
+        };
+        return <div key={label} style={styles}>{label}</div>;
+      })}
+    </React.Fragment>
+  );
+}
+
+// --- 5.0-6.2s: big serif "= 12" appears to the right of the matrix ---
+function EqualsTwelve() {
+  const { t } = useSprite();
+  // Sprite is ~4s (starts 5.0). The number lands in first 1.2s. Subline fades in 0.8-1.2s.
+  const local = t * 4.0;
+  const numT = Math.min(1, local / 1.2);
+  const numOpacity = interpolate(numT, [0, 1], [0, 1], Easing.expoOut);
+  const numDx = interpolate(numT, [0, 1], [-18, 0], Easing.expoOut);
+
+  const subStart = 0.8;
+  const subEnd = 1.4;
+  const subT = Math.max(0, Math.min(1, (local - subStart) / (subEnd - subStart)));
+  const subOpacity = interpolate(subT, [0, 1], [0, 1], Easing.cubicOut);
+  const subDy = interpolate(subT, [0, 1], [10, 0], Easing.expoOut);
+
+  // Place "= 12" right of grid. Grid right edge at GRID_LEFT + GRID_W.
+  const xLeft = GRID_LEFT + GRID_W + 80;
+  // Vertically aligned with grid center.
+  const yCenter = GRID_CY;
+
+  const numStyles = {
+    position: 'absolute',
+    left: `${xLeft}px`,
+    top: `${yCenter}px`,
+    transform: `translate(${numDx}px, -50%)`,
+    fontFamily: "'Source Serif Pro', Georgia, 'Times New Roman', serif",
+    fontSize: '96px',
+    fontWeight: 400,
+    color: 'var(--paper)',
+    letterSpacing: '-0.02em',
+    lineHeight: 1,
+    whiteSpace: 'nowrap',
+    opacity: numOpacity,
+  };
+  const subStyles = {
+    position: 'absolute',
+    left: `${xLeft}px`,
+    top: `${yCenter + 64}px`,
+    transform: `translateY(${subDy}px)`,
+    fontFamily: "'Inter', -apple-system, system-ui, sans-serif",
+    fontSize: '16px',
+    fontWeight: 300,
+    color: 'var(--quiet)',
+    letterSpacing: '0.2em',
+    textTransform: 'lowercase',
+    opacity: subOpacity,
+    whiteSpace: 'nowrap',
+  };
+  return (
+    <React.Fragment>
+      <div style={numStyles}>= 12</div>
+      <div style={subStyles}>ways in.</div>
+    </React.Fragment>
+  );
+}
+
+// --- 6.2-7.0s: ONE rust pin in (3D x Generative Audio) cell, top-right corner ---
+function AccentPin() {
+  const { t } = useSprite();
+  // Sprite is ~2.8s (starts 6.2). Pin lands in first 0.4s.
+  const animT = Math.min(1, t / (0.4 / 2.8));
+  const opacity = interpolate(animT, [0, 1], [0, 1], Easing.expoOut);
+  const scale = interpolate(animT, [0, 1], [0.6, 1], Easing.expoOut);
+
+  const col = 2;
+  const row = 3;
+  const cellX = GRID_LEFT + col * (CELL + GAP);
+  const cellY = GRID_TOP + row * (CELL + GAP);
+  // Top-right corner of the cell, inset 7px.
+  const pinSize = 4;
+  const styles = {
+    position: 'absolute',
+    left: `${cellX + CELL - 7 - pinSize / 2}px`,
+    top: `${cellY + 7 - pinSize / 2}px`,
+    width: `${pinSize}px`,
+    height: `${pinSize}px`,
+    background: 'var(--accent)',
+    transform: `scale(${scale})`,
+    transformOrigin: 'center',
+    opacity,
+  };
+  return <div style={styles} />;
+}
+
+// --- 7.0-8.5s: tagline bottom row, uppercase wide-tracked ---
+function Tagline() {
+  const { t } = useSprite();
+  // Sprite ~2s (starts 7.0). Fade in 0.6s.
+  const animT = Math.min(1, t / (0.6 / 2.0));
+  const opacity = interpolate(animT, [0, 1], [0, 1], Easing.cubicOut);
+  const dy = interpolate(animT, [0, 1], [10, 0], Easing.expoOut);
+  const styles = {
+    position: 'absolute',
+    left: '50%', bottom: '136px',
+    transform: `translate(-50%, ${dy}px)`,
+    fontFamily: "'Inter', -apple-system, system-ui, sans-serif",
+    fontSize: '14px',
+    fontWeight: 400,
+    color: 'var(--quiet)',
+    letterSpacing: '0.3em',
+    textTransform: 'uppercase',
+    whiteSpace: 'nowrap',
+    textAlign: 'center',
+    opacity,
+  };
+  return <div style={styles}>One sentence in. Real-studio design out.</div>;
+}
+
+// --- 7.5-9.0s: repo URL mono, --paper @ 70% ---
+function RepoUrl() {
+  const { t } = useSprite();
+  // Sprite ~1.5s (starts 7.5). Fade in 0.7s.
+  const animT = Math.min(1, t / (0.7 / 1.5));
+  const opacity = interpolate(animT, [0, 1], [0, 0.7], Easing.cubicOut);
+  const styles = {
+    position: 'absolute',
+    left: '50%', bottom: '92px',
+    transform: 'translateX(-50%)',
+    fontFamily: "'JetBrains Mono', ui-monospace, 'Courier New', monospace",
+    fontSize: '12px',
+    fontWeight: 400,
+    color: 'var(--paper)',
+    letterSpacing: '0.08em',
+    whiteSpace: 'nowrap',
+    textAlign: 'center',
+    opacity,
+  };
+  return <div style={styles}>github.com/realsammyt/sigillerie</div>;
+}
+
+function App() {
+  const recording = typeof window !== 'undefined' && window.__recording === true;
+  return (
+    <Stage width={1080} height={1080} duration={DURATION} loop={!recording} bgColor="#0A0A0A">
+      <Sprite start={0.0} end={DURATION}><Eyebrow /></Sprite>
+      <Sprite start={0.6} end={DURATION}><Headline /></Sprite>
+      <Sprite start={2.2} end={DURATION}><MatrixGrid /></Sprite>
+      <Sprite start={4.5} end={DURATION}><RowHeaders /></Sprite>
+      <Sprite start={4.5} end={DURATION}><ColumnHeaders /></Sprite>
+      <Sprite start={5.0} end={DURATION}><EqualsTwelve /></Sprite>
+      <Sprite start={6.2} end={DURATION}><AccentPin /></Sprite>
+      <Sprite start={7.0} end={DURATION}><Tagline /></Sprite>
+      <Sprite start={7.5} end={DURATION}><RepoUrl /></Sprite>
+    </Stage>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('stage-host')).render(<App />);
+
+// Page contract for the recorder.
+window.__duration = DURATION;
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => { window.__ready = true; });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sigillerie · Vertical Short (1080x1920)</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400&family=Inter:wght@300;400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --stage:   #0A0A0A;
+    --paper:   #FAF7F0;
+    --ink:     #1B1614;
+    --quiet:   #6E6862;
+    --accent:  #9A4B3D;
+    --surface: #EFE9DD;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    background: var(--stage);
+    overflow: hidden;
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  }
+  #stage-host { width: 100vw; height: 100vh; }
+
+  /* Subtle SVG noise overlay, ~1.5% opacity, sits above the stage but below
+     interaction. Pure decoration. */
+  .noise {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.015;
+    z-index: 50;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    background-size: 240px 240px;
+    mix-blend-mode: screen;
+  }
+</style>
+
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+
+<!-- Sigillerie animation engine -->
+<script type="text/babel" data-presets="env,react" src="../../../repo/assets/animations.jsx"></script>
+</head>
+<body>
+<div id="stage-host"></div>
+<div class="noise" aria-hidden="true"></div>
+
+<script type="text/babel" data-presets="env,react">
+const { Stage, Sprite, useSprite, useTime, Easing, interpolate } = window;
+
+// ---------------------------------------------------------------------------
+// Timeline (7.0s total)
+//
+//   0.0 - 0.4   eyebrow "NOW PUBLIC"             top, 8% Y
+//   0.4 - 1.6   "AI design studio."              25% Y (serif 96px)
+//   1.6 - 2.8   "Three modes."                   25% Y (cross-fade)
+//   2.8 - 4.0   "Four capabilities."             25% Y (cross-fade)
+//   4.0 - 5.2   "One single-file HTML."          50% Y (serif 84px)  <-- peak
+//   5.2 - 6.0   tagline + rust hairline draw     70% Y
+//   6.0 - 6.8   URL with rust cursor (blink x2)  82% Y
+//   6.8 - 7.0   hold
+//
+// Cross-fades use opacity + 16px vertical slide. No stretch, no spin.
+// expoOut + cubicOut only.
+// ---------------------------------------------------------------------------
+
+const TOTAL = 7.0;
+
+// --- 0.0-0.4s: eyebrow "NOW PUBLIC" at 8% Y -------------------------------
+function Eyebrow() {
+  const { t, duration } = useSprite();
+  // Fade in over first 0.4s of sprite.
+  const animT = Math.min(1, t / (0.4 / duration));
+  const opacity = interpolate(animT, [0, 1], [0, 1], Easing.cubicOut);
+  const styles = {
+    position: 'absolute',
+    left: '50%', top: '8%',
+    transform: 'translate(-50%, -50%)',
+    fontFamily: "'JetBrains Mono', ui-monospace, 'Courier New', monospace",
+    fontSize: '14px',
+    fontWeight: 500,
+    color: '#6E6862',
+    letterSpacing: '0.4em',
+    textTransform: 'uppercase',
+    whiteSpace: 'nowrap',
+    opacity,
+  };
+  return <div style={styles}>Now Public</div>;
+}
+
+// --- Helper: a single morphing statement at a fixed Y position.
+// Cross-fade in over 0.35s with a 16px upward slide, hold, then cross-fade
+// out over the last 0.35s of the sprite with a 16px upward slide.
+function MorphStatement({ text, top, fontSize }) {
+  const { t } = useSprite();
+  // Fade in over first 30% of sprite, hold middle 40%, fade out over last 30%.
+  // For a 1.2s sprite this works out to ~0.36s in/out windows.
+  const opIn  = interpolate(t, [0, 0.30], [0, 1], Easing.cubicOut);
+  const opOut = interpolate(t, [0.70, 1.0], [0, 1], Easing.cubicOut);
+  const opacity = opIn * (1 - opOut);
+
+  const dyIn  = interpolate(t, [0, 0.30], [16, 0], Easing.expoOut);
+  const dyOut = interpolate(t, [0.70, 1.0], [0, -16], Easing.expoOut);
+  const dy = dyIn + dyOut;
+
+  const styles = {
+    position: 'absolute',
+    left: '50%', top,
+    transform: `translate(-50%, calc(-50% + ${dy}px))`,
+    fontFamily: "'Source Serif Pro', Georgia, 'Times New Roman', serif",
+    fontSize: `${fontSize}px`,
+    fontWeight: 400,
+    color: '#FAF7F0',
+    letterSpacing: '-0.015em',
+    lineHeight: 1.05,
+    whiteSpace: 'nowrap',
+    textAlign: 'center',
+    opacity,
+  };
+  return <div style={styles}>{text}</div>;
+}
+
+// --- 5.2-6.0s: tagline at 70% Y + rust hairline drawing under it ----------
+function Tagline() {
+  const { t, duration } = useSprite();
+  // Sprite is 1.8s (5.2 -> 7.0). Fade text in over first 0.4s.
+  const fadeT = Math.min(1, t / (0.4 / duration));
+  const opacity = interpolate(fadeT, [0, 1], [0, 1], Easing.cubicOut);
+  const dy = interpolate(fadeT, [0, 1], [12, 0], Easing.expoOut);
+
+  // Hairline draws in over 600ms starting at sprite-local 0.2s.
+  const ruleStart = 0.2 / duration;
+  const ruleEnd   = 0.8 / duration;
+  const ruleT = Math.min(1, Math.max(0, (t - ruleStart) / (ruleEnd - ruleStart)));
+  const ruleWidth = interpolate(ruleT, [0, 1], [0, 60], Easing.expoOut); // 60% of frame
+
+  const wrap = {
+    position: 'absolute',
+    left: '50%', top: '70%',
+    transform: 'translate(-50%, -50%)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '22px',
+  };
+  const text = {
+    transform: `translateY(${dy}px)`,
+    fontFamily: "'Inter', -apple-system, system-ui, sans-serif",
+    fontSize: '22px',
+    fontWeight: 300,
+    color: '#FAF7F0',
+    letterSpacing: '0.3em',
+    textTransform: 'uppercase',
+    whiteSpace: 'nowrap',
+    opacity,
+  };
+  const rule = {
+    width: `${ruleWidth}%`,
+    minWidth: 0,
+    height: '1px',
+    background: '#9A4B3D',
+    opacity: 1,
+  };
+  // The rule needs a fixed-width container so % resolves predictably.
+  const ruleSlot = {
+    width: '760px', // ~70% of 1080
+    height: '1px',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+  };
+  return (
+    <div style={wrap}>
+      <div style={text}>One sentence in. Real-studio design out.</div>
+      <div style={ruleSlot}>
+        <div style={rule} />
+      </div>
+    </div>
+  );
+}
+
+// --- 6.0-6.8s: URL with rust cursor (blink x2, then disappears) ----------
+// Sprite is 0.8s. Cursor blinks twice (visible / hidden / visible / hidden)
+// across the first 0.6s, then stays hidden for the final 0.2s.
+function UrlLine() {
+  const { t, duration } = useSprite();
+  // Fade text in over first 0.25s.
+  const fadeT = Math.min(1, t / (0.25 / duration));
+  const textOpacity = interpolate(fadeT, [0, 1], [0, 1], Easing.cubicOut);
+  const dy = interpolate(fadeT, [0, 1], [10, 0], Easing.expoOut);
+
+  // Cursor blink schedule (sprite-local seconds):
+  //  0.00 - 0.15  on
+  //  0.15 - 0.30  off
+  //  0.30 - 0.45  on
+  //  0.45 - 0.60  off
+  //  0.60 - 0.80  off (gone)
+  const localT = t * duration; // seconds within sprite
+  let cursorOn = false;
+  if (localT < 0.15) cursorOn = true;
+  else if (localT < 0.30) cursorOn = false;
+  else if (localT < 0.45) cursorOn = true;
+  else cursorOn = false;
+
+  const wrap = {
+    position: 'absolute',
+    left: '50%', top: '82%',
+    transform: `translate(-50%, calc(-50% + ${dy}px))`,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    opacity: textOpacity,
+  };
+  const url = {
+    fontFamily: "'JetBrains Mono', ui-monospace, 'Courier New', monospace",
+    fontSize: '28px',
+    fontWeight: 400,
+    color: '#FAF7F0',
+    letterSpacing: '0.01em',
+    whiteSpace: 'nowrap',
+  };
+  const cursor = {
+    width: '16px',
+    height: '28px',
+    background: '#9A4B3D',
+    opacity: cursorOn ? 1 : 0,
+    // No transition; the blink is a hard cut, terminal style.
+  };
+  return (
+    <div style={wrap}>
+      <div style={url}>github.com/realsammyt/sigillerie</div>
+      <div style={cursor} />
+    </div>
+  );
+}
+
+// --- App ------------------------------------------------------------------
+function App() {
+  const recording = typeof window !== 'undefined' && window.__recording === true;
+  return (
+    <Stage width={1080} height={1920} duration={TOTAL} loop={!recording} bgColor="#0A0A0A">
+      {/* Eyebrow holds for the whole piece after appearing. */}
+      <Sprite start={0.0} end={TOTAL}><Eyebrow /></Sprite>
+
+      {/* Three morphing statements at 25% Y. Each gets 1.2s window. */}
+      <Sprite start={0.4} end={1.6}>
+        <MorphStatement text="AI design studio."   top="25%" fontSize={96} />
+      </Sprite>
+      <Sprite start={1.6} end={2.8}>
+        <MorphStatement text="Three modes."        top="25%" fontSize={96} />
+      </Sprite>
+      <Sprite start={2.8} end={4.0}>
+        <MorphStatement text="Four capabilities."  top="25%" fontSize={96} />
+      </Sprite>
+
+      {/* Peak: serif statement at mid-frame, 84px. */}
+      <Sprite start={4.0} end={5.2}>
+        <MorphStatement text="One single-file HTML." top="50%" fontSize={84} />
+      </Sprite>
+
+      {/* Tagline + rust hairline at 70% Y. Holds through to end. */}
+      <Sprite start={5.2} end={TOTAL}><Tagline /></Sprite>
+
+      {/* URL line at 82% Y. Holds through to end. */}
+      <Sprite start={6.0} end={TOTAL}><UrlLine /></Sprite>
+    </Stage>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('stage-host')).render(<App />);
+
+// Page contract for the recorder.
+window.__duration = TOTAL;
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => { window.__ready = true; });
+});
+</script>
+</body>
+</html>
