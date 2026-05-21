@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sigillerie · Now Public</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400&family=JetBrains+Mono:wght@400&family=Source+Serif+Pro:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --stage:   #0A0A0A;
+    --paper:   #FAF7F0;
+    --ink:     #1B1614;
+    --quiet:   #6E6862;
+    --accent:  #9A4B3D;
+    --surface: #EFE9DD;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 1080px;
+    height: 1080px;
+    background: var(--stage);
+    color: var(--paper);
+    font-family: 'Inter', -apple-system, "Helvetica Neue", system-ui, sans-serif;
+    overflow: hidden;
+  }
+
+  /* Frame: 1080x1080 square, content lives inside a generous inset. */
+  .frame {
+    position: relative;
+    width: 1080px;
+    height: 1080px;
+    padding: 96px 96px 80px 96px;
+    opacity: 0;
+    animation: settle 900ms cubic-bezier(0.16, 1, 0.3, 1) 120ms forwards;
+  }
+
+  @keyframes settle {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  /* Noise overlay, ~1.5% opacity, SVG turbulence. */
+  .noise {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.015;
+    mix-blend-mode: screen;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+
+  /* ----- Upper third: eyebrow, wordmark, hairline, tagline ----- */
+
+  .upper {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    padding-top: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .eyebrow {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--quiet);
+    margin-bottom: 36px;
+  }
+
+  .wordmark {
+    font-family: 'Source Serif Pro', Georgia, 'Times New Roman', serif;
+    font-weight: 400;
+    font-size: 240px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--paper);
+    margin: 0;
+    text-align: center;
+  }
+
+  .hairline {
+    width: 60vw;
+    max-width: 648px; /* 60% of 1080 */
+    height: 1px;
+    background: var(--accent);
+    margin-top: 24px;
+    margin-bottom: 28px;
+  }
+
+  .tagline {
+    font-family: 'Inter', -apple-system, "Helvetica Neue", system-ui, sans-serif;
+    font-weight: 300;
+    font-size: 22px;
+    color: var(--quiet);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  /* ----- Lower third: install command ----- */
+
+  .lower {
+    position: absolute;
+    left: 96px;
+    right: 96px;
+    bottom: 96px;
+  }
+
+  .command-rule {
+    width: 100%;
+    height: 1px;
+    background: var(--quiet);
+    opacity: 0.35;
+    margin-bottom: 20px;
+  }
+
+  .command {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--paper);
+    letter-spacing: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Signature row, bottom right. */
+  .signature {
+    position: absolute;
+    right: 40px;
+    bottom: 32px;
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11px;
+    color: var(--quiet);
+    opacity: 0.6;
+    letter-spacing: 0.15em;
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="noise"></div>
+
+    <div class="upper">
+      <div class="eyebrow">NOW PUBLIC &middot; 2026-05-21</div>
+      <h1 class="wordmark">Sigillerie</h1>
+      <div class="hairline"></div>
+      <div class="tagline">One sentence in. Real-studio design out.</div>
+    </div>
+
+    <div class="lower">
+      <div class="command-rule"></div>
+      <div class="command">git clone https://github.com/realsammyt/sigillerie ~/.claude/skills/sigillerie</div>
+    </div>
+
+    <div class="signature">SIGILLERIE &middot; v0.9 &middot; LAUNCH 2026</div>
+  </div>
+
+  <script>
+    // Sigillerie page contract: signal readiness after first paint, declare duration.
+    window.__duration = 5;
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        // Give the settle animation a beat to start, then mark ready.
+        setTimeout(function () { window.__ready = true; }, 1100);
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sigillerie · Hero (wide, 1920x1080)</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400&family=Inter:wght@300;400&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --stage: #0A0A0A;
+    --paper: #FAF7F0;
+    --ink: #1B1614;
+    --quiet: #6E6862;
+    --accent: #9A4B3D;
+    --surface: #EFE9DD;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    background: var(--stage);
+    overflow: hidden;
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  }
+  #stage-host { width: 100vw; height: 100vh; }
+</style>
+
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+
+<!-- Sigillerie animation engine -->
+<script type="text/babel" data-presets="env,react" src="../../../repo/assets/animations.jsx"></script>
+</head>
+<body>
+<div id="stage-host"></div>
+
+<script type="text/babel" data-presets="env,react">
+const { Stage, Sprite, useSprite, useTime, Easing, interpolate } = window;
+
+// --- 0.0-0.4s: hairline draws across at 50% height ---
+function Hairline() {
+  const { t } = useSprite();
+  // 700ms draw, expoOut. Sprite is 7.6s long; normalize.
+  const drawT = Math.min(1, t / (0.7 / 7.6));
+  const width = interpolate(drawT, [0, 1], [0, 100], Easing.expoOut);
+  const styles = {
+    position: 'absolute',
+    left: '50%', top: '50%',
+    transform: 'translate(-50%, -50%)',
+    width: `${width}vw`,
+    height: '1px',
+    background: 'var(--quiet)',
+    opacity: 0.4,
+  };
+  return <div style={styles} />;
+}
+
+// --- 0.4-1.6s: wordmark fades in, breathes ---
+function Wordmark() {
+  const { t } = useSprite();
+  // Sprite duration is 7.6s. Fade-in over first 1.2s of sprite = 1.2/7.6.
+  const fadeT = Math.min(1, t / (1.2 / 7.6));
+  const opacity = interpolate(fadeT, [0, 1], [0, 1], Easing.expoOut);
+  const time = useTime();
+  const pulse = 1 + Math.sin(time * 1.2) * 0.012;
+  const styles = {
+    position: 'absolute',
+    left: '50%', top: '38%',
+    transform: `translate(-50%, -50%) scale(${pulse})`,
+    fontFamily: "'Source Serif Pro', Georgia, 'Times New Roman', serif",
+    fontSize: '200px',
+    fontWeight: 400,
+    color: 'var(--paper)',
+    letterSpacing: '-0.02em',
+    lineHeight: 1,
+    opacity,
+  };
+  return <div style={styles}>Sigillerie</div>;
+}
+
+// --- 1.2-2.4s: subtitle slides up 40px ---
+function Subtitle() {
+  const { t } = useSprite();
+  // Sprite ~6.8s. Animation lasts 1.2s.
+  const animT = Math.min(1, t / (1.2 / 6.8));
+  const dy = interpolate(animT, [0, 1], [40, 0], Easing.expoOut);
+  const opacity = interpolate(animT, [0, 1], [0, 1], Easing.cubicOut);
+  const styles = {
+    position: 'absolute',
+    left: '50%', top: '56%',
+    transform: `translate(-50%, calc(-50% + ${dy}px))`,
+    fontFamily: "'Inter', -apple-system, system-ui, sans-serif",
+    fontSize: '24px',
+    fontWeight: 300,
+    color: 'var(--quiet)',
+    letterSpacing: '0.4em',
+    textTransform: 'uppercase',
+    whiteSpace: 'nowrap',
+    opacity,
+  };
+  return <div style={styles}>One sentence in. Real-studio design out.</div>;
+}
+
+// --- 2.4-4.5s: three mode chips cascade in ---
+function ModeCard({ index, label, labelColor, offsetY }) {
+  const { t } = useSprite();
+  // Sprite is 5.6s; cascade lands inside first ~1.6s of sprite.
+  const delay = index * (0.08 / 5.6);
+  const local = Math.max(0, t - delay);
+  const animT = Math.min(1, local / (0.9 / 5.6));
+  const dy = interpolate(animT, [0, 1], [60, 0], Easing.expoOut);
+  const opacity = interpolate(animT, [0, 1], [0, 1], Easing.cubicOut);
+  const styles = {
+    width: '220px',
+    height: '120px',
+    background: 'var(--paper)',
+    borderRadius: '6px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'column',
+    transform: `translateY(${dy + offsetY}px)`,
+    opacity,
+    boxShadow: '0 24px 48px rgba(0,0,0,0.35)',
+    margin: '0 18px',
+    color: labelColor,
+  };
+  return (
+    <div style={styles}>
+      <div style={{
+        fontFamily: "'Source Serif Pro', Georgia, serif",
+        fontSize: '36px',
+        fontWeight: 400,
+        letterSpacing: '-0.01em',
+        lineHeight: 1,
+      }}>{label}</div>
+      <div style={{
+        fontFamily: "'Inter', sans-serif",
+        fontSize: '10px',
+        fontWeight: 400,
+        letterSpacing: '0.35em',
+        textTransform: 'uppercase',
+        color: 'var(--quiet)',
+        marginTop: '12px',
+      }}>mode</div>
+    </div>
+  );
+}
+
+function ModeCards() {
+  const styles = {
+    position: 'absolute',
+    left: '50%', top: '70%',
+    transform: 'translate(-50%, -50%)',
+    display: 'flex',
+    alignItems: 'center',
+  };
+  // Middle card offset 4px down per anti-pattern fix.
+  return (
+    <div style={styles}>
+      <ModeCard index={0} label="Discovery" labelColor="#9A4B3D" offsetY={0} />
+      <ModeCard index={1} label="Producer"  labelColor="#1B1614" offsetY={4} />
+      <ModeCard index={2} label="3D"        labelColor="#6E6862" offsetY={0} />
+    </div>
+  );
+}
+
+// --- 4.5-6.0s: rust accent dot between Discovery and Producer, pulses once, settles ---
+function AccentDot() {
+  const { t } = useSprite();
+  // Sprite 3.5s. Appear 0-0.25s (~0.07 norm). Pulse 0.25-1.0s. Settle after.
+  const appearT = Math.min(1, t / (0.25 / 3.5));
+  const baseOpacity = interpolate(appearT, [0, 1], [0, 1], Easing.expoOut);
+  // single pulse: scale 1 -> 1.6 -> 1 over 0.25s..1.0s of sprite time
+  const pulseStart = 0.25 / 3.5;
+  const pulseMid   = 0.55 / 3.5;
+  const pulseEnd   = 1.0  / 3.5;
+  let scale = 1;
+  if (t >= pulseStart && t <= pulseMid) {
+    const k = (t - pulseStart) / (pulseMid - pulseStart);
+    scale = interpolate(k, [0, 1], [1, 1.6], Easing.cubicOut);
+  } else if (t > pulseMid && t <= pulseEnd) {
+    const k = (t - pulseMid) / (pulseEnd - pulseMid);
+    scale = interpolate(k, [0, 1], [1.6, 1], Easing.cubicOut);
+  }
+  // Sits between Discovery (left) and Producer (center) cards.
+  // Cards group is centered at 50%. Card width 220 + margin 18*2 = 256 between centers.
+  // Discovery center is -256px from container center; Producer center is 0.
+  // Midpoint between them: -128px from container center.
+  const styles = {
+    position: 'absolute',
+    left: 'calc(50% - 128px)',
+    top: '70%',
+    transform: `translate(-50%, -50%) scale(${scale})`,
+    width: '10px',
+    height: '10px',
+    borderRadius: '50%',
+    background: 'var(--accent)',
+    opacity: baseOpacity,
+  };
+  return <div style={styles} />;
+}
+
+// --- 5.5-7.0s: signature mono bottom-right, fades to 70% ---
+function Signature() {
+  const { t } = useSprite();
+  // Sprite 2.5s. Fade in over 1.5s.
+  const animT = Math.min(1, t / (1.5 / 2.5));
+  const opacity = interpolate(animT, [0, 1], [0, 0.7], Easing.cubicOut);
+  const styles = {
+    position: 'absolute',
+    right: '64px', bottom: '48px',
+    fontFamily: "'JetBrains Mono', ui-monospace, 'Courier New', monospace",
+    fontSize: '13px',
+    fontWeight: 400,
+    color: 'var(--quiet)',
+    letterSpacing: '0.12em',
+    opacity,
+  };
+  return <div style={styles}>github.com/realsammyt/sigillerie</div>;
+}
+
+function App() {
+  const recording = typeof window !== 'undefined' && window.__recording === true;
+  return (
+    <Stage width={1920} height={1080} duration={8} loop={!recording} bgColor="#0A0A0A">
+      <Sprite start={0.0} end={8.0}><Hairline /></Sprite>
+      <Sprite start={0.4} end={8.0}><Wordmark /></Sprite>
+      <Sprite start={1.2} end={8.0}><Subtitle /></Sprite>
+      <Sprite start={2.4} end={8.0}><ModeCards /></Sprite>
+      <Sprite start={4.5} end={8.0}><AccentDot /></Sprite>
+      <Sprite start={5.5} end={8.0}><Signature /></Sprite>
+    </Stage>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('stage-host')).render(<App />);
+
+// Page contract for the recorder.
+window.__duration = 8;
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => { window.__ready = true; });
+});
+</script>
+</body>
+</html>

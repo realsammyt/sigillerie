@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Sigillerie · Install · p6</title>
+<meta name="viewport" content="width=1080, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --stage: #0A0A0A;
+    --paper: #FAF7F0;
+    --ink: #1B1614;
+    --quiet: #6E6862;
+    --accent: #9A4B3D;
+    --surface: #EFE9DD;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 1080px;
+    height: 1080px;
+    background: var(--stage);
+    overflow: hidden;
+    font-family: 'Inter', system-ui, sans-serif;
+    color: var(--paper);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: geometricPrecision;
+  }
+
+  body {
+    position: relative;
+    display: grid;
+    place-items: center;
+  }
+
+  /* 1.5% SVG noise overlay */
+  .noise {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.015;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    z-index: 1;
+  }
+
+  .stage {
+    position: relative;
+    width: 1080px;
+    height: 1080px;
+    z-index: 2;
+    opacity: 0;
+    animation: fade 600ms cubic-bezier(0.16, 1, 0.3, 1) 80ms forwards;
+  }
+
+  @keyframes fade {
+    to { opacity: 1; }
+  }
+
+  /* Eyebrow */
+  .eyebrow {
+    position: absolute;
+    top: 226px; /* card top is 330px; 64px above = 266px (baseline). Account for line height */
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: 0.4em;
+    color: var(--paper);
+    opacity: 0.8;
+    text-transform: uppercase;
+  }
+
+  /* Card */
+  .card {
+    position: absolute;
+    width: 880px;
+    height: 420px;
+    left: 100px;
+    top: 330px;
+    background: var(--paper);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.42), 0 6px 12px rgba(0, 0, 0, 0.28);
+  }
+
+  .chrome {
+    position: relative;
+    height: 36px;
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+  }
+
+  .chrome::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 1px;
+    background: var(--quiet);
+    opacity: 0.25;
+  }
+
+  .dots {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--quiet);
+  }
+
+  .dot.d1 { opacity: 0.20; }
+  .dot.d2 { opacity: 0.35; }
+  .dot.d3 { opacity: 0.50; }
+
+  .chrome-label {
+    position: absolute;
+    left: 0; right: 0;
+    text-align: center;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--quiet);
+    line-height: 36px;
+    pointer-events: none;
+  }
+
+  .body {
+    padding: 44px 32px 36px 32px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    color: var(--ink);
+  }
+
+  .line {
+    display: flex;
+    align-items: flex-start;
+    font-size: 22px;
+    line-height: 1.6;
+  }
+
+  .prompt {
+    width: 22px;
+    color: var(--accent);
+    flex-shrink: 0;
+    font-weight: 500;
+  }
+
+  .cmd {
+    color: var(--ink);
+    white-space: pre;
+    font-size: 22px;
+    line-height: 1.6;
+  }
+
+  .indent {
+    padding-left: 22px;
+  }
+
+  .comment {
+    margin-top: 1.6em;
+    font-size: 16px;
+    color: var(--quiet);
+    padding-left: 22px;
+  }
+
+  /* Wordmark */
+  .wordmark {
+    position: absolute;
+    top: 806px; /* card bottom = 330 + 420 = 750; +56 = 806 */
+    left: 0; right: 0;
+    text-align: center;
+    font-family: 'Source Serif Pro', Georgia, serif;
+    font-weight: 400;
+    font-size: 56px;
+    color: var(--paper);
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  .tagline {
+    position: absolute;
+    top: 886px;
+    left: 0; right: 0;
+    text-align: center;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 14px;
+    color: var(--quiet);
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    font-weight: 500;
+  }
+
+  .sig {
+    position: absolute;
+    bottom: 40px;
+    right: 48px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--quiet);
+    opacity: 0.6;
+    letter-spacing: 0.08em;
+  }
+
+  .repo {
+    position: absolute;
+    bottom: 40px;
+    left: 48px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--quiet);
+    opacity: 0.6;
+    letter-spacing: 0.08em;
+  }
+</style>
+</head>
+<body>
+  <div class="noise"></div>
+
+  <div class="stage">
+    <div class="eyebrow">INSTALL</div>
+
+    <div class="card">
+      <div class="chrome">
+        <div class="dots">
+          <span class="dot d1"></span>
+          <span class="dot d2"></span>
+          <span class="dot d3"></span>
+        </div>
+        <div class="chrome-label">~/.claude/skills</div>
+      </div>
+
+      <div class="body">
+        <div class="line">
+          <span class="prompt">$</span>
+          <span class="cmd">git clone \</span>
+        </div>
+        <div class="line indent">
+          <span class="cmd">  https://github.com/realsammyt/sigillerie \</span>
+        </div>
+        <div class="line indent">
+          <span class="cmd">  ~/.claude/skills/sigillerie</span>
+        </div>
+
+        <div class="comment"># then talk to your agent.</div>
+      </div>
+    </div>
+
+    <div class="wordmark">Sigillerie</div>
+    <div class="tagline">One sentence in. Real-studio design out.</div>
+
+    <div class="repo">github.com/realsammyt/sigillerie</div>
+    <div class="sig">SIGILLERIE · v0.9 · LAUNCH 2026</div>
+  </div>
+
+<script>
+  window.__duration = 5;
+  // After first paint
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      // Wait for fonts to settle before flagging ready
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(() => { window.__ready = true; });
+      } else {
+        window.__ready = true;
+      }
+    });
+  });
+</script>
+</body>
+</html>
