@@ -1,5 +1,7 @@
 # Sigillerie
 
+![Sigillerie hero](launch/renders/p2-poster.png)
+
 > *One sentence in. Real-studio design out.*
 
 A Claude Code skill that ships single-file HTML design deliverables: animations, app prototypes, slide decks, magazine infographics, data viz, knowledge graphs, 3D / immersive scenes, with optional generative audio. English-canonical, agent-driven, brand-spec-backed.
@@ -9,39 +11,6 @@ git clone https://github.com/realsammyt/sigillerie.git ~/.claude/skills/sigiller
 ```
 
 Then talk to your agent.
-
-## Launch · now public
-
-![Sigillerie launch announcement](launch/renders/p1.png)
-
-Six dogfooded launch posts, authored by a parallel team of agents driving the skill on itself. Each is a single-file HTML deliverable in [`launch/posts/`](launch/posts/); rendered stills, MP4s, and GIFs are in [`launch/renders/`](launch/renders/). The agent-driven self-brand-spec that gave them shared identity is at [`launch/brand-spec.md`](launch/brand-spec.md).
-
-| Post | Aspect | Format | Source | Render |
-|---|---|---|---|---|
-| Announcement card | 1080×1080 | static | [HTML](launch/posts/p1-announcement-square/) | [PNG](launch/renders/p1.png) |
-| Hero animation | 1920×1080 | 8 s loop | [HTML](launch/posts/p2-hero-wide/) | [MP4](launch/renders/p2.mp4) · [GIF](launch/renders/p2.gif) · [poster](launch/renders/p2-poster.png) |
-| Capability grid | 1920×1080 | static | [HTML](launch/posts/p3-capability-grid-wide/) | [PNG](launch/renders/p3.png) |
-| Modes × capabilities = 12 | 1080×1080 | 9 s loop | [HTML](launch/posts/p4-matrix-square/) | [MP4](launch/renders/p4.mp4) · [GIF](launch/renders/p4.gif) · [poster](launch/renders/p4-poster.png) |
-| Vertical short (Reels / Shorts / TikTok) | 1080×1920 | 7 s loop | [HTML](launch/posts/p5-vertical-short/) | [MP4](launch/renders/p5.mp4) · [GIF](launch/renders/p5.gif) · [poster](launch/renders/p5-poster.png) |
-| One-command install | 1080×1080 | static | [HTML](launch/posts/p6-install-square/) | [PNG](launch/renders/p6.png) |
-
-### Hero animation
-
-![Hero animation poster](launch/renders/p2-poster.png)
-
-### Capability grid
-
-![Four-capability grid](launch/renders/p3.png)
-
-### The math
-
-![Three modes × four capabilities = 12 ways in](launch/renders/p4-poster.png)
-
-### Install
-
-![Install command card](launch/renders/p6.png)
-
-How they were built: one agent extracted a self brand-spec for Sigillerie from `SKILL.md`, the existing hero demo, and the voice rules. Six parallel agents each authored one post HTML following that spec, the Sigillerie page contract (`window.__ready`, `window.__duration`, `window.__recording`), and the anti-AI-slop catalog. A local renderer (`launch/render-video-local.mjs`) patched two recording snags in the Stage component (controls bar visible during capture, and an `innerHeight - 56` reservation that letterboxed the canvas) via `addInitScript` only, no edits to the upstream component. Total wall-clock: ~12 minutes of agent work, ~3 minutes of render.
 
 ## What it makes
 
@@ -111,6 +80,35 @@ python -m http.server 8080
 Then open any demo at `http://localhost:8080/demos-viz/d1-anti-pattern-showcase/` (or the other paths).
 
 For design review, `scripts/screenshot-demo.mjs` captures all four aspect ratios (1920x1080 / 1080x1080 / 1080x1920 / 3440x1440) at once. Pair with the global `visual-review` skill to score a demo against the project's own critique rubric.
+
+## Launch · now public
+
+![Sigillerie launch announcement](launch/renders/p1.png)
+
+Six dogfooded launch posts, authored by a parallel team of agents driving the skill on itself. Each is a single-file HTML deliverable in [`launch/posts/`](launch/posts/); rendered stills, MP4s, and GIFs are in [`launch/renders/`](launch/renders/). The agent-driven self-brand-spec that gave them shared identity is at [`launch/brand-spec.md`](launch/brand-spec.md).
+
+| Post | Aspect | Format | Source | Render |
+|---|---|---|---|---|
+| Announcement card | 1080×1080 | static | [HTML](launch/posts/p1-announcement-square/) | [PNG](launch/renders/p1.png) |
+| Hero animation | 1920×1080 | 8 s loop | [HTML](launch/posts/p2-hero-wide/) | [MP4](launch/renders/p2.mp4) · [GIF](launch/renders/p2.gif) · [poster](launch/renders/p2-poster.png) |
+| Capability grid | 1920×1080 | static | [HTML](launch/posts/p3-capability-grid-wide/) | [PNG](launch/renders/p3.png) |
+| Modes × capabilities = 12 | 1080×1080 | 9 s loop | [HTML](launch/posts/p4-matrix-square/) | [MP4](launch/renders/p4.mp4) · [GIF](launch/renders/p4.gif) · [poster](launch/renders/p4-poster.png) |
+| Vertical short (Reels / Shorts / TikTok) | 1080×1920 | 7 s loop | [HTML](launch/posts/p5-vertical-short/) | [MP4](launch/renders/p5.mp4) · [GIF](launch/renders/p5.gif) · [poster](launch/renders/p5-poster.png) |
+| One-command install | 1080×1080 | static | [HTML](launch/posts/p6-install-square/) | [PNG](launch/renders/p6.png) |
+
+### Capability grid
+
+![Four-capability grid](launch/renders/p3.png)
+
+### The math
+
+![Three modes × four capabilities = 12 ways in](launch/renders/p4-poster.png)
+
+### Install
+
+![Install command card](launch/renders/p6.png)
+
+How they were built: one agent extracted a self brand-spec for Sigillerie from `SKILL.md`, the existing hero demo, and the voice rules. Six parallel agents each authored one post HTML following that spec, the Sigillerie page contract (`window.__ready`, `window.__duration`, `window.__recording`), and the anti-AI-slop catalog. A local renderer (`launch/render-video-local.mjs`) patched two recording snags in the Stage component (controls bar visible during capture, and an `innerHeight - 56` reservation that letterboxed the canvas) via `addInitScript` only, no edits to the upstream component. Total wall-clock: ~12 minutes of agent work, ~3 minutes of render.
 
 ## What it doesn't do
 

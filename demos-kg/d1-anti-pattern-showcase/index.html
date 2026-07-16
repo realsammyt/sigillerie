@@ -14,10 +14,10 @@
     --ink-muted: #4a5070;
 
     /* community colors */
-    --c-ml:   #4f8ef7;   /* ML Foundations  — blue   */
-    --c-nlp:  #52c97a;   /* NLP             — green  */
-    --c-cv:   #f07a3e;   /* Computer Vision — orange */
-    --c-rl:   #c26ef5;   /* Reinforcement L — violet */
+    --c-ml:   #4f8ef7;   /* ML Foundations : blue   */
+    --c-nlp:  #52c97a;   /* NLP            : green  */
+    --c-cv:   #f07a3e;   /* Computer Vision: orange */
+    --c-rl:   #c26ef5;   /* Reinforcement L: violet */
 
     /* root accent */
     --c-root: #f5d44a;
@@ -194,14 +194,14 @@
     pointer-events: none;
   }
   #header h1 {
-    font-size: 15px;
+    font-size: 19px;
     font-weight: 600;
-    color: var(--ink);
+    color: #f0f2f8;
     letter-spacing: -0.01em;
   }
   #header p {
-    font-size: 12px;
-    color: var(--ink-dim);
+    font-size: 13px;
+    color: #9aa3bd;
   }
 
   /* ---- counter ---- */
@@ -217,10 +217,10 @@
   /* ---- instructions ---- */
   #instructions {
     position: fixed;
-    top: 64px;
+    top: 72px;
     left: 24px;
-    font-size: 11px;
-    color: var(--ink-dim);
+    font-size: 12px;
+    color: #8d96b2;
     line-height: 1.7;
     z-index: 150;
     pointer-events: none;
@@ -538,7 +538,7 @@ const simulation = d3.forceSimulation(NODES)
   )
   .force('charge', d3.forceManyBody().strength(-220))
   .force('center', d3.forceCenter(width / 2, height / 2))
-  .force('collision', d3.forceCollide().radius(d => d.r + 14))
+  .force('collision', d3.forceCollide().radius(d => d.r + 22))
   .alphaDecay(0.028);
 
 // Pin root to center at start
@@ -559,12 +559,55 @@ const svg = d3.select('#graph-svg');
 const g   = svg.append('g'); // main group for zoom
 
 // Zoom
+let trackFit = true;      // camera follows the layout until it settles
+let userAdjusted = false; // a manual pan/zoom pauses auto-fit until next expand
 const zoom = d3.zoom()
   .scaleExtent([0.3, 3])
-  .on('zoom', e => g.attr('transform', e.transform));
+  .on('zoom', e => {
+    g.attr('transform', e.transform);
+    if (e.sourceEvent) { userAdjusted = true; trackFit = false; }
+  });
 svg.call(zoom);
 
-// ---- hulls layer (community region fills — Undifferentiated
+// ---- fit-to-view (dead-space fix) ----
+// Frame the visible nodes (labels included) so the graph fills
+// roughly 70% of the tighter viewport dimension, centered.
+function fitTransform() {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  nodeLayer.selectAll('.node-group').each(function(d) {
+    const b = this.getBBox();
+    x0 = Math.min(x0, d.x + b.x);
+    y0 = Math.min(y0, d.y + b.y);
+    x1 = Math.max(x1, d.x + b.x + b.width);
+    y1 = Math.max(y1, d.y + b.y + b.height);
+  });
+  if (!isFinite(x0)) return null;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const fill = 0.7;
+  let k = fill * Math.min(vw / Math.max(x1 - x0, 1), vh / Math.max(y1 - y0, 1));
+  k = Math.max(0.3, Math.min(k, 2.4));
+  return d3.zoomIdentity
+    .translate(vw / 2 - k * (x0 + x1) / 2, vh / 2 + 12 - k * (y0 + y1) / 2)
+    .scale(k);
+}
+
+function applyFit(duration) {
+  const t = fitTransform();
+  if (!t) return;
+  if (duration > 0) {
+    svg.transition('fit').duration(duration).ease(d3.easeCubicOut).call(zoom.transform, t);
+  } else {
+    svg.call(zoom.transform, t);
+  }
+}
+
+// Re-fit when the window changes size
+window.addEventListener('resize', () => {
+  if (!userAdjusted) applyFit(300);
+});
+
+// ---- hulls layer (community region fills: Undifferentiated
 //      Cluster Mass fix: Law of Common Region) ----
 const hullLayer = g.append('g').attr('class', 'hull-layer');
 
@@ -642,7 +685,7 @@ function renderEdges() {
 // ============================================================
 // NODE RENDERING
 // Type → shape mapping (Isotropic Nodes fix)
-// Root: Von Restorff styling — larger, accent outline
+// Root: Von Restorff styling: larger, accent outline
 // ============================================================
 let nodeGroups;
 
@@ -740,11 +783,14 @@ function renderNodes() {
         .attr('fill-opacity', fillOpacity);
     }
 
-    // label
+    // label: offset below the marker so it clears the shape
+    // (root gets extra clearance for its accent ring; the offset lives
+    //  on the text `y` because a tspan `dy` would override a text `dy`)
+    const labelOffset = d.root ? r + 24 : r + 15;
     el.append('text')
       .attr('class', d.root ? 'node-label root-label' : 'node-label')
       .attr('text-anchor', 'middle')
-      .attr('dy', r + 14)
+      .attr('y', labelOffset)
       .each(function(nd) {
         const lines = nd.label.split('\n');
         lines.forEach((line, i) => {
@@ -765,7 +811,7 @@ function renderNodes() {
 }
 
 // ============================================================
-// CONVEX HULL RENDERING (community region — Law of Common Region)
+// CONVEX HULL RENDERING (community region: Law of Common Region)
 // ============================================================
 function hullPath(points) {
   return d3.line()(d3.polygonHull(points));
@@ -830,9 +876,13 @@ simulation.on('tick', () => {
   // update hulls
   renderHulls();
 
+  // camera tracks the layout until it settles
+  if (trackFit) applyFit(0);
+
   // check __ready condition (alpha < 0.05)
-  if (!window.__ready && simulation.alpha() < 0.05) {
-    window.__ready = true;
+  if (simulation.alpha() < 0.05) {
+    trackFit = false;
+    if (!window.__ready) window.__ready = true;
   }
 });
 
@@ -863,6 +913,13 @@ function expandNode(nodeId) {
 
   renderEdges();
   renderNodes();
+
+  // re-frame so the newly revealed nodes are in view
+  userAdjusted = false;
+  if (!trackFit) {
+    applyFit(500);
+    setTimeout(() => { if (!userAdjusted) trackFit = true; }, 520);
+  }
 
   // warm simulation gently
   if (!window.__recording) {
@@ -925,6 +982,7 @@ updateCounter();
 // If __recording: freeze layout immediately after first tick
 if (window.__recording) {
   simulation.alpha(0).stop();
+  applyFit(0);
   window.__ready = true;
 }
 </script>

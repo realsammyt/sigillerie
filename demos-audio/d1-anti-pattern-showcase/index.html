@@ -103,7 +103,7 @@
     overflow: hidden;
   }
 
-  /* start gate — visible before any audio */
+  /* start gate: visible before any audio */
   #start-gate {
     position: absolute;
     inset: 0;
@@ -143,7 +143,23 @@
     letter-spacing: 0.12em;
     color: var(--quiet);
     text-transform: uppercase;
+    background: var(--ink);
+    padding: 6px 14px;
+    border-radius: 4px;
   }
+
+  /* ghost preview of the loop structure, waiting state only */
+  #ghost-viz {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 0;
+  }
+  #ghost-viz svg { width: clamp(540px, 62%, 1040px); height: auto; display: block; }
+  #start-btn, #start-hint { position: relative; z-index: 1; }
 
   /* waveform canvas */
   #waveform-canvas {
@@ -272,6 +288,7 @@
     align-items: flex-end;
     gap: 3px;
     height: 48px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
   }
 
   .vu-bar {
@@ -386,6 +403,7 @@
 
     <!-- Cold Audio Start fix: gate visible before any audio -->
     <div id="start-gate">
+      <div id="ghost-viz" aria-hidden="true"></div>
       <button id="start-btn">
         <span>▶</span>
         <span>Tap to start audio</span>
@@ -545,6 +563,10 @@ const vuBars = [];
 for (let i = 0; i < VU_COUNT; i++) {
   const b = document.createElement('div');
   b.className = 'vu-bar';
+  // idle state: unlit ladder that shows the meter's range before audio starts.
+  // drawVU() overwrites these every frame once the transport is running.
+  b.style.height = (8 + (i / VU_COUNT) * 40) + 'px';
+  b.style.background = 'rgba(255,255,255,0.05)';
   vuContainer.appendChild(b);
   vuBars.push(b);
 }
@@ -627,7 +649,7 @@ const FG_NOTES = [
   // bar 11
   { time: barBeat(11,0), note: 'C5', dur: '2n' },
   { time: barBeat(11,3), note: 'A4', dur: '4n' },
-  // bars 12-13: PEAK (Am — raised 5th, C E A)
+  // bars 12-13: PEAK (Am: raised 5th, C E A)
   { time: barBeat(12,0), note: 'A4', dur: '4n' },
   { time: barBeat(12,1), note: 'C5', dur: '4n' },
   { time: barBeat(12,2), note: 'E5', dur: '4n' },
@@ -681,6 +703,81 @@ for (let bar = 0; bar < BARS; bar++) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Ghost preview (waiting state): a static sketch of the 16-bar
+// loop the demo plays: melody / pads / texture rows over a bar
+// lattice, peak window marked at bars 12-13. Pure DOM and SVG;
+// no AudioContext is touched until the user gesture.
+// ─────────────────────────────────────────────────────────────
+const NOTE_SEMIS = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
+function midiOf(name) {
+  const m = name.match(/^([A-G])(b|#)?(\d)$/);
+  if (!m) return 60;
+  const s = NOTE_SEMIS[m[1]] + (m[2] === 'b' ? -1 : m[2] === '#' ? 1 : 0);
+  return s + 12 * (parseInt(m[3], 10) + 1);
+}
+
+function buildGhost() {
+  const host = document.getElementById('ghost-viz');
+  if (!host) return;
+  const LX = 64, W = 592, TOP = 16, BOT = 248;
+  const bw = W / BARS;
+  const px = (barPos) => LX + (barPos / BARS) * W;
+  let s = '';
+
+  // peak window band (display bars 12-13)
+  s += `<rect x="${px(PEAK_START)}" y="${TOP}" width="${bw * (PEAK_END - PEAK_START)}" height="${BOT - TOP}" fill="rgba(192,96,64,0.09)"/>`;
+  s += `<text x="${px(PEAK_START) + bw}" y="${TOP - 6}" text-anchor="middle" fill="#C06040" opacity="0.65">peak · bars 12-13</text>`;
+
+  // bar lattice + baseline
+  for (let i = 0; i <= BARS; i++) {
+    s += `<line x1="${px(i)}" y1="${TOP}" x2="${px(i)}" y2="${BOT}" stroke="rgba(245,242,236,0.06)" stroke-width="1"/>`;
+  }
+  s += `<line x1="${LX}" y1="${BOT}" x2="${LX + W}" y2="${BOT}" stroke="rgba(245,242,236,0.12)" stroke-width="1"/>`;
+
+  // melody row: one tick per foreground note, height mapped from pitch
+  const DURW = { '2n': 11, '4n': 6, '2n.': 14 };
+  for (const n of FG_NOTES) {
+    const [b, bt, sx] = n.time.split(':').map(Number);
+    const x = px(b + (bt + (sx || 0) / 4) / 4);
+    const t = (midiOf(n.note) - 57) / 24;   // A3..A5 range
+    const y = 92 - t * 56;
+    const hot = b >= PEAK_START && b < PEAK_END;
+    s += `<rect x="${x}" y="${y.toFixed(1)}" width="${DURW[n.dur] || 6}" height="3" rx="1.5" fill="${hot ? 'rgba(192,96,64,0.8)' : 'rgba(245,242,236,0.55)'}"/>`;
+  }
+
+  // pads row: one block per held chord
+  const CHORD_SPANS = [[0,4],[4,8],[8,12],[12,14],[14,16]];
+  for (const [a, z] of CHORD_SPANS) {
+    s += `<rect x="${px(a) + 2}" y="140" width="${(z - a) * bw - 4}" height="18" rx="2" fill="rgba(245,242,236,0.22)"/>`;
+  }
+
+  // texture row: eighth-note pulse ticks
+  for (let k = 0; k < BARS * 8; k++) {
+    const b = Math.floor(k / 8);
+    const hot = b >= PEAK_START && b < PEAK_END;
+    const h = hot ? 17 : 9;
+    s += `<rect x="${(px(k / 8) + 1.5).toFixed(1)}" y="${244 - h}" width="2.2" height="${h}" fill="${hot ? 'rgba(192,96,64,0.7)' : 'rgba(245,242,236,0.4)'}"/>`;
+  }
+
+  // row labels anchored to their rows
+  for (const [name, y] of [['melody', 66], ['pads', 153], ['texture', 240]]) {
+    s += `<text x="${LX - 10}" y="${y}" text-anchor="end" fill="#6B6660" opacity="0.9">${name}</text>`;
+  }
+
+  // bar numerals: loop ends plus the peak pair
+  for (const [b, label] of [[0,'1'],[11,'12'],[12,'13'],[15,'16']]) {
+    const hot = b >= PEAK_START && b < PEAK_END;
+    s += `<text x="${px(b) + bw / 2}" y="${BOT + 16}" text-anchor="middle" fill="${hot ? '#C06040' : '#6B6660'}" opacity="0.8">${label}</text>`;
+  }
+
+  host.innerHTML =
+    `<svg viewBox="0 0 720 276" aria-hidden="true">` +
+    `<g opacity="0.5" font-family="'SF Mono', ui-monospace, monospace" font-size="9" letter-spacing="1">${s}</g>` +
+    `</svg>`;
+}
+buildGhost();
+
+// ─────────────────────────────────────────────────────────────
 // Build audio graph
 // ─────────────────────────────────────────────────────────────
 function buildGraph() {
@@ -693,7 +790,7 @@ function buildGraph() {
   analyser = new Tone.Analyser({ type: 'waveform', size: 512 });
   masterGain.connect(analyser);
 
-  // filter — opens wider at peak (Tab-Throttle Drift fix: driven by Transport schedule)
+  // filter: opens wider at peak (Tab-Throttle Drift fix: driven by Transport schedule)
   filterNode = new Tone.Filter({ frequency: 800, type: 'lowpass', Q: 1.2 });
   filterNode.connect(masterGain);
 
@@ -777,7 +874,7 @@ function buildGraph() {
 
 // ─────────────────────────────────────────────────────────────
 // Bar tracking (Tab-Throttle Drift fix: uses requestAnimationFrame
-// reading Tone.Transport.position — NOT setInterval/Date.now)
+// reading Tone.Transport.position: NOT setInterval/Date.now)
 // ─────────────────────────────────────────────────────────────
 let rafId = null;
 
@@ -836,7 +933,7 @@ function onBarChange(bar, peakActive) {
     ? `Bar ${displayBar} / 16 · PEAK`
     : `Bar ${displayBar} / 16`;
 
-  // layer dots — all 3 always on; peak layer highlighted during peak
+  // layer dots: all 3 always on; peak layer highlighted during peak
   dotFg.classList.toggle('peak-layer', peakActive);
   dotHarm.classList.toggle('peak-layer', peakActive);
   dotPulse.classList.toggle('peak-layer', peakActive);
