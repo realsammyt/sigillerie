@@ -6,4 +6,4 @@ status: stub
 
 # ingestion-pipeline
 
-Phase 9 will populate this. See _research/DATA-VIZ-CAPABILITY.md.
+Stub, planned for Phase 9. No content yet. Nearest real guidance: `demos-viz/d1-anti-pattern-showcase/` ships with inline data, no ingestion layer.

@@ -6,4 +6,4 @@ status: stub
 
 # deliverable-types
 
-Phase 8 will populate this. See _research/GENERATIVE-AUDIO-CAPABILITY.md.
+Stub, planned for Phase 8. No content yet. Nearest real guidance: `modes/producer/audio-design-rules.md`, `modes/producer/sfx-library.md`, and the Tone.js loop demo at `demos-audio/d1-anti-pattern-showcase/`.

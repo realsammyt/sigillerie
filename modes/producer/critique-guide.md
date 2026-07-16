@@ -99,6 +99,19 @@ Within the philosophy, is there a fresh move? Or is this template-shaped?
 - Are any cliches present (gradient orbs for AI, neon-on-black, glassmorphism-by-default)?
 - Inside the philosophy, is there room for the author's own move, and was it taken?
 
+## Dial State (read before any scan)
+
+The critic honors the active dials (`DESIGN_VARIANCE` / `MOTION_INTENSITY` / `VISUAL_DENSITY`). Producer states them in the Junior Pass assumptions block (SKILL.md contract). Rules the dials suspend are not flaggable.
+
+| Step | Rule |
+|---|---|
+| Read the dials | From the Junior Pass assumptions block. Unstated: use the deliverable-type preset in `modes/producer/dials.md`. |
+| Before flagging an anti-pattern | Check the conditional rule table in `modes/producer/dials.md`. |
+| Dials suspend the rule | Skip the flag. Record the suspension in the report. |
+| Dials activate a rule | Enforce it like any catalog entry. |
+
+Examples: cards are legitimate containment at DENSITY > 7 (three-column identical card rows stay banned). The safe template passes at VARIANCE < 4 even though `content-guidelines.md` flags it.
+
 ## Cliche Scan (Anti-Pattern Catalog)
 
 Critic-agent looks for named anti-patterns. Each hit drops innovation by 1, sometimes more. The catalog grows; current entries:
@@ -221,6 +234,7 @@ The five dimensions matter unequally by medium. The floor rule still applies; th
 **Anti-patterns detected**: [list, or "none"]
 **UX law violations**: [list from violation scan, or "none"]
 **Capability anti-patterns**: [list from capability-specific scan with capability tag, e.g. "Edge Spaghetti (KG), Loop Seam (Audio)", or "none / N/A"]
+**Dials honored**: V x / M x / D x (suspended rules: [list, or "none"])
 
 ### Keep
 - [specific moves that work, in design language]
@@ -257,6 +271,7 @@ Fictional landing page for a SaaS analytics tool. Hero shows a gradient sphere o
 **Anti-patterns detected**: AI-orb, neon-cyber-default, template-grid, glass-everywhere
 **UX law violations**: Serial Position Effect (CTA buried mid-page), Von Restorff Effect (nothing differentiates), Selective Attention (orb competes with headline)
 **Capability anti-patterns**: N/A (Hi-Fi Base; no capability-specific catalog)
+**Dials honored**: V 6 / M 4 / D 4 (landing page preset, none stated; suspended rules: none)
 
 ### Keep
 - Vertical rhythm in the card region tracks the 8pt grid.
@@ -285,7 +300,7 @@ When active, the floor rule extends: lowest of seven wins. Critic-agent will gat
 ## Critic-Agent Integration
 
 - Trigger: every G4 (demo gate) run.
-- Input: the demo artifact, the declared philosophy, the declared or inferred capability.
+- Input: the demo artifact, the declared philosophy, the declared or inferred capability, the active dial state (Junior Pass assumptions block, or the deliverable-type preset in `modes/producer/dials.md` if unstated).
 - Output: this template, written to the demo's review log.
 - Scan order: (1) five-dimension rubric, (2) generic Cliche Scan, (3) UX law violation scan, (4) capability-specific anti-pattern scan if the capability is known or inferable.
 - Gate logic: floor score below 7 routes back to producer mode; floor 7 or 8 ships with a fix list; floor 9-10 ships clean. A capability anti-pattern hit drops innovation by 1 per hit; two or more capability hits cap innovation at 6.

@@ -129,11 +129,11 @@ Watch with sound off first. If the motion alone tells the story, the cinematic l
 
 The 5-stage arc lives in `modes/producer/animation-best-practices.md`. Cinematic patterns map to stages:
 
-- Stage 1 (Invoke): no cinematic, keep mechanical
-- Stage 2 (Process): parallax depth, rack-focus to guide attention
-- Stage 3 (Insight): dolly-in on the key artifact
-- Stage 4 (Output): match-cut morph from process to product
-- Stage 5 (Hero): anchor moment + slow-burn linger
+- S1 Setup: no cinematic, keep mechanical
+- S2 Complication / S3 Escalation: parallax depth, rack-focus to guide attention
+- S3 → S4 seam: match-cut morph from process to product
+- S4 Climax: dolly-in on the key artifact
+- S5 Resolution: anchor moment + slow-burn linger
 
 Don't apply all six patterns in one piece. Pick two, maybe three. The rest stay in the toolbox.
 

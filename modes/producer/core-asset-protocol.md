@@ -111,7 +111,7 @@ Two traps to watch:
 
 ### Step 4. Freeze
 
-Write `brand-spec.md`. This is the canonical freeze artifact for the brief. Schema lives at `capabilities/_shared/brand-spec-schema.md`.
+Write `brand-spec.md`. This is the canonical freeze artifact for the brief. Schema home: `capabilities/_shared/brand-spec-schema.md`. The minimum surface below is the working baseline.
 
 Minimum surface:
 
@@ -219,5 +219,5 @@ The pattern across all five: the protocol's cost is fixed and small. The cost of
 
 - `modes/discovery/asset-pathways.md`. Discovery's generation and acquisition routes per asset type. Canonical filler when the brief lands without assets.
 - `modes/producer/content-guidelines.md`. Named slop catalog. What outputs look like when this protocol is skipped.
-- `capabilities/_shared/brand-spec-schema.md`. Full schema for the freeze artifact.
+- `capabilities/_shared/brand-spec-schema.md`. Schema home for the freeze artifact.
 - `capabilities/generative-audio/brand-audio-spec.md`. The `## Audio Brand` extension to `brand-spec.md` for audio-capable briefs.

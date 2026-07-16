@@ -6,4 +6,4 @@ status: stub
 
 # animation-decisions
 
-Phase 9 will populate this. See _research/DATA-VIZ-CAPABILITY.md.
+Stub, planned for Phase 9. No content yet. Nearest real guidance: `modes/producer/animation-best-practices.md`.

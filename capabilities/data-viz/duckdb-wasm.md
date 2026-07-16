@@ -6,4 +6,4 @@ status: stub
 
 # duckdb-wasm
 
-Phase 9 will populate this. See _research/DATA-VIZ-CAPABILITY.md.
+Stub, planned for Phase 9. No content yet. The shipped demo runs without DuckDB. Nearest real guidance: the Loading Void skeleton recipe in `anti-patterns.md` (this dir), which covers the WASM-init gap.

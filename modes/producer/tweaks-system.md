@@ -163,7 +163,7 @@ Pick from these starting points based on the deliverable type.
 
 - `capabilities/data-viz/`: leva drives axis bounds, palette swap, filter thresholds, chart-type toggle on dashboard deliverables.
 - `modes/three3d/architecture.md`: leva is the default control surface for 3D scenes; folders group camera, lighting, material, and post controls.
-- `modes/producer/react-best-practices.md`: leva sits inside the same React+Babel runtime; controls hook into the same component tree.
+- `modes/producer/react-setup.md`: leva sits inside the same React+Babel runtime; controls hook into the same component tree.
 
 ## Failure modes
 

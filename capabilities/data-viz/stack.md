@@ -6,4 +6,4 @@ status: stub
 
 # stack
 
-Phase 9 will populate this. See _research/DATA-VIZ-CAPABILITY.md.
+Stub, planned for Phase 9. Dogfooded stack in the shipped demo: Chart.js 4.4.2 via jsDelivr CDN, single HTML file, no build step, inline skeleton states, no DuckDB (`demos-viz/d1-anti-pattern-showcase/`).

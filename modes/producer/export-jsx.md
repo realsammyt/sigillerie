@@ -102,9 +102,9 @@ The export reads the HTML AFTER Validation. Exporting an unvalidated deliverable
 
 ## Cross-references
 
-- `_planning/JSX-EXPORT-INTEGRATION.md`: the original scoping doc, decisions Q1-Q8, effort estimates, what v2 covers.
-- `modes/producer/workflow.md`: the four-pass Producer cycle. Pass 5 is documented here, not there.
+- `../_planning/JSX-EXPORT-INTEGRATION.md` (planning workspace, not shipped with the repo): the original scoping doc, decisions Q1-Q8, effort estimates, what v2 covers.
+- `modes/producer/workflow.md`: the pass cycle. Its Pass 5 section is the trigger summary; this file is the spec.
 - `modes/producer/dials.md`: dial state is preserved as props in React-driven mode; the destination Next.js app can still slide DENSITY from 4 to 8 at runtime.
 - `modes/producer/tweaks-system.md`: the leva UI primitive that becomes typed props on export.
-- `capabilities/_shared/brand-spec-schema.md`: the brand-spec format the snippet generator reads.
-- `tests/jsx-export/`: three fixture pairs (landing, slide-deck, prototype) and the integration harness.
+- `modes/producer/core-asset-protocol.md` Step 4: the brand-spec minimum surface the snippet generator reads. Schema home: `capabilities/_shared/brand-spec-schema.md`.
+- `tests/jsx-export/`: three input fixtures (landing, slide-deck, prototype) and the integration harness.

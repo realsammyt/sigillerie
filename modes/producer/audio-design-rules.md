@@ -114,14 +114,14 @@ P2, optional, easy to over-stuff:
 
 **Anthropic Code Desktop.** 0 SFX, lo-fi BGM only. Works because the temperament is "concentration." Sometimes the right SFX count is zero.
 
-## Seed library
+## Seed library (planned, not shipped)
 
-Sigillerie ships 8 BGM tracks plus 32 SFX out of the box via `scripts/seed-audio-library.mjs`. Run once after repo clone. Coverage:
+Target: 8 BGM tracks plus 32 SFX via `scripts/seed-audio-library.mjs`. The script does not exist yet and `assets/audio/` ships empty, so bring your own files (`add-music.sh --bgm=<path>`) or generate on demand. Planned coverage:
 
 - 8 BGM beds: tech-minimal, tech-alt, tutorial-warm, educational-curious, ad-upbeat, ambient-focus, lo-fi-rest, cinematic-hero
 - 32 SFX across 6 families: keyboard (4), container (6), impact (6), focus (4), magic / AI (6), feedback (6)
 
-Full inventory and licensing notes live in `capabilities/generative-audio/seed-library.md`. For one-off custom assets beyond the seed set, use the Tone.js runtime path or Stable Audio asset gen documented in `capabilities/generative-audio/`.
+Inventory and licensing notes will live in `capabilities/generative-audio/seed-library.md` (stub today). For custom assets now, the Tone.js runtime path and Stable Audio asset gen docs in `capabilities/generative-audio/` are mostly Phase 8 stubs too; `anti-patterns.md` is the substantive file.
 
 ## BGM selection tree
 
@@ -135,6 +135,8 @@ What's the temperament?
   Long hold / closing card         -> bgm-lo-fi-rest
   Hero film / cinematic open       -> bgm-cinematic-hero
 ```
+
+Bed names map to the planned seed set above. Until it ships, match the temperament with your own track and pass it via `add-music.sh --bgm=`.
 
 When to drop BGM entirely:
 - Duration under 10 s (BGM can't establish)
@@ -186,6 +188,8 @@ Use case: hero close-up, product still life, one big moment
 ```
 
 ## ffmpeg templates
+
+`scripts/add-music.sh` automates the full final-mix template below (band isolation, optional ducking, two-pass loudnorm) from an `audio-cues.json` sidecar. Reach for these raw templates only when the script's shape doesn't fit.
 
 ### Single SFX onto video
 ```bash
@@ -282,5 +286,5 @@ Each layer stands on its own. If only the sum sounds good, the layers aren't doi
 ## Cross-references
 
 - `modes/three3d/spatial-audio.md` for HRTF, binaural rendering, positional audio in WebXR / model-viewer / Vision Pro deliverables
-- `capabilities/generative-audio/` for Tone.js runtime synthesis (parametric SFX, sonification) and Stable Audio asset generation (one-off custom beds and hits)
-- `capabilities/generative-audio/seed-library.md` for the 8 BGM + 32 SFX shipped via `scripts/seed-audio-library.mjs`
+- `capabilities/generative-audio/` for Tone.js runtime synthesis (parametric SFX, sonification) and Stable Audio asset generation (mostly Phase 8 stubs today)
+- `capabilities/generative-audio/seed-library.md` for the planned 8 BGM + 32 SFX seed set (stub today; `scripts/seed-audio-library.mjs` not shipped)

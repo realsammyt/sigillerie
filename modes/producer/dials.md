@@ -36,7 +36,7 @@ Producer picks a preset based on the brief's deliverable type, then applies user
 | Data viz scrollytelling | 5 | 6 | 5 | Mid on every axis. Scroll drives motion budget. Each scene resets density. |
 | Knowledge graph (2D) | 5 | 5 | 6 | Layout algorithm sets variance floor. Density rises with node count. |
 | Knowledge graph (3D / WebXR) | 6 | 7 | 4 | Spatial format wants motion. Density drops because depth is the third axis. |
-| Spatial / Vision Pro UI | 6 | 7 | 3 | See `modes/three3d/spatial-ui.md` §10. Hero+overlay needs breathing room. |
+| Spatial / Vision Pro UI | 6 | 7 | 3 | See `modes/three3d/aesthetic.md` §10. Hero+overlay needs breathing room. |
 
 Override flow: user can pass `dials: { variance: 8, motion: 2 }` in the brief; missing dials fall through to the preset above.
 

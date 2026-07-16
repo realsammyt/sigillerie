@@ -162,13 +162,14 @@ For real parallel batches, use shell `&` plus `wait`, not in-process fork. Three
 
 **Detect**: watch the export. Any UI element that didn't exist in the storyboard is contamination.
 
-**Fix**: tag chrome with `.no-record`. The recorder injects CSS to hide it.
+**Fix**: gate chrome on `window.__recording`. The recorder (`render-video.js`) sets that flag via `addInitScript` before `goto`; the page must hide its own chrome when it is true.
 
-```
-.progress .counter .phases .replay .masthead .footer .no-record [data-role="chrome"]
+```js
+// render nothing, or:
+if (window.__recording) chromeEl.style.display = 'none';
 ```
 
-Use Playwright `addInitScript` so the rule applies before navigation. Pass `--keep-chrome` to bypass.
+The recorder injects no hiding CSS. A `.no-record` auto-hide and a `--keep-chrome` flag were planned, not shipped. The Stage controls bar in `assets/animations.jsx` does not self-hide today either; gate it the same way if it lands in frame.
 
 ## 10. Warmup frame leak, repeated animation at the head
 
@@ -197,7 +198,7 @@ ffmpeg `-ss` only trims about 0.3s of startup latency. It cannot mask warmup lea
 
 ## 11. Do not draw fake chrome inside the canvas
 
-**Looks like**: Stage component already provides scrubber, time code, pause button (all `.no-record`, hidden during export). Designer adds a "magazine page-number style" decorative bar at the bottom showing `00:60 ──── CLAUDE-DESIGN / ANATOMY`. Result: two progress bars. Viewer flags it as a bug.
+**Looks like**: Stage component already provides scrubber, time code, pause button (chrome; nothing auto-hides it today, gate it on `window.__recording` per pitfall 9). Designer adds a "magazine page-number style" decorative bar at the bottom showing `00:60 / CLAUDE-DESIGN / ANATOMY`. Result: two progress bars. Viewer flags it as a bug.
 
 **Why**: AI loves filler chrome. Page numbers, watermarks, footer credits all sneak in as "polish". They duplicate Stage chrome and violate "earn its place".
 
@@ -206,7 +207,7 @@ ffmpeg `-ss` only trims about 0.3s of startup latency. It cannot mask warmup lea
 | Belongs to | Action |
 |------------|--------|
 | A specific scene's narrative | OK, keep |
-| Global chrome (controls, debug) | Tag `.no-record`, hide on export |
+| Global chrome (controls, debug) | Gate on `window.__recording`, hide on export |
 | Neither scene-narrative nor chrome | Delete. Filler. |
 
 **Self-check before delivery**: pull a still frame. Anything that looks like player UI (horizontal progress bar, time code, control button shape)? If removing it doesn't damage the story, remove it. Same information shown twice (progress, time, attribution) collapses to one place, and that place is chrome.
@@ -302,16 +303,16 @@ if (next >= duration) return effectiveLoop ? 0 : duration - 0.001;
 
 **Verify**: `ffmpeg -ss 19.8 -i video.mp4 -frames:v 1 end.png`. The last 0.2s should still show the expected final frame.
 
-## 14. 60fps default to frame duplication, not minterpolate
+## 14. 60fps minterpolate can choke QuickTime, test the target player
 
-**Looks like**: `convert-formats.sh` produces 60fps via `minterpolate=fps=60:mi_mode=mci`. Some macOS QuickTime and Safari versions refuse to play (black frame, or won't open). VLC and Chrome play fine.
+**Looks like**: `convert-formats.sh --60fps` produces 60fps via `minterpolate=fps=60:mi_mode=mci`. Some macOS QuickTime and Safari versions refuse to play (black frame, or won't open). VLC and Chrome play fine.
 
 **Why**: minterpolate's H.264 stream contains SEI / SPS fields some players choke on.
 
-**Fix**: default 60fps uses simple `fps=60` filter (frame duplication). Compatible across QuickTime, Safari, Chrome, VLC. Only enable `--minterpolate` after testing target players. The 60fps tag matters mainly for upload platform algorithms (Bilibili, YouTube). For CSS animations the perceived smoothness gain is small. Add `-profile:v high -level 4.0` for broader H.264 reach.
+**Fix**: the shipped script has no `--minterpolate` flag and no frame-dup mode. `--60fps` applies minterpolate automatically when source fps is under 60 (plain re-encode at 60+), and already adds `-profile:v high -level 4.0` for broader H.264 reach. Test the target player before delivery. If it refuses, fall back to manual frame duplication: `ffmpeg -i in.mp4 -r 60 -c:v libx264 -crf 18 out.mp4`. The 60fps tag matters mainly for upload platform algorithms (Bilibili, YouTube). For CSS animations the perceived smoothness gain is small.
 
 ```bash
-bash convert-formats.sh input.mp4 --minterpolate
+bash convert-formats.sh input.mp4 --60fps
 ```
 
 ## 3D pitfalls
@@ -320,7 +321,7 @@ WebGL canvases inside Stage-scaled containers introduce a fresh class of bugs. F
 
 **15. Pixel-ratio mismatch in scaled containers**. Stage applies CSS `transform: scale()` to fit the viewport. WebGL canvas backing-store size stays at `devicePixelRatio` of the unscaled root. Result: canvas renders crisp on the GPU, then gets bilinear-scaled down by CSS. Looks soft. Fix in `modes/three3d/page-contract.md`: read the live transform scale and multiply into `renderer.setPixelRatio(window.devicePixelRatio * stageScale)`.
 
-**16. Time source breaks deterministic capture**. `Date.now()` and `THREE.Clock.getDelta()` both read wall-clock time. Recorder paces frames at 25fps. Wall clock advances faster than frame rate, animation desyncs from video time. Fix: route all 3D time through `__renderFrame(t)` which the recorder calls per frame. Same contract as the 2D `render(t)` from pitfall 5.
+**16. Time source breaks deterministic capture**. `Date.now()` and `THREE.Clock.getDelta()` both read wall-clock time. Recorder paces frames at the capture rate (30fps default). Wall clock advances faster than frame rate, animation desyncs from video time. Fix: route all 3D time through `__renderFrame(t_ms)` which the recorder calls per frame with milliseconds. Same contract as the 2D `render(t)` from pitfall 5.
 
 **17. Async assets not awaited before `__sceneReady`**. GLTFLoader, texture loaders, and font loaders all return promises. If `window.__sceneReady = true` fires before they resolve, the recorder captures placeholder geometry or missing textures. Fix: `await Promise.all([gltfPromise, texturePromise, fontsReady])` then set `__sceneReady`. Same shape as pitfall 12's `__ready` pairing.
 
@@ -347,7 +348,7 @@ Anthropic's model release reveal animations (the Claude landing pages) use a sin
 - Tick frame 1 sets `window.__ready = true` paired with t=0?
 - Stage reads `window.__recording` and forces `loop=false`?
 - Final Sprite `fadeOut={0}` so the video holds the last frame?
-- 60fps MP4 uses frame duplication unless `--minterpolate` was tested on target players?
+- 60fps MP4 (minterpolate) tested on the target player, manual frame-dup fallback if it refuses?
 - Frame 0 and frame end extracted post-export, both verified?
 - Single-file delivery: `animations.jsx` is inlined, not `src="..."` (file:// CORS)?
 - Cross-scene elements (chapter labels, watermark, scene number) have no hard-coded color, visible against every scene background?

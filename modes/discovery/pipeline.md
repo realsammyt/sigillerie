@@ -5,9 +5,9 @@ description: Discovery Studio 6-phase machine, state transitions, checkpoints, d
 
 # pipeline
 
-State machine for Discovery Studio. Six phases, fixed I/O contracts, append-only log. Runs upstream of producer mode. Output: populated `brand-spec.md` plus `assets/<brand>-brand/`. Canonical spec lives at `_planning/DISCOVERY-STUDIO-MODE.md`. This doc is the runtime contract.
+State machine for Discovery Studio. Six phases, fixed I/O contracts, append-only log. Runs upstream of producer mode. Output: populated `brand-spec.md` plus `assets/<brand>-brand/`. This document is the canonical Discovery spec and the runtime contract.
 
-## Phase state machine (§B)
+## Phase state machine
 
 | # | Phase | Input | Output | Choose-point | Checkpoint write | Skip | Resume |
 |---|---|---|---|---|---|---|---|
@@ -43,7 +43,7 @@ Phase advances when checkpoint writes succeed and choose-point resolves. Otherwi
 - **4 → 5**: every required asset slot has `chosen` or `status: gap`. No silent gaps.
 - **5 → 6**: `brand-spec.md` validates against producer schema (logo paths exist, palette has provenance, type stack has license).
 
-Failure paths (§F):
+Failure paths:
 
 - **Quality floor breach**: 3 weak logos. Agent does not advance. Re-runs phase 4 logo slot with adjusted prompts. Logged as `regenerate_event`.
 - **Logo collision**: TinEye / Brandmark hit. Surface URL, branch into regen-with-constraint or pivot-to-acquire. Logged as `collision_event`.
@@ -51,7 +51,7 @@ Failure paths (§F):
 - **Discovery cannot make it**: real photo of nonexistent hardware. `status: gap, severity: high`. Producer mode flags or refuses.
 - **Skip to producer**: respected. Minimal spec written, fields tagged `inferred` or `missing`. Warning surfaced.
 
-## Phase 3 direction reveal authoring rule (§I)
+## Phase 3 direction reveal authoring rule
 
 Phase 3 is the session's peak. First moment the user sees their brand come to life. Treat it as a deliberate hero moment. (applies Peak-End Rule: the peak experience sets the memory of the whole session)
 
@@ -62,7 +62,7 @@ Rules for the reveal:
 - **One-paragraph rationale per direction.** Explains the design logic: what the kept moodboard images share with this direction, what the flinch image rejects. One paragraph only, no sub-bullets.
 - **No winner signaling until the user picks.** All three tiles render at equal visual weight. Agent does not editorialize a preferred direction before the choose-point resolves.
 
-## discovery.json schema (§D)
+## discovery.json schema
 
 Append-only events log. Every `chosen` cites `alternatives`. Re-picks fork to `discovery.v2.json`.
 
@@ -171,7 +171,7 @@ State persists to `discovery.json` after every phase end and after every asset s
 - Mid-phase abandon: agent writes partial state, exits clean. `current_phase` reflects last completed phase, not current.
 - Restart: `/discover [brand] --restart` archives prior `discovery.json` to `discovery.archive-{ts}.json` and starts fresh.
 
-## Locale handling (§F)
+## Locale handling
 
 `intake.locale` captured in phase 1, threaded through every prompt downstream.
 
@@ -183,7 +183,7 @@ State persists to `discovery.json` after every phase end and after every asset s
 
 Locale never assumed. If intake is mixed-language, agent asks once and locks.
 
-## Phase-end checkpoint script (§G)
+## Phase-end checkpoint script
 
 After every phase, agent writes:
 
@@ -202,13 +202,13 @@ Per-phase additions:
 | 3 | `choosers/phase-3-directions.html` |
 | 4 | `assets/<brand>-brand/{logo*.svg, palette.{css,json}, type-stack.css, product-hero.png, ui-*.png, voice.md, icon-system.txt}` + `choosers/phase-4-{slot}.html` per slot |
 | 5 | `brand-spec.md` |
-| 6 | `gaps` finalized in `discovery.json` |
+| 6 | `references.md` (kept moodboard images + `source.json` data), `gaps` finalized in `discovery.json` |
 | 5.5 (opt-in) | `tokens/{tokens.css, tokens.json, frame.html, slide-template.html}` |
 | 4 (3D lane) | `3d/{hero.glb, hero.usdz, env.hdr, materials.json}` if `first_surface` is `ar`/`xr`/`3d-deck`/`model-viewer` |
 
 Non-destructive. Re-running phase 4 with different prompts adds new option files. Never overwrites.
 
-## Phase-end progress signal (§H) — Goal-Gradient Effect
+## Phase-end progress signal (Goal-Gradient Effect)
 
 At each phase end, after writing checkpoint files, agent emits a progress line to the user. (applies Goal-Gradient Effect: explicit phase countdown keeps motivation high as the session nears completion) Exact text per phase:
 
@@ -230,6 +230,7 @@ Producer mode receives:
 - `brand-spec.md` matching producer schema (logo paths, product images, UI screenshots, palette with provenance, type stack, signature details, no-go zones, vibe keywords)
 - `assets/<brand>-brand/` populated
 - `discovery.json` for audit trail
+- `references.md` listing every kept moodboard image with its `source.json` data
 - `gaps` list with severity per entry
 
 Gap shape:

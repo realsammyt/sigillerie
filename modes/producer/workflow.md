@@ -34,7 +34,7 @@ Five buckets. Every task. No exceptions.
 If user says "none":
 - Look anyway. Scan the project. Check for brand assets.
 - Still nothing? Say it plain: "I'll work from generic taste. That usually misses brand. Want to drop references first?"
-- If forced to ship blind, follow fallback in `modes/discovery/design-direction.md`.
+- If forced to ship blind, follow fallback in `modes/producer/design-context.md`.
 
 ### 2. Variations
 
@@ -84,9 +84,12 @@ Few questions before I start. Answer in one batch:
 **Tweaks**
 8. Which params stay live-adjustable after handoff?
 
+**Dials**
+9. Dial overrides? variance / motion / density, 1-10 each. Blank = deliverable preset (`modes/producer/dials.md`).
+
 **This task**
-9. [task-specific 1]
-10. [task-specific 2]
+10. [task-specific 1]
+11. [task-specific 2]
 ```
 
 ## The Four Passes
@@ -94,6 +97,8 @@ Few questions before I start. Answer in one batch:
 Core loop. Each pass has a checkpoint gate. Don't skip ahead.
 
 ### Pass 1: Junior Pass (5–15 min)
+
+Look up the deliverable-type preset in `modes/producer/dials.md`. State the active dials, plus the rules they activate or suspend, in the assumptions comment. User overrides land here, before the Full Pass. SKILL.md makes this statement mandatory.
 
 Top of HTML, write assumptions and reasoning as comments. Like a junior reporting up:
 
@@ -104,6 +109,9 @@ Assumptions:
 - Tone reads as "professional but not stiff"
 - Main flow: A → B → C
 - Palette: brand blue + warm gray. Unsure on accent.
+- Dials: VARIANCE 6 / MOTION 8 / DENSITY 3 (hero preset). Activates: hover micro-interaction
+  on every CTA (motion 8), max one focal per fold (density 3), cards banned.
+  Suspended: asymmetric-grid requirement (variance under 8). Override now if wrong.
 
 Open questions:
 - Step 3 data source? Placeholder for now.
@@ -127,7 +135,8 @@ Direction approved. Now fill it.
 
 - Swap placeholders for real React components.
 - Build variations via `assets/design_canvas.jsx` or Tweaks panel.
-- For decks and motion, start from `assets/starter-components/`.
+- For decks, start from `assets/deck_index.html` + `assets/deck_stage.js`. For motion, `assets/animations.jsx`.
+- If the active dials suspend a rule from another doc, note it in a code comment. Dial decision, not oversight.
 
 **Gate**: show again at ~50%. Don't wait until "done." Wrong direction caught at 100% means full rework. See DJI's hardware iteration cadence, show early, fail cheap. Linear ships the same way: each engineer demos mid-build, not at merge.
 
@@ -171,9 +180,10 @@ Anthropic's Claude.ai sidebar redesign shipped 8 variants on 3 axes. Kimi did si
 Before handoff:
 
 1. Polish: sizes, spacing, contrast, motion timing, edge cases, Tweaks completeness.
-2. Playwright screenshots. See `capabilities/hifi-base/verification.md`.
-3. Open browser yourself. Eyeball.
-4. Write the summary.
+2. Re-check against the active dial rule set, not the global catalog (`modes/producer/dials.md`). The critic's G4 gate honors the dial state.
+3. Playwright screenshots. See `modes/producer/verification.md`.
+4. Open browser yourself. Eyeball.
+5. Write the summary.
 
 ### Pass 5: Export as JSX (optional)
 
@@ -192,7 +202,7 @@ Skip Pass 5 if:
 - The deliverable uses three.js, R3F, Tone.js, or runtime audio (v1 does not transpile these; v2 territory)
 - The deliverable did not pass critic G4
 
-Spec: `modes/producer/export-jsx.md`. Scope decisions: `_planning/JSX-EXPORT-INTEGRATION.md`.
+Spec: `modes/producer/export-jsx.md`. Scope decisions: `../_planning/JSX-EXPORT-INTEGRATION.md` (planning workspace, not shipped with the repo).
 
 ## Handling Uncertainty
 
