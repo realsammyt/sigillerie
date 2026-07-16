@@ -30,12 +30,14 @@ Commercial licensing contact: github.com/realsammyt (DM via GitHub).
 
 THIRD-PARTY ASSETS
 
-Sigillerie generates audio assets via Stability AI (Stable Audio 2.5) and
-ElevenLabs Sound Effects. Default seeded library is for personal-use
-prototyping only. For commercial work, run scripts/seed-audio-library.mjs
-with your own API keys on a tier permitting commercial output. Each generated
-asset records license metadata in audio-license.json — keep this file with
-the assets for audit purposes.
+Sigillerie is designed to generate audio assets through external services
+such as Stability AI (Stable Audio) and ElevenLabs Sound Effects. No audio
+assets ship with this repository. Assets you generate are governed by the
+license tier of your own API keys; treat them as personal-use prototyping
+material unless your tier permits commercial output. Record license metadata
+for each generated asset in a license-trail.md sidecar next to the assets
+(format: capabilities/generative-audio/anti-patterns.md, License Trail Break
+entry) and keep it with the assets for audit purposes.
 
 LINEAGE
 
