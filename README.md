@@ -139,6 +139,6 @@ Known carry-overs toward v1.0:
 - AR Quick Look (Phase 5) waiting on the USDZ-on-Windows decision.
 - WebXR Track B (Phase 6) scaffolding not started.
 - d6-holo-ui stacked-z arc resolved in #34 (hero+overlay depth ladder); a post-fix critique re-run has not been recorded.
-- Most reference docs under `capabilities/` and five under `modes/three3d/` are stubs; test gates under `tests/` are always-pass stubs.
+- Most reference docs under `capabilities/` and five under `modes/three3d/` are stubs. `npm test` runs real lint gates (banned vocab, frontmatter, dead links, glossary) plus budget and page-contract checks; agent-driven golden phases 2-11 report SKIP until a live harness exists.
 
 See `SKILL.md` for routing rules. Build planning lives in the maintainer's private workspace, not in this repo.

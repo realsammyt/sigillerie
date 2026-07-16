@@ -7,7 +7,7 @@ description: Playwright-based validation patterns before delivery. Page contract
 
 Last pass before delivery. Open the HTML in Playwright, assert the page contract, screenshot, log console errors. No agent ships without a human glancing at the actual output.
 
-The live automation is `python scripts/verify.py <deliverable.html>` (also `npm run verify -- <file>`). It asserts the page contract, fails on console errors and pageerrors, checks network 4xx/5xx and image/font loads, and writes a screenshot via `--screenshot=<path>`. Add `--3d` or `--audio` for those contracts. This doc is the runtime contract producers must hit. Note: `scripts/run-gates.mjs` is a Phase 11 stub that always exits 0; it verifies nothing today.
+The live automation is `python scripts/verify.py <deliverable.html>` (also `npm run verify -- <file>`). It asserts the page contract, fails on console errors and pageerrors, checks network 4xx/5xx and image/font loads, and writes a screenshot via `--screenshot=<path>`. Add `--3d` or `--audio` for those contracts. This doc is the runtime contract producers must hit. `npm test` runs the static gates (doc lint, budgets, page-contract presence, phase-1 golden). Note: `scripts/run-gates.mjs` is still a Phase 11 stub that always exits 0.
 
 ## Why this exists
 
@@ -106,7 +106,7 @@ pip install playwright
 python -m playwright install chromium
 ```
 
-`scripts/verify.py` automates checklist items 1 to 6. Items 7 to 9 (multi-viewport, click-flows, per-slide paging) are manual Playwright work today; no runner covers them. Do not lean on `run-gates.mjs`, it is a stub that always passes.
+`scripts/verify.py` automates checklist items 1 to 6. Items 7 to 9 (multi-viewport, click-flows, per-slide paging) are manual Playwright work today; no runner covers them. Do not lean on `run-gates.mjs`, it is a stub that always passes; `npm test` covers the static doc/budget gates.
 
 ## When verification fails
 

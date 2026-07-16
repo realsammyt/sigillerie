@@ -1,6 +1,6 @@
 ---
 name: license-trail
-description: Generative Audio capability — TODO Phase 8
+description: Generative Audio capability: TODO Phase 8
 status: stub
 ---
 

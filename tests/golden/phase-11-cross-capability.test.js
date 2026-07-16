@@ -1,4 +1,4 @@
-// Phase 11 golden test — TODO populate when phase ships.
-// See _planning/SIGILLERIE-BUILD-HARNESS.md §5 for pass criteria.
-console.log('phase-11-cross-capability: stub, not yet implemented');
+// Golden phase-11-cross-capability: pass criteria need a live agent run driving the skill
+// end-to-end (see the harness plan). Static checks cannot stand in for it.
+console.log('golden:phase-11-cross-capability: SKIP (requires live agent harness)');
 process.exit(0);

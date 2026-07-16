@@ -1,6 +1,6 @@
 ---
 name: duckdb-wasm
-description: Data Viz capability — TODO Phase 9
+description: Data Viz capability: TODO Phase 9
 status: stub
 ---
 

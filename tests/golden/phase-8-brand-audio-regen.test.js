@@ -1,4 +1,4 @@
-// Phase 8 golden test — TODO populate when phase ships.
-// See _planning/SIGILLERIE-BUILD-HARNESS.md §5 for pass criteria.
-console.log('phase-8-brand-audio-regen: stub, not yet implemented');
+// Golden phase-8-brand-audio-regen: pass criteria need a live agent run driving the skill
+// end-to-end (see the harness plan). Static checks cannot stand in for it.
+console.log('golden:phase-8-brand-audio-regen: SKIP (requires live agent harness)');
 process.exit(0);

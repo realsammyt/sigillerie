@@ -1,6 +1,6 @@
 ---
 name: webxr-walks
-description: Knowledge Graph capability — TODO Phase 10
+description: Knowledge Graph capability: TODO Phase 10
 status: stub
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: hero-animation-case-study
-description: Worked-example hero animation. Brief intake to ship, with timing math, asset choices, anti-slop fixes mid-build, and post-mortem.
+description: Worked-example hero animation. Brief intake to ship, with timing math, asset choices, anti-AI-slop fixes mid-build, and post-mortem.
 ---
 
 # hero-animation-case-study

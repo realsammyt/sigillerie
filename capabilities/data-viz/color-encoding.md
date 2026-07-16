@@ -1,6 +1,6 @@
 ---
 name: color-encoding
-description: Data Viz capability — TODO Phase 9
+description: Data Viz capability: TODO Phase 9
 status: stub
 ---
 

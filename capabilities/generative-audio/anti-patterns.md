@@ -1,6 +1,6 @@
 ---
 name: anti-patterns
-description: Generative Audio capability — UX-law-derived anti-patterns the critic agent scans for
+description: Generative Audio capability: UX-law-derived anti-patterns the critic agent scans for
 status: seeded (Phase 3 of UX-laws integration; a future research pass will extend)
 ---
 
