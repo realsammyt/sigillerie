@@ -35,6 +35,8 @@
     - normal:    one iframe, swapped on nav
     - recording: window.__recording = true → auto-advance for screen capture
     - print:     beforeprint builds full iframe stack, one slide per A4 page
+  PAGE CONTRACT:
+    window.__ready flips true after the first slide iframe loads, in every mode.
 -->
 
 <!-- ======================================================== -->
@@ -225,6 +227,11 @@
     veil.classList.add('on');
     frame.onload = () => {
       veil.classList.remove('on');
+      // page contract: first slide painted → __ready (verify.py gate,
+      // recording harness frame 0). recording stays gated on __recording.
+      if (window.__ready !== true) {
+        requestAnimationFrame(() => { window.__ready = true; });
+      }
       schedulePrefetch(idx + 1);
     };
     // assign src; about:blank fallback if slide errors out network-side

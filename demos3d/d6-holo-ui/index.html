@@ -180,9 +180,9 @@ function buildScene(threeApi, group) {
   group.userData.layout = layout;
 
   // 4. Apply per-layout camera. Preset already set a default; we override
-  //    when the layout class wants something tighter or wider. Preset's
-  //    drift function still works because it captures the new basePos via
-  //    setupCamera reading current cam.position.
+  //    when the layout class wants something tighter or wider. The preset's
+  //    drift keeps working: it rebases lazily on the camera's pose at its
+  //    FIRST per-frame call, which happens after this override.
   const camCfg = adaptive.cameraForLayout(layout);
   if (threeApi.camera && camCfg) {
     threeApi.camera.fov = camCfg.fov;
@@ -194,21 +194,16 @@ function buildScene(threeApi, group) {
   // 5. Build 4 uikit panels per layout grid. Roles map to slots:
   //    title (hero), subtitle (supporting), capabilities (context), status (context).
   //    Per-layout slot ordering is tuned in computePanelSpecs().
+  //    The grid gets each slot's world footprint (width x scaleHint) so the
+  //    shared helper spaces adjacent slots past their half-width sums and
+  //    pulls scaled-up slots forward; no demo-local x-spread table or depth
+  //    ladder needed anymore.
   const panelSpecs = computePanelSpecs(layout);
-  const grid = adaptive.gridForLayout(layout, panelSpecs.length);
-
-  // Per-aspect x spread applied on top of the shared grid. The shared arc
-  // packs 4 panels into ~5.3 units of x while the wide hero alone spans ~4
-  // units, so both neighbors land inside the hero's x-range and vanish
-  // behind it once the depth ladder pulls the hero forward. Spreading the
-  // wings outward gives every panel its own projected screen slot. Budgets
-  // were checked against the wide camera (fov 46, z 8.0: half-width ~6.0
-  // world units at panel depth) and the ultrawide camera (fov 42, z 10.0:
-  // half-width ~9.2), including panel yaw and the 0.06 breathing radius.
-  const X_SPREAD = {
-    wide:      { caps: -1.83, subtitle: -1.82, title: -0.28, status: 1.48 },
-    ultrawide: { caps: -2.90, subtitle: -2.10, title: -0.30, status: 2.10 },
-  };
+  const grid = adaptive.gridForLayout(
+    layout,
+    panelSpecs.length,
+    panelSpecs.map((s) => s.width * s.scaleHint)
+  );
 
   const panels = [];
   for (let i = 0; i < panelSpecs.length; i += 1) {
@@ -274,36 +269,15 @@ function buildScene(threeApi, group) {
       panel.root.add(stripe);
     }
 
-    // Hero+overlay depth ladder: pull hero z forward by 0.8 units in wide
-    // and ultrawide. The arc geometry puts theta=0 panels DEEPER (z negative)
-    // than theta=edge panels, which inverts focal depth: hero ends up behind
-    // caps + status. The "Stacked-z parallel" §10 anti-pattern fires because
-    // depth doesn't read as a foreground/background separation. Pulling hero
-    // forward restores the hierarchy: hero pops, supporting panels recede.
-    // Subtitle recedes furthest (-0.5), caps + status recede -0.2 to widen
-    // the ladder. X_SPREAD (above) then pushes the wings outward so nothing
-    // hides behind the forward hero. Portrait + square already have hero
-    // depth via their own z-stagger so they need neither adjustment.
-    let posZ = xform.position[2];
-    let posX = xform.position[0];
-    if (spec.role === 'title' && (layout === 'wide' || layout === 'ultrawide')) {
-      posZ = xform.position[2] + 0.8;
-    }
-    if ((spec.role === 'caps' || spec.role === 'status') && (layout === 'wide' || layout === 'ultrawide')) {
-      posZ = xform.position[2] - 0.2;
-    }
-    if (spec.role === 'subtitle' && (layout === 'wide' || layout === 'ultrawide')) {
-      posZ = xform.position[2] - 0.5;
-    }
-    if (X_SPREAD[layout] && X_SPREAD[layout][spec.role] != null) {
-      posX = xform.position[0] + X_SPREAD[layout][spec.role];
-    }
-
-    panel.root.position.set(posX, xform.position[1], posZ);
+    // Placement comes straight from the shared grid: it spaces slots past
+    // their half-width sums and puts the scaled-up hero forward (positive
+    // z, toward the camera) with the wings receding, so the focal ladder
+    // reads without demo-local compensation.
+    panel.root.position.set(xform.position[0], xform.position[1], xform.position[2]);
     panel.root.rotation.set(xform.rotation[0], xform.rotation[1], xform.rotation[2]);
     panel.root.scale.set(sx, sy, sz);
     panel.root.userData.role = spec.role;
-    panel.root.userData.basePos = [posX, xform.position[1], posZ];
+    panel.root.userData.basePos = [xform.position[0], xform.position[1], xform.position[2]];
     panel.root.userData.baseScale = [sx, sy, sz];
     panel.root.userData.phase = i * 0.6;
 
@@ -653,8 +627,8 @@ function computePanelSpecs(layout) {
   // 'Discovery Mode' fits one line (consistent with PR #29 square fix).
   // Subtitle scaleHint 0.88 -> 0.72: reduces visual weight so the subtitle
   // panel recedes behind the larger hero and stops competing with it for
-  // attention. Pair with the subtitle z-recession in buildScene (post-grid
-  // depth ladder) so the smaller panel also sits clearly farther back.
+  // attention. The shared grid also seats the smallest footprint farthest
+  // back, so the smaller panel sits clearly behind the hero.
   return [
     { role: 'caps',     width: 2.1, height: 1.65, bg: surfaceCtx,  padding: 30, scaleHint: 0.78, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: capsChildren },
     { role: 'subtitle', width: 2.2, height: 1.20, bg: surfaceSupp, padding: 26, scaleHint: 0.72, children: subtitleChildren },
@@ -737,8 +711,9 @@ function tickScene(threeApi, group, t) {
   if (panels && panels.length) {
     for (let i = 0; i < panels.length; i += 1) {
       const p = panels[i];
-      // uikit Root.update(dt) ticks yoga layout + animations.
-      if (typeof p.update === 'function') p.update();
+      // uikit Root.update ticks yoga layout + animations. Thread the scene
+      // time so dt derives from t, never from the wall clock.
+      if (typeof p.update === 'function') p.update(t);
 
       const base = p.root.userData.basePos;
       const phase = p.root.userData.phase || 0;

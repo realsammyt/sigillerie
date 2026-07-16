@@ -187,21 +187,25 @@ fi
 
 emit_gif() {
   # $1 = output path, $2 = paletteuse extras (e.g. ":new=1" for 3D)
+  # errexit is suspended when run_step invokes us inside `if`, so track rc by hand.
   local out="$1" extra="$2"
-  local pal
+  local pal rc=0
   pal="$(mktemp -t pal.XXXXXX).png"
 
   # pass 1: palette tuned to this video
   ffmpeg -y -loglevel error -i "$SOURCE_FOR_DERIVS" \
     -vf "fps=${GIF_FPS},scale=${GIF_WIDTH}:-1:flags=lanczos,palettegen=max_colors=256:stats_mode=diff" \
-    "$pal"
+    "$pal" || rc=$?
 
   # pass 2: bayer dither + rectangle diff for tiny files with smooth fades
-  ffmpeg -y -loglevel error -i "$SOURCE_FOR_DERIVS" -i "$pal" \
-    -lavfi "fps=${GIF_FPS},scale=${GIF_WIDTH}:-1:flags=lanczos[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=3:diff_mode=rectangle${extra}" \
-    -loop 0 "$out"
+  if [ "$rc" -eq 0 ]; then
+    ffmpeg -y -loglevel error -i "$SOURCE_FOR_DERIVS" -i "$pal" \
+      -lavfi "fps=${GIF_FPS},scale=${GIF_WIDTH}:-1:flags=lanczos[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=3:diff_mode=rectangle${extra}" \
+      -loop 0 "$out" || rc=$?
+  fi
 
   rm -f "$pal"
+  return "$rc"
 }
 
 if [ "$DO_GIF" -eq 1 ]; then
@@ -288,11 +292,21 @@ verify() {
 
 echo ""
 echo "verify:"
-[ "$DO_60FPS" -eq 1 ] && [ -f "$OUT_60FPS" ]   && verify "$OUT_60FPS"   || true
-[ "$DO_GIF" -eq 1 ]   && [ -f "${OUT_DIR}/${STEM}.gif" ]    && verify "${OUT_DIR}/${STEM}.gif"    || true
-[ "$DO_GIF_3D" -eq 1 ] && [ -f "${OUT_DIR}/${STEM}-3d.gif" ] && verify "${OUT_DIR}/${STEM}-3d.gif" || true
-[ "$DO_WEBM" -eq 1 ]  && [ -f "${OUT_DIR}/${STEM}.webm" ]   && verify "${OUT_DIR}/${STEM}.webm"   || true
-[ "$DO_AVIF" -eq 1 ]  && [ -f "${OUT_DIR}/${STEM}.avif" ]   && verify "${OUT_DIR}/${STEM}.avif"   || true
+if [ "$DO_60FPS" -eq 1 ] && [ -f "$OUT_60FPS" ]; then
+  verify "$OUT_60FPS" || FAILED+=("verify ${STEM}-60fps.mp4")
+fi
+if [ "$DO_GIF" -eq 1 ] && [ -f "${OUT_DIR}/${STEM}.gif" ]; then
+  verify "${OUT_DIR}/${STEM}.gif" || FAILED+=("verify ${STEM}.gif")
+fi
+if [ "$DO_GIF_3D" -eq 1 ] && [ -f "${OUT_DIR}/${STEM}-3d.gif" ]; then
+  verify "${OUT_DIR}/${STEM}-3d.gif" || FAILED+=("verify ${STEM}-3d.gif")
+fi
+if [ "$DO_WEBM" -eq 1 ] && [ -f "${OUT_DIR}/${STEM}.webm" ]; then
+  verify "${OUT_DIR}/${STEM}.webm" || FAILED+=("verify ${STEM}.webm")
+fi
+if [ "$DO_AVIF" -eq 1 ] && [ -f "${OUT_DIR}/${STEM}.avif" ]; then
+  verify "${OUT_DIR}/${STEM}.avif" || FAILED+=("verify ${STEM}.avif")
+fi
 
 if [ "${#FAILED[@]}" -gt 0 ]; then
   echo ""

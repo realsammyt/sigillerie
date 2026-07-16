@@ -239,29 +239,47 @@ export function createGlassHero(threeApi, opts = {}) {
   if (o.shape === 'custom-glb' && o.modelUrl) {
     hero = new T.Group();
     const loader = new GLTFLoader();
-    loader.load(
-      o.modelUrl,
-      (gltf) => {
-        gltf.scene.traverse((node) => {
-          if (node.isMesh) {
-            node.material = material;
-            node.castShadow = true;
-            node.receiveShadow = false;
-            loadedGeometries.push(node.geometry);
-          }
-        });
-        // Center + fit to about the unit sphere.
-        const box = new T.Box3().setFromObject(gltf.scene);
-        const size = new T.Vector3(); box.getSize(size);
-        const center = new T.Vector3(); box.getCenter(center);
-        const scale = 1.6 / Math.max(size.x, size.y, size.z, 0.001);
-        gltf.scene.scale.setScalar(scale);
-        gltf.scene.position.sub(center.multiplyScalar(scale));
-        hero.add(gltf.scene);
-      },
-      undefined,
-      (err) => console.warn('[glass-material] GLB load failed', err)
-    );
+    // Register the async GLB load in window.__sceneAssets so Stage3D's
+    // __sceneReady gate waits for the hero body.
+    const assets = (typeof window !== 'undefined')
+      ? (window.__sceneAssets = window.__sceneAssets || { pending: [], loaded: [] })
+      : null;
+    const loadPromise = new Promise((resolve, reject) => {
+      loader.load(
+        o.modelUrl,
+        (gltf) => {
+          gltf.scene.traverse((node) => {
+            if (node.isMesh) {
+              node.material = material;
+              node.castShadow = true;
+              node.receiveShadow = false;
+              loadedGeometries.push(node.geometry);
+            }
+          });
+          // Center + fit to about the unit sphere.
+          const box = new T.Box3().setFromObject(gltf.scene);
+          const size = new T.Vector3(); box.getSize(size);
+          const center = new T.Vector3(); box.getCenter(center);
+          const scale = 1.6 / Math.max(size.x, size.y, size.z, 0.001);
+          gltf.scene.scale.setScalar(scale);
+          gltf.scene.position.sub(center.multiplyScalar(scale));
+          hero.add(gltf.scene);
+          if (assets) assets.loaded.push({ kind: 'gltf', url: o.modelUrl });
+          resolve(gltf);
+        },
+        undefined,
+        (err) => {
+          console.warn('[glass-material] GLB load failed', err);
+          reject(err);
+        }
+      );
+    });
+    if (assets) {
+      assets.pending.push(loadPromise);
+      // gate uses allSettled; avoid unhandledrejection noise when no gate
+      // is listening.
+      loadPromise.catch(() => {});
+    }
   } else {
     const geom = buildGeometry(o.shape);
     loadedGeometries.push(geom);

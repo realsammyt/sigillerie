@@ -80,6 +80,9 @@ const PROP_TO_PREFIX = {
 // Shorthand expansion: property -> longhand properties given a parsed value array
 // Returns [[prop, value], ...] or null if not expandable
 function expandShorthand(prop, value) {
+  // Functional values (calc, clamp, var, ...) contain spaces inside parens;
+  // splitting on whitespace would shred them. Bail out of expansion.
+  if (value.includes('(')) return null;
   const parts = value.trim().split(/\s+/);
 
   if (prop === 'margin' || prop === 'padding') {
@@ -122,10 +125,10 @@ function encodeArbitrary(value) {
 // Attempt to produce an arbitrary-value Tailwind class for a property/value pair.
 // Returns a class string or null if the property has no known prefix.
 function toArbitraryClass(prop, value, prefix) {
-  // CSS variable shorthand: var(--foo) -> [--foo]
+  // CSS variable shorthand: var(--foo) -> (--foo), Tailwind v4 syntax
   const varMatch = value.trim().match(/^var\((--[\w-]+)\)$/);
   if (varMatch) {
-    return `${prefix}-[${varMatch[1]}]`;
+    return `${prefix}-(${varMatch[1]})`;
   }
 
   return `${prefix}-[${encodeArbitrary(value)}]`;
@@ -139,12 +142,16 @@ function normalizeKey(prop, value) {
 // Extract a pseudo-class variant from a selector (simple cases only).
 // Returns { baseSelector, variant } or null if selector is complex.
 function extractVariant(selector) {
-  // Only handle single-class or single-element selectors with one pseudo
-  for (const [pseudo, variant] of Object.entries(PSEUDO_VARIANTS)) {
+  // Only handle single-class or single-element selectors with one pseudo.
+  // Longest pseudo first, so '::placeholder' matches before ':placeholder'
+  // and never leaves a trailing ':' on the base selector.
+  const entries = Object.entries(PSEUDO_VARIANTS).sort(([a], [b]) => b.length - a.length);
+  for (const [pseudo, variant] of entries) {
     if (selector.endsWith(pseudo)) {
       const base = selector.slice(0, -pseudo.length);
-      // Reject complex selectors (has space, combinators, nested pseudos)
-      if (/[\s>~+]/.test(base) || base.includes(':has(') || base.includes(':nth-')) {
+      // Reject malformed leftovers and complex selectors
+      // (trailing ':', space, combinators, nested pseudos)
+      if (base.endsWith(':') || /[\s>~+]/.test(base) || base.includes(':has(') || base.includes(':nth-')) {
         return null;
       }
       return { baseSelector: base, variant };
@@ -301,11 +308,20 @@ export async function transformCSS(cssString) {
 
       if (bpClass) {
         node.walkRules(innerRule => {
-          processRule(innerRule, bpClass, selectorToClasses, residualRules);
+          processRule(innerRule, bpClass, selectorToClasses, residualRules, `@media ${params}`);
         });
       } else {
         residualRules.push(node.toString());
       }
+      return;
+    }
+
+    // Any other atrule (@supports, @container, @layer, ...) -> residual
+    // verbatim. Walking their inner rules as top-level would promote
+    // conditional styles to unconditional classes.
+    if (node.type === 'atrule') {
+      handled.add(node);
+      residualRules.push(node.toString());
       return;
     }
 
@@ -334,8 +350,13 @@ function resolveBreakpoint(params) {
 }
 
 // Process a single CSS rule node, collecting Tailwind classes or residual output.
-function processRule(node, breakpointPrefix, selectorToClasses, residualRules) {
+// atruleWrap, when set (e.g. '@media (min-width: 768px)'), re-wraps residual
+// output so conditional declarations stay conditional.
+function processRule(node, breakpointPrefix, selectorToClasses, residualRules, atruleWrap = '') {
   const rawSelector = node.selector.trim();
+  const pushResidual = (ruleStr) => {
+    residualRules.push(atruleWrap ? `${atruleWrap} {\n${ruleStr.replace(/^/gm, '  ')}\n}` : ruleStr);
+  };
 
   // Detect pseudo-class variant (e.g. .foo:hover)
   const variantInfo = extractVariant(rawSelector);
@@ -344,7 +365,7 @@ function processRule(node, breakpointPrefix, selectorToClasses, residualRules) {
 
   // Complex selector check (has space/combinator not from pseudo extraction, or complex pseudo)
   if (!variantInfo && isComplexSelector(rawSelector)) {
-    residualRules.push(node.toString());
+    pushResidual(node.toString());
     return;
   }
 
@@ -372,7 +393,7 @@ function processRule(node, breakpointPrefix, selectorToClasses, residualRules) {
   }
 
   if (residualDecls.length) {
-    residualRules.push(ruleToString(node, residualDecls));
+    pushResidual(ruleToString(node, residualDecls));
   }
 }
 
@@ -380,6 +401,8 @@ function processRule(node, breakpointPrefix, selectorToClasses, residualRules) {
 function isComplexSelector(selector) {
   // Multiple selectors (comma-separated) - handle each separately if needed; for now, flag as complex
   if (selector.includes(',')) return true;
+  // Double-colon pseudo-elements that extractVariant did not consume
+  if (selector.includes('::')) return true;
   // Descendant/child/sibling combinators
   if (/[\s>~+]/.test(selector.replace(/:[\w-]+(\([^)]*\))?/g, ''))) return true;
   // :has(), :nth-child(), ::before, ::after (structural pseudos we don't handle)

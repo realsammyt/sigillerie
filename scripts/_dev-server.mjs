@@ -28,7 +28,9 @@ const MIME = {
 const server = http.createServer((req, res) => {
   try {
     const url = decodeURIComponent(req.url.split('?')[0]);
-    let p = path.join(ROOT, url);
+    let p = path.resolve(path.join(ROOT, url));
+    // Reject path traversal outside ROOT.
+    if (p !== ROOT && !p.startsWith(ROOT + path.sep)) { res.writeHead(403); res.end('forbidden'); return; }
     if (fs.existsSync(p) && fs.statSync(p).isDirectory()) p = path.join(p, 'index.html');
     if (!fs.existsSync(p)) { res.writeHead(404); res.end('not found'); return; }
     const ext = path.extname(p).toLowerCase();
@@ -43,4 +45,5 @@ const server = http.createServer((req, res) => {
   }
 });
 
-server.listen(PORT, () => console.log(`dev server on http://localhost:${PORT} (root: ${ROOT})`));
+// Loopback only: this serves the whole repo, keep it off the network.
+server.listen(PORT, '127.0.0.1', () => console.log(`dev server on http://localhost:${PORT} (root: ${ROOT})`));

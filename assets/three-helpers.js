@@ -13,9 +13,9 @@
  *   - randomFloats(count, min, max)
  *   - easeOutExpo(t), easeInOutCubic(t), easeOutBack(t), easeOutElastic(t)
  *
- * Asset loaders register into window.__sceneAssets so Stage3D can later
- * gate __sceneReady on all pending loads. For now the registry exists and
- * is wired; a future pass will make Stage3D await it before first paint.
+ * Asset loaders register into window.__sceneAssets and Stage3D awaits every
+ * pending load (Promise.allSettled) before flipping __sceneReady, so frame
+ * 0 shows the loaded scene.
  *
  * Example:
  *
@@ -30,8 +30,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
-// Asset registry. Stage3D awaits __sceneAssets.pending in a later pass.
-// Each loader pushes a Promise here; Promise.all gates __sceneReady.
+// Asset registry. Each loader pushes a Promise here; Stage3D awaits
+// Promise.allSettled(__sceneAssets.pending) before flipping __sceneReady.
 const sceneAssets = {
   pending: [],
   loaded: [],

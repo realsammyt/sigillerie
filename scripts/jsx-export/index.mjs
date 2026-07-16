@@ -95,12 +95,16 @@ function mergeTailwindIntoReturnJsx(jsxString, selectorToClasses) {
     const m = selector.match(/^\.([\w-]+)$/);
     if (!m) continue;
     const klass = m[1];
-    // Match className="...klass..." (string form) and merge.
-    const re = new RegExp(`className=(["\\'])([^"\\']*\\b${klass}\\b[^"\\']*)\\1`, 'g');
+    // Match every className="..." (string form), then require an exact
+    // whitespace-delimited token match. A \b regex would treat '-' as a
+    // boundary and leak .card classes into className="card-header".
+    const re = /className=(["'])([^"']*)\1/g;
     out = out.replace(re, (match, quote, existing) => {
-      const have = new Set(existing.split(/\s+/).filter(Boolean));
-      for (const c of classes) have.add(c);
-      return `className=${quote}${[...have].join(' ')}${quote}`;
+      const have = existing.split(/\s+/).filter(Boolean);
+      if (!have.includes(klass)) return match;
+      const merged = new Set(have);
+      for (const c of classes) merged.add(c);
+      return `className=${quote}${[...merged].join(' ')}${quote}`;
     });
   }
   return out;

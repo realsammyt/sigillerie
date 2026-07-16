@@ -81,26 +81,46 @@ function startStaticServer(root) {
     '.ogg': 'audio/ogg',
   };
   return new Promise((resolve, reject) => {
+    const rootAbs = path.resolve(root);
     const server = http.createServer((req, res) => {
-      let filePath = path.join(root, req.url.split('?')[0]);
+      // Decode percent-escapes (%20 etc.) before touching the filesystem.
+      let urlPath;
+      try {
+        urlPath = decodeURIComponent(req.url.split('?')[0]);
+      } catch {
+        res.writeHead(400); res.end(); return;
+      }
+      let filePath = path.resolve(path.join(rootAbs, urlPath));
       // Prevent path traversal outside root.
-      if (!filePath.startsWith(root)) {
+      if (filePath !== rootAbs && !filePath.startsWith(rootAbs + path.sep)) {
         res.writeHead(403); res.end(); return;
       }
       try {
-        const stat = fs.statSync(filePath);
-        if (stat.isDirectory()) filePath = path.join(filePath, 'index.html');
+        let stat = fs.statSync(filePath);
+        if (stat.isDirectory()) {
+          filePath = path.join(filePath, 'index.html');
+          stat = fs.statSync(filePath); // recheck: directory may lack index.html
+        }
+        if (!stat.isFile()) { res.writeHead(404); res.end(); return; }
       } catch {
         res.writeHead(404); res.end(); return;
       }
       const ext = path.extname(filePath).toLowerCase();
       const mime = MIME[ext] || 'application/octet-stream';
-      res.writeHead(200, {
-        'Content-Type': mime,
-        'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 'no-cache',
+      const stream = fs.createReadStream(filePath);
+      stream.on('open', () => {
+        res.writeHead(200, {
+          'Content-Type': mime,
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'no-cache',
+        });
       });
-      fs.createReadStream(filePath).pipe(res);
+      stream.on('error', () => {
+        // Don't crash the render on a mid-stream read failure.
+        if (!res.headersSent) res.writeHead(500);
+        res.end();
+      });
+      stream.pipe(res);
     });
     server.listen(0, '127.0.0.1', () => {
       resolve({ server, port: server.address().port });
@@ -118,7 +138,8 @@ Usage:
   node scripts/render-video.js <input.html> [options]
 
 Options:
-  --mode=html|3d|tone   default: auto (3d if window.__renderFrame exists)
+  --mode=html|3d|tone   default: auto (3d if window.__renderFrame exists);
+                        tone = html capture with --audio=tone implied
   --duration=<sec>      default: read window.__duration, fallback 10
   --width=<px>          default: 1920
   --height=<px>         default: 1080
@@ -191,7 +212,10 @@ if (parsed.values.help || parsed.positionals.length === 0) {
 }
 
 const INPUT      = parsed.positionals[0];
-const MODE_ARG   = parsed.values.mode || 'auto';
+// --mode=tone is html capture with runtime Tone.js audio recording implied
+// (page-contract.md points pages with __audioRuntime='tone' at it).
+const MODE_TONE  = parsed.values.mode === 'tone';
+const MODE_ARG   = MODE_TONE ? 'html' : (parsed.values.mode || 'auto');
 
 // Resolution presets. Explicit --width / --height beats presets.
 function resolveDimensions() {
@@ -219,7 +243,7 @@ const FORCE_CPU_ENCODE = parsed.values['cpu-encode'] === true;
 const SSAA = Math.max(1, Math.min(4, parseInt(parsed.values.ssaa || '2', 10)));
 const VERBOSE    = parsed.values.verbose      === true;
 const WANT_GIF   = parsed.values.gif          === true;
-const AUDIO_MODE = parsed.values.audio || null;   // 'tone' or null
+const AUDIO_MODE = MODE_TONE ? 'tone' : (parsed.values.audio || null);   // 'tone' or null
 const DURATION_OVERRIDE = parsed.values.duration ? parseFloat(parsed.values.duration) : null;
 const FRAME_INTERVAL_OVERRIDE = parsed.values['frame-interval']
   ? parseFloat(parsed.values['frame-interval'])
@@ -404,6 +428,12 @@ process.on('exit', cleanup);
 async function renderMode3D({ browser, t0, tmpDir, url, output }) {
   log('mode=3d: deterministic frame stepping via CDP beginFrame');
 
+  if (AUDIO_MODE === 'tone') {
+    console.warn('  ! --audio=tone in 3d mode: audio records in wall-clock time while video');
+    console.warn('  ! runs on a virtual clock. If capture runs slower than real time, audio');
+    console.warn('  ! and video CANNOT stay in sync. Expect drift on slow captures.');
+  }
+
   // ─── CONTEXT + CLOCK STUBS ────────────────────────────────────────────────
   // Build a non-recordVideo context (we capture frames ourselves, not via
   // Playwright recordVideo). deviceScaleFactor=SSAA passes through to
@@ -516,17 +546,6 @@ async function renderMode3D({ browser, t0, tmpDir, url, output }) {
     process.exit(1);
   }
 
-  // ─── DURATION ─────────────────────────────────────────────────────────────
-  let duration = DURATION_OVERRIDE;
-  if (duration === null) {
-    duration = await page.evaluate(() => {
-      const d = window.__duration;
-      return typeof d === 'number' && d > 0 ? d : null;
-    }).catch(() => null);
-  }
-  if (duration === null) duration = 10;
-  log(`duration: ${duration}s`);
-
   // ─── WAIT FOR READY ───────────────────────────────────────────────────────
   // 3D contract requires both __ready AND __sceneReady (assets resolved).
   // page-contract.md §__sceneReady. Without this we capture placeholders.
@@ -547,7 +566,9 @@ async function renderMode3D({ browser, t0, tmpDir, url, output }) {
     console.error('  recent console output:');
     for (const line of consoleMsgs.slice(-20)) console.error('    ' + line);
     try {
-      const shotPath = path.join(tmpDir, 'failure.png');
+      // Next to the input, not TMP_DIR: the exit-hook cleanup wipes TMP_DIR
+      // before the user can look at the screenshot.
+      const shotPath = path.join(HTML_DIR, 'failure.png');
       await page.screenshot({ path: shotPath, fullPage: false });
       console.error(`  screenshot: ${shotPath}`);
     } catch {}
@@ -555,6 +576,19 @@ async function renderMode3D({ browser, t0, tmpDir, url, output }) {
     await browser.close();
     process.exit(2);
   }
+
+  // Resolve duration: CLI override > page's window.__duration > 10s fallback.
+  // Read AFTER the ready wait: pages that set __duration during async boot
+  // are not done setting it right after goto.
+  let duration = DURATION_OVERRIDE;
+  if (duration === null) {
+    duration = await page.evaluate(() => {
+      const d = window.__duration;
+      return typeof d === 'number' && d > 0 ? d : null;
+    }).catch(() => null);
+  }
+  if (duration === null) duration = 10;
+  log(`duration: ${duration}s`);
 
   // Confirm __renderFrame is callable (defense; auto-detect already verified).
   const hasRenderFrame = await page.evaluate(
@@ -577,7 +611,10 @@ async function renderMode3D({ browser, t0, tmpDir, url, output }) {
   });
 
   // ─── CDP SESSION + BEGINFRAME PROBE ───────────────────────────────────────
-  const fps = FPS_BASE;
+  // Honor --fps / --60fps: the clock is virtual, so capturing directly at the
+  // requested output fps is exact (more beginFrame steps, no interpolation).
+  // --no-interp pins capture and output to --base-fps.
+  const fps = NO_INTERP ? FPS_BASE : FPS_OUT;
   const frameInterval = FRAME_INTERVAL_OVERRIDE !== null
     ? FRAME_INTERVAL_OVERRIDE
     : (1000 / fps);
@@ -852,12 +889,29 @@ async function renderMode3D({ browser, t0, tmpDir, url, output }) {
   // as html and produces frozen recordings (animation-pitfalls.md §16).
   // Wait briefly for either __ready or __renderFrame, whichever fires first,
   // before reading the contract.
+  //
+  // The probe must run over HTTP, not file://: 3D pages use CDN importmaps
+  // whose bare specifiers only resolve when served over http:// (Chromium
+  // resolves CDN sub-imports relative to the CDN host). A file:// probe never
+  // boots those pages and misclassifies them as html. So the static server
+  // starts BEFORE the probe. Explicit --mode=3d skips the probe entirely;
+  // renderMode3D verifies __renderFrame itself after __sceneReady.
   let mode = MODE_ARG;
+  let staticServer = null;
+  let httpUrl = null;
   if (mode === 'auto' || mode === '3d') {
+    const repoRoot = findRepoRoot(HTML_DIR);
+    const started = await startStaticServer(repoRoot);
+    staticServer = started.server;
+    const relPath = HTML_ABS.replace(/\\/g, '/').replace(repoRoot.replace(/\\/g, '/'), '');
+    httpUrl = `http://127.0.0.1:${started.port}${relPath}`;
+    vlog(`static server: http://127.0.0.1:${started.port} (root: ${repoRoot})`);
+  }
+  if (mode === 'auto') {
     const peekCtx = await browser.newContext({ viewport: { width: WIDTH, height: HEIGHT } });
     const peekPage = await peekCtx.newPage();
     try {
-      await peekPage.goto(URL, { waitUntil: 'load', timeout: 30_000 });
+      await peekPage.goto(httpUrl, { waitUntil: 'load', timeout: 30_000 });
       // Give async contract setters a chance. 15s is conservative; Stage3D
       // typically installs within a few hundred ms post-load.
       await peekPage.waitForFunction(
@@ -867,34 +921,16 @@ async function renderMode3D({ browser, t0, tmpDir, url, output }) {
       const has3D = await peekPage.evaluate(
         () => typeof window.__renderFrame === 'function',
       ).catch(() => false);
-      if (mode === 'auto') mode = has3D ? '3d' : 'html';
-      if (mode === '3d' && !has3D) {
-        console.error('✗ --mode=3d requested but window.__renderFrame is not a function');
-        console.error('  3D pages must implement the contract in modes/three3d/page-contract.md');
-        await peekCtx.close();
-        await browser.close();
-        process.exit(1);
-      }
+      mode = has3D ? '3d' : 'html';
     } catch (e) {
       vlog(`mode detect failed: ${e.message}, falling back to html`);
-      if (mode === 'auto') mode = 'html';
+      mode = 'html';
     }
     await peekCtx.close();
   }
   log(`mode: ${mode}`);
 
   if (mode === '3d') {
-    // 3D mode: CDN importmaps use absolute sub-paths (/tw-to-css@...) that
-    // only resolve correctly when served over HTTP (Chromium resolves them
-    // relative to the CDN host). file:// treats them as local filesystem paths,
-    // causing "Failed to resolve module specifier" errors for every transitive
-    // CDN dependency. Spin up a one-shot local static server so importmaps
-    // work, then close it after the render finishes.
-    const repoRoot = findRepoRoot(HTML_DIR);
-    const { server: staticServer, port: staticPort } = await startStaticServer(repoRoot);
-    const relPath = HTML_ABS.replace(/\\/g, '/').replace(repoRoot.replace(/\\/g, '/'), '');
-    const httpUrl = `http://127.0.0.1:${staticPort}${relPath}`;
-    vlog(`3d static server: http://127.0.0.1:${staticPort} (root: ${repoRoot})`);
     try {
       await renderMode3D({
         browser,
@@ -908,6 +944,8 @@ async function renderMode3D({ browser, t0, tmpDir, url, output }) {
     }
     return;
   }
+  // html mode records over file://; the probe server is no longer needed.
+  if (staticServer) staticServer.close();
 
   // ─── RECORD ────────────────────────────────────────────────────────────────
   // SSAA path: viewport stays at logical WIDTH×HEIGHT (CSS pixels). deviceScaleFactor
@@ -980,17 +1018,6 @@ async function renderMode3D({ browser, t0, tmpDir, url, output }) {
     process.exit(1);
   }
 
-  // Resolve duration: CLI override > page's window.__duration > 10s fallback.
-  let duration = DURATION_OVERRIDE;
-  if (duration === null) {
-    duration = await page.evaluate(() => {
-      const d = window.__duration;
-      return typeof d === 'number' && d > 0 ? d : null;
-    }).catch(() => null);
-  }
-  if (duration === null) duration = 10;
-  log(`duration: ${duration}s`);
-
   // Wait for __ready. animation-pitfalls.md §12: page sets this on the first
   // rAF tick paired with t=0. Without it we'd capture mid-load black frames.
   log('waiting for window.__ready ...');
@@ -1006,7 +1033,9 @@ async function renderMode3D({ browser, t0, tmpDir, url, output }) {
     console.error('  page may have failed to boot. recent console output:');
     for (const line of consoleMsgs.slice(-20)) console.error('    ' + line);
     try {
-      const shotPath = path.join(TMP_DIR, 'failure.png');
+      // Next to the input, not TMP_DIR: the exit-hook cleanup wipes TMP_DIR
+      // before the user can look at the screenshot.
+      const shotPath = path.join(HTML_DIR, 'failure.png');
       await page.screenshot({ path: shotPath, fullPage: false });
       console.error(`  screenshot: ${shotPath}`);
     } catch {}
@@ -1017,6 +1046,19 @@ async function renderMode3D({ browser, t0, tmpDir, url, output }) {
 
   const headOffset = (Date.now() - T_REC) / 1000;
   vlog(`__ready @ ${headOffset.toFixed(2)}s after T_REC (this is the trim head)`);
+
+  // Resolve duration: CLI override > page's window.__duration > 10s fallback.
+  // Read AFTER the __ready wait: pages that set __duration during async boot
+  // are not done setting it right after goto.
+  let duration = DURATION_OVERRIDE;
+  if (duration === null) {
+    duration = await page.evaluate(() => {
+      const d = window.__duration;
+      return typeof d === 'number' && d > 0 ? d : null;
+    }).catch(() => null);
+  }
+  if (duration === null) duration = 10;
+  log(`duration: ${duration}s`);
 
   // Defense in depth: if the page exposes __seek, snap time to 0 so the first
   // captured frame is t=0 even if the page's tick template was sloppy.
@@ -1084,7 +1126,8 @@ async function renderMode3D({ browser, t0, tmpDir, url, output }) {
   //   H.264 high quality + bt709 color metadata for accurate playback.
 
   const targetFps = NO_INTERP ? FPS_BASE : FPS_OUT;
-  log(`encode: ${webms[0]} -> ${path.basename(OUTPUT)} (H.264, ${targetFps}fps${NO_INTERP ? '' : ', minterpolate'})`);
+  const useInterp = !NO_INTERP && FPS_OUT !== FPS_BASE;
+  log(`encode: ${webms[0]} -> ${path.basename(OUTPUT)} (H.264, ${targetFps}fps${useInterp ? ', minterpolate' : ''})`);
 
   const args = [
     '-y',
@@ -1100,8 +1143,12 @@ async function renderMode3D({ browser, t0, tmpDir, url, output }) {
   // Chromium rasterized at SSAA× DPI internally, so text/edge fidelity is baked
   // into the WebM at viewport resolution. ffmpeg only handles fps and codec.
   const vf = [];
-  if (!NO_INTERP && FPS_OUT !== FPS_BASE) {
+  if (useInterp) {
     vf.push(`minterpolate=fps=${FPS_OUT}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1`);
+  } else {
+    // Playwright recordVideo writes WebM at its own native rate (~25fps),
+    // not FPS_BASE. Force the stated fps so the MP4 matches the log claim.
+    vf.push(`fps=${targetFps}`);
   }
   // -t cuts to exact duration. Goes after seek so it counts from trimmed t=0.
   args.push('-t', duration.toFixed(3));

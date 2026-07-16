@@ -9,7 +9,9 @@ import { spawnSync } from 'node:child_process';
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const tests = [];
 for (const e of readdirSync(join(ROOT, 'tests'), { recursive: true, withFileTypes: true })) {
-  if (e.isFile() && e.name.endsWith('.test.js')) tests.push(join(e.parentPath ?? e.path, e.name));
+  // .test.js and .test.mjs both count. node:test files run fine under plain
+  // `node` (failures propagate through the exit code).
+  if (e.isFile() && /\.test\.m?js$/.test(e.name)) tests.push(join(e.parentPath ?? e.path, e.name));
 }
 tests.sort();
 

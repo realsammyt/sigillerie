@@ -80,7 +80,7 @@ The CLI auto-detects which mode applies and routes accordingly.
 | Three.js / R3F / WebGL deliverables not transpiled | Ship the HTML as-is; v2 will add R3F support |
 | Tone.js / runtime audio not transpiled | Ship the HTML; the audio runtime needs its own client-side mount path |
 | shadcn primitive rewrites not implemented | The `--shadcn` flag is a no-op in v1; the component ships self-contained |
-| In React-driven mode, Tailwind classes are merged into JSX className strings by a regex that only handles `.foo` class selectors | Complex selectors (descendant, combinator) fall through to residual `<style jsx>` and still style correctly |
+| In React-driven mode, Tailwind classes are merged into JSX className strings by exact class-token matching that only handles `.foo` class selectors | Complex selectors (descendant, combinator) fall through to residual `<style jsx>` and still style correctly |
 | Brand-spec parsing is best-effort | If your `brand-spec.md` uses unusual section headings, edit `tailwind.theme.snippet.ts` by hand after generation |
 | The export is a one-shot script, not a watcher | Re-run after each HTML change |
 | Bidirectional sync (HTML to JSX to HTML) | Not supported. Re-running overwrites. The HTML is the source of truth |

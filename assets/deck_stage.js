@@ -36,7 +36,9 @@
  * Recording mode:
  *   set window.__recording = true BEFORE script loads.
  *   deck starts at slide 1, auto-advances per data-duration-sec on each section.
- *   sets window.__ready = true after first slide rendered.
+ *
+ * Page contract:
+ *   window.__ready flips true after the first slide renders, in every mode.
  *
  * External control:
  *   window.__deckStage = the component instance (next/prev/goTo, currentSlide, totalSlides).
@@ -61,6 +63,7 @@
       this._storageKey = STORAGE_PREFIX + (location.pathname || 'default');
       this._onKey = this._onKey.bind(this);
       this._onResize = this._onResize.bind(this);
+      this._onHash = this._handleHash.bind(this);
     }
 
     connectedCallback() {
@@ -80,6 +83,9 @@
         this._updateScale();
         this._render();
         this._setupPageContract();
+        // Page contract: __ready flips after the first slide paints,
+        // recording or not, so verify.py and capture harnesses can gate on it.
+        requestAnimationFrame(() => { window.__ready = true; });
         this._maybeStartRecording();
       };
 
@@ -93,6 +99,7 @@
     disconnectedCallback() {
       window.removeEventListener('keydown', this._onKey);
       window.removeEventListener('resize', this._onResize);
+      window.removeEventListener('hashchange', this._onHash);
     }
 
     // -- styles: injected to document.head so print rules and ::slotted-equivalent
@@ -134,25 +141,30 @@
           background: #111;
         }
 
-        /* Sections live in light DOM so html2pptx can read them.
-           Visibility toggled by .active class; .active uses flex to fill stage. */
+        /* Sections live in light DOM so html2pptx can read them. They parse
+           as direct children, then _collectSlides() moves them into
+           .deck-stage-frame, so working selectors go through the frame.
+           The bare child rule only hides the pre-init flash. */
         deck-stage > section {
+          display: none;
+        }
+        deck-stage .deck-stage-frame > section {
           width: 100%;
           height: 100%;
           box-sizing: border-box;
           overflow: hidden;
         }
-        deck-stage > section:not(.active) {
+        deck-stage .deck-stage-frame > section:not(.active) {
           display: none;
         }
-        deck-stage > section.active {
+        deck-stage .deck-stage-frame > section.active {
           display: flex;
           flex-direction: column;
         }
 
         /* speaker-notes hidden in deck view; surfaces in notes panel */
-        deck-stage > section .speaker-notes,
-        deck-stage > section aside.speaker-notes {
+        deck-stage section .speaker-notes,
+        deck-stage section aside.speaker-notes {
           display: none;
         }
 
@@ -222,7 +234,7 @@
           deck-stage .deck-notes-panel {
             display: none !important;
           }
-          deck-stage > section {
+          deck-stage .deck-stage-frame > section {
             display: block !important;
             width: ${this._width}px !important;
             height: ${this._height}px !important;
@@ -230,11 +242,11 @@
             break-after: page;
             overflow: hidden;
           }
-          deck-stage > section:last-child {
+          deck-stage .deck-stage-frame > section:last-child {
             page-break-after: auto;
           }
-          deck-stage > section .speaker-notes,
-          deck-stage > section aside.speaker-notes {
+          deck-stage section .speaker-notes,
+          deck-stage section aside.speaker-notes {
             display: none !important;
           }
         }
@@ -246,23 +258,29 @@
     _buildChrome() {
       this.setAttribute('theme', this._theme);
 
-      // Frame element wraps sections. We move existing children INTO it after parse.
-      this._frame = document.createElement('div');
-      this._frame.className = 'deck-stage-frame';
+      // Frame element wraps sections. We move existing children INTO it after
+      // parse. Reuse chrome on reconnect so slides aren't orphaned in a stale frame.
+      if (!this._frame) {
+        this._frame = document.createElement('div');
+        this._frame.className = 'deck-stage-frame';
+
+        this._counter = document.createElement('div');
+        this._counter.className = 'deck-counter';
+        this._counter.textContent = '1 / 1';
+
+        this._notesPanel = document.createElement('div');
+        this._notesPanel.className = 'deck-notes-panel';
+      }
       this._frame.style.width = this._width + 'px';
       this._frame.style.height = this._height + 'px';
-
-      this._counter = document.createElement('div');
-      this._counter.className = 'deck-counter';
-      this._counter.textContent = '1 / 1';
-
-      this._notesPanel = document.createElement('div');
-      this._notesPanel.className = 'deck-notes-panel';
     }
 
     _collectSlides() {
-      // Sections are direct children. Move them into the frame so transform applies.
-      const sections = Array.from(this.querySelectorAll(':scope > section'));
+      // Sections parse as direct children; on reconnect they already live in
+      // the frame. Match both, move them (back) into the frame so transform applies.
+      const sections = Array.from(
+        this.querySelectorAll(':scope > section, :scope > .deck-stage-frame > section')
+      );
       sections.forEach((s) => this._frame.appendChild(s));
       this.appendChild(this._frame);
       this.appendChild(this._counter);
@@ -284,7 +302,7 @@
     _bindEvents() {
       window.addEventListener('keydown', this._onKey);
       window.addEventListener('resize', this._onResize);
-      window.addEventListener('hashchange', () => this._handleHash());
+      window.addEventListener('hashchange', this._onHash);
       if (location.hash) this._handleHash();
 
       // Recompute scale once fonts settle (prevents first-frame jitter).
@@ -421,11 +439,8 @@
     _maybeStartRecording() {
       if (window.__recording !== true) return;
       this.goTo(0);
-      // Mark ready AFTER first frame renders so capture harness can begin.
-      requestAnimationFrame(() => {
-        window.__ready = true;
-        this._scheduleAdvance();
-      });
+      // Advance only after the first frame renders so capture starts clean.
+      requestAnimationFrame(() => this._scheduleAdvance());
     }
 
     _scheduleAdvance() {

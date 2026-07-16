@@ -32,7 +32,7 @@ Recipes are pure controller modules. Stage3D (`assets/stage3d.jsx`) owns the pag
 
 ## turntable
 
-**Builds**: a product group rotating at `rotationSpeed` rad/s. IBL from `hdriUrl` via `Sigillerie3D.helpers.loadHDRI`, procedural RoomEnvironment fallback. Three-point rig via `window.SigillerieLighting.applyCoolStudio` when loaded, inline key/fill/rim otherwise. Soft contact-shadow disc. Optional rim-light sweep that peaks when camera-facing. Postfx baseline via `assets/three3d/recipe-baseline.js`.
+**Builds**: a product group rotating at `rotationSpeed` rad/s. IBL from the zero-fetch procedural RoomEnvironment by default; pass `hdriUrl` to load an `.hdr` via `Sigillerie3D.helpers.loadHDRI` (RoomEnvironment remains the failure fallback). Three-point rig via `window.SigillerieLighting.applyCoolStudio` when loaded, inline key/fill/rim otherwise. Soft contact-shadow disc. Optional rim-light sweep that peaks when camera-facing. Postfx baseline via `assets/three3d/recipe-baseline.js`.
 
 **Opts** (all optional):
 
@@ -43,7 +43,7 @@ const ctrl = createTurntable(threeApi, {
   envIntensity: 1.0,      // scene.environmentIntensity
   groundShadow: true,     // soft contact-shadow disc
   highlightSweep: true,   // moving rim light
-  hdriUrl: 'assets/hdri/studio-soft.hdr',
+  hdriUrl: null,          // default: procedural RoomEnvironment IBL; set an .hdr URL to opt in
 });
 ```
 
@@ -51,7 +51,7 @@ const ctrl = createTurntable(threeApi, {
 
 There is no `duration` opt; the Sprite3D window sets length. The loop ties end-to-start only when `rotationSpeed * duration` is a multiple of `2 * Math.PI`, so pick the two together.
 
-**Gotcha**: the GLB load is fire-and-forget inside the recipe. When `modelUrl` is set, gate `__sceneReady` yourself. See `pitfalls.md` § 9.
+**Gotcha**: the GLB resolves async; `product` stays `null` until it lands. Stage3D holds `__sceneReady` until every load registered in `window.__sceneAssets.pending` settles, and `helpers.loadGLTF` registers automatically, so no page-level gating is needed. See `pitfalls.md` § 9.
 
 ## glass-material
 

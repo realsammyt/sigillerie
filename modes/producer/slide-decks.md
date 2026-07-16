@@ -196,22 +196,22 @@ Three legal placements:
 
 ### Single-file CSS trap (read this)
 
-The single most common bug: the `display` property on `<section>` gets overridden by per-slide CSS, all slides render simultaneously.
+Two common bugs. First: the component moves every `<section>` into an internal `.deck-stage-frame` div at init, so `deck-stage > section` selectors match nothing once the deck boots. Second: a `display` property set on `<section>` overrides the component's visibility toggle, all slides render simultaneously.
 
 Wrong:
 
 ```css
 deck-stage > section {
-  display: flex;        /* overrides ::slotted display:none, all slides stack */
+  display: flex;        /* dead selector post-init; and never set display here */
   padding: 80px;
 }
-.emotion-slide { display: grid; }  /* even worse, specificity 10 */
+.emotion-slide { display: grid; }  /* overrides the .active toggle, slides stack */
 ```
 
 Right (starter CSS, copy as-is):
 
 ```css
-deck-stage > section {
+deck-stage .deck-stage-frame > section {
   background: var(--paper);
   padding: 80px 120px;
   overflow: hidden;
@@ -219,19 +219,19 @@ deck-stage > section {
   /* never set display here */
 }
 
-deck-stage > section:not(.active) {
+deck-stage .deck-stage-frame > section:not(.active) {
   display: none !important;
 }
 
-deck-stage > section.active {
+deck-stage .deck-stage-frame > section.active {
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
 @media print {
-  deck-stage > section { display: flex !important; }
-  deck-stage > section:not(.active) { display: flex !important; }
+  deck-stage .deck-stage-frame > section { display: flex !important; }
+  deck-stage .deck-stage-frame > section:not(.active) { display: flex !important; }
 }
 ```
 
@@ -282,7 +282,7 @@ Notes guidance: full sentences not bullets, conversational not written, 200-400 
 
 **Multi-file: iframe blank.** Check MANIFEST `file` paths are relative to `index.html`. Inspect iframe `src` in DevTools.
 
-**Single-file: slides stack-render.** CSS specificity bug. Re-read the starter CSS section above.
+**Single-file: slides stack-render.** A `display` override on `.deck-stage-frame > section` beats the component's visibility toggle. Re-read the starter CSS section above. (Slides also stack if deck styles fail to load at all; check the `<script src>` path.)
 
 **Single-file: scale wrong.** Slides must be direct `<section>` children of `<deck-stage>`. No wrapper div in between.
 

@@ -57,7 +57,7 @@ Pure function of `t`. State derives from time, never from event accumulation. Sa
 
 ### `window.__duration`
 
-Scene length in seconds. Lets the recorder stop early without hitting a timeout. Optional but recommended; default fallback is 30 s.
+Scene length in seconds. Lets the recorder stop early without hitting a timeout. Optional but recommended; default fallback is 10 s. The recorder reads it after the ready gates, so setting it during async boot (before `__ready` / `__sceneReady`) is fine.
 
 ### `window.__audioCues`
 
@@ -68,7 +68,7 @@ Array of cues. Each: `{t: <seconds>, type: 'sfx' | 'bgm', file?: <path>, positio
 Tells the recorder which audio capture path to use:
 
 - `"static"`, only files referenced. `add-music.sh` mixes from disk.
-- `"tone"`, Tone.js synthesis at runtime. Needs `--mode=tone` capture, MediaStreamAudioDestinationNode → MediaRecorder OPUS → ffmpeg AAC remux.
+- `"tone"`, Tone.js synthesis at runtime. Needs `--mode=tone` capture (html capture with `--audio=tone` implied), MediaStreamAudioDestinationNode → MediaRecorder OPUS → ffmpeg AAC remux. Known limitation: in 3d mode (`--mode=3d --audio=tone`) audio records in wall-clock time while video runs on a virtual clock, so A/V sync holds only when capture keeps pace with real time; slow captures drift and cannot be repaired in post.
 - `"wam2"`, roadmap; WAM2 plugin host. Not in v1.
 
 Default `"static"`.

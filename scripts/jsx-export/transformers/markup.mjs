@@ -91,6 +91,16 @@ function escapeTextBraces(text) {
   return text.replace(/\{/g, "{'{'}").replace(/\}/g, "{'}'}");
 }
 
+// Serialize an attribute value for JSX. Cheerio entity-decodes values, so a
+// value containing a double quote would break attr="..."; emit the expression
+// form (JSON string literal) for those.
+function jsxAttrValue(value) {
+  if (value.includes('"')) {
+    return `{${JSON.stringify(value)}}`;
+  }
+  return `"${value}"`;
+}
+
 // Build a map of selector -> Set<className> for fast lookup.
 // We keep the raw selectorToClasses map and apply it via cheerio.
 function applyClassMerge($, selectorToClasses) {
@@ -135,7 +145,7 @@ function serializeToJsx($, node, depth = 0) {
   for (const [rawAttr, rawVal] of Object.entries(attribs)) {
     // aria-* and data-* pass through unchanged.
     if (rawAttr.startsWith('aria-') || rawAttr.startsWith('data-')) {
-      attrParts.push(`${rawAttr}="${rawVal}"`);
+      attrParts.push(`${rawAttr}=${jsxAttrValue(rawVal)}`);
       continue;
     }
 
@@ -161,7 +171,7 @@ function serializeToJsx($, node, depth = 0) {
       continue;
     }
 
-    attrParts.push(`${jsxAttr}="${rawVal}"`);
+    attrParts.push(`${jsxAttr}=${jsxAttrValue(rawVal)}`);
   }
 
   const attribsStr = attrParts.length ? ' ' + attrParts.join(' ') : '';

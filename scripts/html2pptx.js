@@ -96,6 +96,12 @@ async function translateSlideToPptx(page, pptxSlide, options = {}) {
   // rootBox.width pixels wide. So one pixel = (opts.width / rootBox.width) in.
   const pxToIn = opts.width / rootBox.width;
 
+  // Font/pt scale must follow the same geometry factor. A fixed 0.75 pt/px is
+  // only right when the root renders at 96 px per slide inch (e.g. 1280 px for
+  // 13.333 in). For a 1920 px root, one rendered px is pxToIn inches = 72*pxToIn
+  // pt, so we scale the browser-side pt conversion by this ratio (1.0 at 96dpi).
+  const fontScale = pxToIn * PX_PER_IN;
+
   // 3. Walk DOM in the page context. Returns a flat list of records, each
   // already containing computed styles, normalized colors, and the position
   // relative to the root. The page-context walk also collects validation
@@ -104,6 +110,7 @@ async function translateSlideToPptx(page, pptxSlide, options = {}) {
     rootSelector: opts.rootSelector,
     rootLeft: rootBox.left,
     rootTop: rootBox.top,
+    fontScale,
   });
 
   // 4. Translate records to pptxgenjs calls. This runs in Node, no DOM access.
@@ -145,8 +152,10 @@ async function translateSlideToPptx(page, pptxSlide, options = {}) {
  * Returns { records, errors }. Records are flat, parent-then-children order
  * gives correct DOM-order layering, which maps to z-index on a slide.
  */
-function walkDomFromBrowser({ rootSelector, rootLeft, rootTop }) {
-  const PT_PER_PX = 0.75;
+function walkDomFromBrowser({ rootSelector, rootLeft, rootTop, fontScale }) {
+  // 0.75 pt per rendered px at the reference 96 px/in, scaled by the same
+  // geometry factor the caller uses for positions (see translateSlideToPptx).
+  const PT_PER_PX = 0.75 * (fontScale || 1);
   const SINGLE_WEIGHT_FONTS = ['impact'];
 
   const root = document.querySelector(rootSelector) || document.body;
@@ -249,7 +258,7 @@ function walkDomFromBrowser({ rootSelector, rootLeft, rootTop }) {
     return {
       type: 'outer',
       angle: Math.round(angle),
-      blur: blur * 0.75,
+      blur: blur * PT_PER_PX,
       color: colorMatch ? rgbToHex(colorMatch[0]) : '000000',
       offset,
       opacity,

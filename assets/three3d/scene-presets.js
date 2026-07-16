@@ -22,7 +22,7 @@
  *
  *   window.SigillerieMaterials   six factory funcs (createGlassClear ...)
  *   window.SigillerieLighting    six controllers (applyCoolStudio ...)
- *   window.SigillerieEffects     post helpers (applyBloom, applyDOF ...)
+ *   window.SigillerieEffects     post helpers (applyBloom, applyVignette ...)
  *
  * If any dependency is missing, the preset logs a warning and falls back
  * to a basic three-point + standard material + no post pipeline. Never
@@ -32,7 +32,6 @@
  *
  *   // inside a Stage3D onReady callback:
  *   const kit = window.SigilleriePresets.applyHeroStudio(threeApi, {
- *     focus: 5.0,
  *     attachDraw: true,
  *   });
  *
@@ -78,8 +77,8 @@ function pickEffects() {
   if (typeof window === 'undefined') return null;
   // Two possible mount points. The new SigillerieEffects namespace, or the
   // pre-existing Sigillerie3D.effects that ships with tsl-effects.js. Both
-  // expose applyBloom / applyDOF / applyVignette with the same shape, so
-  // we can wire either as a same source.
+  // expose applyBloom / applyVignette / addChromaticAberration /
+  // addFilmGrain with the same shape, so we can wire either as a same source.
   return (
     window.SigillerieEffects ||
     (window.Sigillerie3D && window.Sigillerie3D.effects) ||
@@ -197,11 +196,12 @@ function materialFactory(name, opts) {
 
 // ---- Postprocessing resolver ----------------------------------------------
 
-// Build a post pipeline by chaining named effect calls. Every effect lib
-// is expected to expose applyBloom / applyDOF / applyVignette and v2 will
-// add applyChromatic / applyGrain. Missing effects are silently skipped
-// (with a one-shot warn) so a deck that only has bloom available still
-// gets a usable render path.
+// Build a post pipeline by chaining named effect calls. The effects lib
+// (assets/tsl-effects.js, mounted at Sigillerie3D.effects) exposes
+// applyBloom (composer factory), applyVignette (tail splice), and
+// addChromaticAberration / addFilmGrain (append passes). Missing effects
+// are silently skipped so a deck that only has bloom available still gets
+// a usable render path.
 //
 // Returns { composer, draw, dispose }.
 function buildPost(threeApi, recipe) {
@@ -215,8 +215,8 @@ function buildPost(threeApi, recipe) {
   }
 
   // Initialize composer with bloom (or any first pass that creates one).
-  // The tsl-effects.js applyBloom returns the composer; later passes (DOF,
-  // vignette etc.) splice into it.
+  // The tsl-effects.js applyBloom returns a composer that already ends in
+  // an OutputPass; later passes splice in before it.
   let composer = null;
   const passes = [];
 
@@ -230,40 +230,30 @@ function buildPost(threeApi, recipe) {
     passes.push('bloom');
   }
 
-  // DOF requires its own composer chain in the existing tsl-effects.js,
-  // but newer SigillerieEffects.applyDOF should work on an existing
-  // composer. caveman: try composer-extending first, then fall back to a
-  // fresh DOF composer if no bloom was requested.
-  if (recipe.dof && typeof fx.applyDOF === 'function') {
-    if (!composer) {
-      composer = fx.applyDOF(
-        threeApi.renderer,
-        threeApi.scene,
-        threeApi.camera,
-        recipe.dof
-      );
-      passes.push('dof');
-    } else if (typeof fx.attachDOF === 'function') {
-      // hypothetical attach API for v2 effects lib
-      fx.attachDOF(composer, threeApi.scene, threeApi.camera, recipe.dof);
-      passes.push('dof');
+  // Splice an addXxx(composer, opts) pass in BEFORE the trailing OutputPass
+  // that applyBloom mounted, so output color conversion still runs last.
+  function addBeforeOutput(addFn, opts) {
+    const before = composer.passes.length;
+    addFn(composer, opts);
+    if (composer.passes.length === before + 1 && before >= 1) {
+      const added = composer.passes.pop();
+      composer.passes.splice(composer.passes.length - 1, 0, added);
     }
-    // if neither path fits, skip DOF rather than thrash composers.
+  }
+
+  if (recipe.chromatic && typeof fx.addChromaticAberration === 'function' && composer) {
+    addBeforeOutput(fx.addChromaticAberration, recipe.chromatic);
+    passes.push('chromatic');
+  }
+
+  if (recipe.grain && typeof fx.addFilmGrain === 'function' && composer) {
+    addBeforeOutput(fx.addFilmGrain, recipe.grain);
+    passes.push('grain');
   }
 
   if (recipe.vignette && typeof fx.applyVignette === 'function' && composer) {
     fx.applyVignette(composer, recipe.vignette);
     passes.push('vignette');
-  }
-
-  if (recipe.chromatic && typeof fx.applyChromatic === 'function' && composer) {
-    fx.applyChromatic(composer, recipe.chromatic);
-    passes.push('chromatic');
-  }
-
-  if (recipe.grain && typeof fx.applyGrain === 'function' && composer) {
-    fx.applyGrain(composer, recipe.grain);
-    passes.push('grain');
   }
 
   // No composer means no effects matched; ship the fallback path.
@@ -308,11 +298,31 @@ function setupCamera(threeApi, cfg) {
   cam.lookAt(target);
 
   // Idle drift. cfg.drift is a string tag: 'slight' | 'orbit' | 'tilt' | null.
-  const basePos = cam.position.clone();
   const driftKind = cfg.drift || null;
+
+  // basePos and the drift look-target are captured lazily on the FIRST
+  // drift() call, not at preset install. A consumer (e.g. a demo's
+  // per-layout camera override) can reposition the camera after the preset
+  // installs; the first per-frame drift tick rebases on whatever pose the
+  // camera has then, so drift sways around the override instead of
+  // silently resetting it every frame.
+  let basePos = null;
+
+  function rebase() {
+    basePos = cam.position.clone();
+    // Re-derive the look target from the camera's current orientation so a
+    // post-install lookAt override is honored too. Distance reuses the
+    // configured target's range as a sane scale; any point along the
+    // current forward ray produces the same orientation.
+    const dir = new THREE.Vector3();
+    cam.getWorldDirection(dir);
+    const dist = Math.max(0.001, basePos.distanceTo(target));
+    target.copy(basePos).addScaledVector(dir, dist);
+  }
 
   function drift(t) {
     if (!driftKind) return;
+    if (!basePos) rebase();
     if (driftKind === 'slight') {
       // 0.1deg sway over an 8-second cycle. just enough to feel alive.
       const a = Math.sin(t * 0.25) * 0.0017;
@@ -373,7 +383,7 @@ function assembleKit(threeApi, parts, opts) {
 //   5. assembleKit (bg, attachDraw, return shape)
 
 /**
- * Cool studio + glass-clear + heavy bloom + DOF.
+ * Cool studio + glass-clear + heavy bloom.
  * Product launch hero. The "default expensive" look.
  */
 export function applyHeroStudio(threeApi, opts = {}) {
@@ -384,10 +394,8 @@ export function applyHeroStudio(threeApi, opts = {}) {
   const cameraCfg = { fov: 35, pos: [0, 0.4, 5], target: [0, 0, 0], drift: 'slight' };
   const camDrift = setupCamera(threeApi, cameraCfg);
 
-  const focusDist = typeof opts.focus === 'number' ? opts.focus : 5.0;
   const post = buildPost(threeApi, {
     bloom: { strength: 0.6, radius: 0.6, threshold: 0.85 },
-    dof: { focus: focusDist, aperture: 0.0002, maxblur: 0.012 },
     vignette: { offset: 1.0, darkness: 0.4 },
   });
 

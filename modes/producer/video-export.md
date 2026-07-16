@@ -1,6 +1,6 @@
 ---
 name: video-export
-description: HTML to MP4/GIF export pipeline (--mode=html). Playwright recordVideo at 30fps default, NVENC GPU encode auto-detected, SSAA via deviceScaleFactor for crisp text, resolution presets (4K, vertical, square), GIF + BGM. 3D mode covered in modes/three3d/page-contract.md.
+description: HTML to MP4/GIF export pipeline (--mode=html). Playwright recordVideo capture (25fps internal) encoded to target fps (default 30), NVENC GPU encode auto-detected, SSAA via deviceScaleFactor for crisp text, resolution presets (4K, vertical, square), GIF + BGM. 3D mode covered in modes/three3d/page-contract.md.
 ---
 
 # Video Export (HTML mode)
@@ -67,8 +67,8 @@ node scripts/render-video.js <html-file> [flags]
 | `--vertical` |  | 1080 × 1920 (Reels / TikTok / Shorts) |
 | `--square` |  | 1080 × 1080 (Instagram feed) |
 | **Frame rate** | | |
-| `--fps=<n>` | 30 | output fps |
-| `--base-fps=<n>` | 30 | capture fps |
+| `--fps=<n>` | 30 | output fps (encode conforms the 25fps capture to this) |
+| `--base-fps=<n>` | 30 | interp baseline; 3d mode captures at this rate. HTML capture is 25fps internally regardless |
 | `--60fps` |  | shorthand for `--fps=60` (engages minterpolate) |
 | `--no-interp` | off | force skip minterpolate, output at base-fps |
 | **Quality** | | |
@@ -104,7 +104,7 @@ node scripts/render-video.js page.html --vertical --duration=12
 node scripts/render-video.js page.html --no-gpu --cpu-encode --ssaa=1
 ```
 
-**Why these defaults**: 30/30 matches Playwright's native capture rate, skipping minterpolate when fps_out === fps_base. SSAA 2x makes text and edges crisp without doubling encode time on Titan-class GPUs. NVENC auto-detect saves ~5-10× encode time when available. All overridable.
+**Why these defaults**: Playwright records at 25fps internally; the encode step conforms output to the requested fps (default 30) with an fps filter, and minterpolate only engages for 60fps requests. SSAA 2x makes text and edges crisp without doubling encode time on Titan-class GPUs. NVENC auto-detect saves ~5-10× encode time when available. All overridable.
 
 Output: `<name>.mp4` next to the source HTML (or wherever `--output` points).
 
@@ -158,7 +158,8 @@ Sidecar format:
 ```
 
 Behavior:
-- BGM trimmed to video duration, 0.3s fade-in, 1.5s fade-out
+- BGM silence-padded when shorter than the video, trimmed to video duration, 0.3s fade-in, 1.5s fade-out. Output always spans the full video length; a >0.5s duration drift is a hard error.
+- An audio track already in the input MP4 (e.g. an `--audio=tone` capture) is detected and mixed in as a foreground layer alongside SFX, not discarded. `--duck-bgm` ducks the BGM under it too.
 - Band isolation: BGM lowpass 2 kHz, SFX highpass 1 kHz (numbers explained in `audio-design-rules.md`)
 - Video stream `-c:v copy` (no re-encode), audio AAC 192k
 - Missing cue files skip with a warning, they do not abort the mix
@@ -169,8 +170,8 @@ A mood-keyed BGM library (`--mood=tech` and friends) is planned, not shipped. No
 
 For pages that synthesize SFX at runtime (Web Audio, Tone.js, generative drones), do not bake SFX into BGM. Two-track approach:
 
-1. Capture runtime SFX with `--audio=tone` during `render-video.js` (writes a separate OPUS track alongside the silent MP4)
-2. Mix BGM + SFX in one `add-music.sh` pass: `--bgm=` for the bed, `--sfx-cues=` for the hits, `--duck-bgm` for sidechain ducking. Band isolation and duck parameters are built into the script; no hand-rolled `amix` needed.
+1. Capture runtime SFX with `--audio=tone` during `render-video.js`. The capture is muxed into the MP4 as an AAC track (the temporary OPUS webm is deleted); no separate audio file is written.
+2. Mix in one `add-music.sh` pass: the script detects the audio track already in the input MP4 and mixes it as a foreground layer, same as SFX. Add `--bgm=` for the bed, `--sfx-cues=` for file-based hits, `--duck-bgm` to sidechain-duck the bed under both. Band isolation and duck parameters are built into the script; no hand-rolled `amix` needed.
 
 The why behind the mix numbers lives in `modes/producer/audio-design-rules.md`. Capture mechanics: `capabilities/generative-audio/capture-pipeline.md` (stub today).
 
@@ -199,7 +200,7 @@ bash "$SKILL/scripts/add-music.sh" my-anim-60fps.mp4 --bgm=path/to/bed.mp3
 
 ### Playwright `recordVideo` quirks
 
-- Capture runs at `--base-fps`, default 30. You cannot record native 60fps from Playwright; 60fps comes from post interpolation.
+- Playwright's `recordVideo` captures at 25fps internally, whatever you ask for. The encode step conforms output to the target fps (default 30) with an fps filter; 60fps comes from minterpolate in post. You cannot record native 60fps from Playwright.
 - Recording starts at context creation, before navigation. The first 1-2 seconds are reload + font load. `render-video.js` waits for `window.__ready`, then trims that warmup head automatically with ffmpeg `-ss` (no flag needed).
 - Output is webm by default. Transcode to H.264 MP4 for universal playback. `render-video.js` does this.
 
