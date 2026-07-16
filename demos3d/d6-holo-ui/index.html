@@ -197,6 +197,19 @@ function buildScene(threeApi, group) {
   const panelSpecs = computePanelSpecs(layout);
   const grid = adaptive.gridForLayout(layout, panelSpecs.length);
 
+  // Per-aspect x spread applied on top of the shared grid. The shared arc
+  // packs 4 panels into ~5.3 units of x while the wide hero alone spans ~4
+  // units, so both neighbors land inside the hero's x-range and vanish
+  // behind it once the depth ladder pulls the hero forward. Spreading the
+  // wings outward gives every panel its own projected screen slot. Budgets
+  // were checked against the wide camera (fov 46, z 8.0: half-width ~6.0
+  // world units at panel depth) and the ultrawide camera (fov 42, z 10.0:
+  // half-width ~9.2), including panel yaw and the 0.06 breathing radius.
+  const X_SPREAD = {
+    wide:      { caps: -1.83, subtitle: -1.82, title: -0.28, status: 1.48 },
+    ultrawide: { caps: -2.90, subtitle: -2.10, title: -0.30, status: 2.10 },
+  };
+
   const panels = [];
   for (let i = 0; i < panelSpecs.length; i += 1) {
     const spec = panelSpecs[i];
@@ -237,8 +250,10 @@ function buildScene(threeApi, group) {
         depthWrite: false,
       });
       const stripe = new THREE.Mesh(stripeGeo, stripeMat);
-      // sit just inside the top edge, very slightly forward.
-      stripe.position.set(0, spec.height * 0.5 - 0.05, 0.012);
+      // Hug the top edge (0.015 inset). The old 0.05 inset landed inside
+      // the eyebrow text band and read as a strikethrough over
+      // 'STUDIO / 2026' in every aspect.
+      stripe.position.set(0, spec.height * 0.5 - 0.015, 0.012);
       panel.root.add(stripe);
     }
 
@@ -261,16 +276,14 @@ function buildScene(threeApi, group) {
 
     // Hero+overlay depth ladder: pull hero z forward by 0.8 units in wide
     // and ultrawide. The arc geometry puts theta=0 panels DEEPER (z negative)
-    // than theta=edge panels, which inverts focal depth — hero ends up behind
+    // than theta=edge panels, which inverts focal depth: hero ends up behind
     // caps + status. The "Stacked-z parallel" §10 anti-pattern fires because
     // depth doesn't read as a foreground/background separation. Pulling hero
     // forward restores the hierarchy: hero pops, supporting panels recede.
-    // Subtitle recedes furthest (-0.5) so it stops competing in x-overlap
-    // with the wide hero. Caps + status recede -0.2 to widen the ladder.
-    // Caps + status x is nudged inward 0.30 in wide so the rightmost panel
-    // fits inside the 16:9 frame at vfov 34 (right edge previously clipped).
-    // Portrait + square already have hero depth via their own z-stagger so
-    // they don't need this adjustment.
+    // Subtitle recedes furthest (-0.5), caps + status recede -0.2 to widen
+    // the ladder. X_SPREAD (above) then pushes the wings outward so nothing
+    // hides behind the forward hero. Portrait + square already have hero
+    // depth via their own z-stagger so they need neither adjustment.
     let posZ = xform.position[2];
     let posX = xform.position[0];
     if (spec.role === 'title' && (layout === 'wide' || layout === 'ultrawide')) {
@@ -282,9 +295,8 @@ function buildScene(threeApi, group) {
     if (spec.role === 'subtitle' && (layout === 'wide' || layout === 'ultrawide')) {
       posZ = xform.position[2] - 0.5;
     }
-    if (layout === 'wide') {
-      if (spec.role === 'caps')   posX = xform.position[0] + 0.30;
-      if (spec.role === 'status') posX = xform.position[0] - 0.30;
+    if (X_SPREAD[layout] && X_SPREAD[layout][spec.role] != null) {
+      posX = xform.position[0] + X_SPREAD[layout][spec.role];
     }
 
     panel.root.position.set(posX, xform.position[1], posZ);
@@ -300,47 +312,82 @@ function buildScene(threeApi, group) {
   }
   group.userData.panels = panels;
 
-  // 6. Hero accent: a thin warm-emissive torus inside the hero panel,
-  //    pinned to the right side so it reads as ornament behind the title
-  //    text without colliding with neighboring panels. Sized smaller in
-  //    square/portrait where the hero panel is itself smaller. Ring + halo
-  //    opacity was dropped from 0.95/0.14 to 0.35/0.06 so the additive
-  //    blending doesn't drown the title text under bloom. The "if (false
-  //    && ..." gate was a diagnostic that proved the empty hero was a yoga
-  //    measurement issue (panel width too small for SIGILLERIE), not the
-  //    ring obscuring text. Fix lives in computePanelSpecs width bumps.
-  const heroIdx = panelSpecs.findIndex((s) => s.role === 'title');
-  if (heroIdx >= 0 && grid[heroIdx]) {
-    const hp = grid[heroIdx].position;
-    const heroSpec = panelSpecs[heroIdx];
+  // 6. Hero object: a torus ring reading BEHIND the title panel as the
+  //    depth anchor (aesthetic.md hero+overlay rule). The old sliver ring
+  //    was placed from the RAW grid position, so once the depth ladder
+  //    moved the hero panel it sat fully occluded behind the opaque hero
+  //    surface at opacity 0.15, invisible at every aspect. Now it anchors
+  //    to the panel's ADJUSTED position, is sized LARGER than the panel so
+  //    its arc stays visible around the panel edges, and gets a real lit
+  //    body: frosted glass from the shared material lib (the same factory
+  //    family the spatial-vitrine preset uses) so the warm-sunset key +
+  //    coral rim + env map shade it like an object, not a flat sprite.
+  //    A thin additive rim rides the outer edge for the bloom highlight.
+  const heroPanel = panels.find((p) => p.root.userData.role === 'title');
+  const heroSpec = panelSpecs.find((s) => s.role === 'title');
+  if (heroPanel && heroSpec) {
+    const hb = heroPanel.root.userData.basePos;
     const heroW = heroSpec.width * heroSpec.scaleHint;
     const heroH = heroSpec.height * heroSpec.scaleHint;
-    // Ring radius scales with panel height; lives 28% in from right edge.
-    const ringRadius = Math.min(0.42, heroH * 0.30);
-    const ringX = hp[0] + heroW * 0.30;
-    const ringY = hp[1];
-    const ringZ = hp[2] - 0.05;
+    const wideish = (layout === 'wide' || layout === 'ultrawide');
+    // Wide layouts have lateral room: big ring, offset toward the panel's
+    // right third. Square/portrait stack tighter: smaller ring, gentler
+    // offset, so the arc peeks around the hero without invading neighbors.
+    const ringRadius = heroH * (wideish ? 0.82 : 0.62);
+    const ringX = hb[0] + heroW * (wideish ? 0.26 : 0.20);
+    const ringY = hb[1] - heroH * 0.05;
+    const ringZ = hb[2] - 0.55;
 
-    // Per critique-2026-05-16 ornament-tax + AI-orb + Default torus hits:
-    // the inner-ring + halo + opacity-0.35 outer ring trio survived the
-    // deletion test (the demo communicates brand without it) and tripped
-    // three named anti-patterns. Dropped inner-ring + halo entirely.
-    // Outer ring kept at opacity 0.15 as a single subtle accent rather
-    // than a focal-competing emissive cluster.
-    const ringGeo = new THREE.TorusGeometry(ringRadius, 0.007, 16, 96);
-    const ringMat = new THREE.MeshBasicMaterial({
+    const ringGroup = new THREE.Group();
+    ringGroup.position.set(ringX, ringY, ringZ);
+    ringGroup.rotation.x = 0.10;
+    ringGroup.rotation.y = -0.18;
+    ringGroup.userData.basePos = [ringX, ringY, ringZ];
+
+    let bodyMat = null;
+    if (window.SigillerieMaterials && window.SigillerieMaterials.createGlassFrosted) {
+      bodyMat = window.SigillerieMaterials.createGlassFrosted(THREE, { tint: '#E8A76A' });
+      // Instance tuning: the factory's white base + envMapIntensity 1.0
+      // under the RoomEnvironment renders a thin tube near-white, which
+      // trips the bloom threshold (0.72) and reads as a solar eclipse.
+      // Darken the base and pull the env response down so the body sits
+      // under the threshold and only the key-lit rim catches the glow.
+      bodyMat.color = new THREE.Color(0x8a6a4c);
+      bodyMat.envMapIntensity = 0.3;
+    } else {
+      bodyMat = new THREE.MeshStandardMaterial({
+        color: 0x8a6a4c, roughness: 0.35, metalness: 0.2,
+      });
+    }
+    const bodyGeo = new THREE.TorusGeometry(ringRadius, 0.045, 24, 128);
+    ringGroup.add(new THREE.Mesh(bodyGeo, bodyMat));
+
+    // Rim accent kept deliberately dim (0.26) so it reads as edge light,
+    // not as an AI-orb focal competitor (critique-2026-05-16).
+    const rimGeo = new THREE.TorusGeometry(ringRadius + 0.05, 0.006, 12, 128);
+    const rimMat = new THREE.MeshBasicMaterial({
       color: 0xffb37a,
       transparent: true,
-      opacity: 0.15,
+      opacity: 0.26,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.position.set(ringX, ringY, ringZ);
-    ring.userData.basePos = [ringX, ringY, ringZ];
-    ring.rotation.x = 0.04;
-    group.add(ring);
-    group.userData.heroRing = ring;
+    const rim = new THREE.Mesh(rimGeo, rimMat);
+    ringGroup.add(rim);
+
+    group.add(ringGroup);
+    group.userData.heroRing = ringGroup;
+    group.userData.heroRim = rim;
+
+    // Key glow: one warm point light floating between camera and the hero
+    // zone. Lifts the ring body + title area out of the flat starfield.
+    // Augments the preset rig without touching it. Intensity stays low:
+    // at 18 the glass torus blew past the bloom threshold and read as a
+    // solar eclipse that drowned the title.
+    const glow = new THREE.PointLight(0xffb37a, 2.8, 9, 2);
+    glow.position.set(hb[0] + 0.3, hb[1] + 0.6, hb[2] + 1.8);
+    group.add(glow);
+    group.userData.heroGlow = glow;
   }
 
   // 7. Backdrop gradient sphere. Inverted normals so we render the inside.
@@ -465,9 +512,12 @@ function computePanelSpecs(layout) {
   // it renders as a fallback question mark. Using a forward slash with
   // surrounding spaces instead.
   const titleChildren = [
+    // letterSpacing 6 -> 4: at 6 the eyebrow wrapped to two lines inside
+    // the narrower square/portrait hero (content width ~176px) and the
+    // second line collided with the accent stripe.
     { type: 'text', text: 'STUDIO  /  2026',
       fontSize: 12, color: labelColor,
-      textAlign: 'left', letterSpacing: 6, marginBottom: 14 },
+      textAlign: 'left', letterSpacing: 4, marginBottom: 14 },
     { type: 'text', text: 'SIGILLERIE',
       fontSize: 44, color: titleColor, fontWeight: 'bold',
       textAlign: 'left', letterSpacing: 0 },
@@ -482,9 +532,12 @@ function computePanelSpecs(layout) {
   // 'wide / square / portrait / ultrawide' overflowed at fontSize 12 in narrow
   // aspects and tripped uikit's yoga measurement (same bug as PR #26 caps).
   // Two lines (label + tagline) is enough to communicate the adaptive idea.
+  // 'ADAPTIVE 3D' fontSize 24 -> 20 + letterSpacing 3 -> 2 so the label
+  // fits one line in every layout's subtitle panel; at 24/3 it wrapped to
+  // 'ADAPTIVE' / '3D' in all four aspects.
   const subtitleChildren = [
     { type: 'text', text: 'ADAPTIVE 3D',
-      fontSize: 24, color: supportColor, fontWeight: 'bold', letterSpacing: 3 },
+      fontSize: 20, color: supportColor, fontWeight: 'bold', letterSpacing: 2 },
     { type: 'text', text: 'one scene, four shapes',
       fontSize: 15, color: mutedColor, marginTop: 10 },
   ];
@@ -554,8 +607,11 @@ function computePanelSpecs(layout) {
     // Caps + status height bumped 1.25 -> 1.55 so the 5 children fit without
     // overflow (yoga drops all children when overflow exceeds a threshold,
     // observed as empty caps panel).
+    // Title height 1.5 -> 1.75: the 4-line hero content (~1.7 units with
+    // the wrapped studio line) overflowed the panel and pushed the eyebrow
+    // past the top edge into the accent stripe.
     return [
-      { role: 'title',    width: 2.4, height: 1.5,  bg: surfaceHero, padding: 32, scaleHint: 1.00, children: titleChildren },
+      { role: 'title',    width: 2.4, height: 1.75, bg: surfaceHero, padding: 32, scaleHint: 1.00, children: titleChildren },
       { role: 'subtitle', width: 2.2, height: 1.0,  bg: surfaceSupp, padding: 24, scaleHint: 0.85, children: subtitleChildren },
       { role: 'caps',     width: 2.0, height: 1.55, bg: surfaceCtx,  padding: 22, scaleHint: 0.75, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: capsChildren },
       { role: 'status',   width: 2.0, height: 1.55, bg: surfaceCtx,  padding: 22, scaleHint: 0.70, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: statusChildren },
@@ -571,8 +627,8 @@ function computePanelSpecs(layout) {
     // (consistent with PR #29 square fix).
     return [
       { role: 'caps',     width: 2.1, height: 1.65, bg: surfaceCtx,  padding: 32, scaleHint: 0.85, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: capsChildren },
-      { role: 'subtitle', width: 2.0, height: 1.20, bg: surfaceSupp, padding: 32, scaleHint: 0.95, children: subtitleChildren },
-      { role: 'title',    width: 3.6, height: 1.55, bg: surfaceHero, padding: 38, scaleHint: 1.15, children: titleChildren },
+      { role: 'subtitle', width: 2.2, height: 1.20, bg: surfaceSupp, padding: 26, scaleHint: 0.95, children: subtitleChildren },
+      { role: 'title',    width: 3.6, height: 1.70, bg: surfaceHero, padding: 38, scaleHint: 1.15, children: titleChildren },
       { role: 'status',   width: 2.1, height: 1.65, bg: surfaceCtx,  padding: 32, scaleHint: 0.85, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: statusChildren },
     ];
   }
@@ -581,8 +637,9 @@ function computePanelSpecs(layout) {
     // 2x2 grid. hero in top-left (slot 0 sits forward). subtitle top-right,
     // caps bottom-left, status bottom-right. Caps + status width 1.9 -> 2.1
     // so 'Discovery Mode' / 'Producer Mode' fit on one line at fontSize 20.
+    // Title height 1.45 -> 1.75: same eyebrow-overflow fix as portrait.
     return [
-      { role: 'title',    width: 2.4, height: 1.45, bg: surfaceHero, padding: 32, scaleHint: 0.92, children: titleChildren },
+      { role: 'title',    width: 2.4, height: 1.75, bg: surfaceHero, padding: 32, scaleHint: 0.92, children: titleChildren },
       { role: 'subtitle', width: 2.2, height: 1.40, bg: surfaceSupp, padding: 26, scaleHint: 0.82, children: subtitleChildren },
       { role: 'caps',     width: 2.1, height: 1.55, bg: surfaceCtx,  padding: 24, scaleHint: 0.78, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: capsChildren },
       { role: 'status',   width: 2.1, height: 1.55, bg: surfaceCtx,  padding: 24, scaleHint: 0.78, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: statusChildren },
@@ -600,8 +657,8 @@ function computePanelSpecs(layout) {
   // depth ladder) so the smaller panel also sits clearly farther back.
   return [
     { role: 'caps',     width: 2.1, height: 1.65, bg: surfaceCtx,  padding: 30, scaleHint: 0.78, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: capsChildren },
-    { role: 'subtitle', width: 2.0, height: 1.20, bg: surfaceSupp, padding: 30, scaleHint: 0.72, children: subtitleChildren },
-    { role: 'title',    width: 3.6, height: 1.55, bg: surfaceHero, padding: 38, scaleHint: 1.12, children: titleChildren },
+    { role: 'subtitle', width: 2.2, height: 1.20, bg: surfaceSupp, padding: 26, scaleHint: 0.72, children: subtitleChildren },
+    { role: 'title',    width: 3.6, height: 1.70, bg: surfaceHero, padding: 38, scaleHint: 1.12, children: titleChildren },
     { role: 'status',   width: 2.1, height: 1.65, bg: surfaceCtx,  padding: 30, scaleHint: 0.78, borderColor: ctxBorderColor, borderWidth: ctxBorderWidth, children: statusChildren },
   ];
 }
@@ -706,24 +763,21 @@ function tickScene(threeApi, group, t) {
     }
   }
 
-  // 2. Hero ring + halo: slow rotation + breath. The ring's emissive bloom
-  //    is the focal anchor (aesthetic §1, §4). Rotation is slow enough to
-  //    read as alive, not animated.
+  // 2. Hero ring: slow rotation + breath on the group (glass body + rim
+  //    together). Rotation is slow enough to read as alive, not animated.
   const heroRing = group.userData.heroRing;
   if (heroRing && heroRing.userData.basePos) {
     const bp = heroRing.userData.basePos;
     heroRing.rotation.z = t * 0.06;
     heroRing.position.y = bp[1] + Math.sin(t * 0.4) * 0.03;
-    // gentle pulse on opacity so the bloom breathes.
-    // Baseline 0.15 (matches creation opacity) + small pulse amplitude.
-    // Previously 0.78 + 0.10 amplitude which negated the static 0.35 dim
-    // from PR #28 and made the ring read as a focal element again.
-    if (heroRing.material) {
-      heroRing.material.opacity = 0.15 + Math.sin(t * 0.5) * 0.04;
-    }
   }
-  // heroHalo + heroInner dropped per critique-2026-05-16. No per-frame
-  // update needed.
+  // gentle pulse on the additive rim so the bloom breathes. Baseline 0.26
+  // matches creation opacity; amplitude stays small so the rim never
+  // competes with the title for focus.
+  const heroRim = group.userData.heroRim;
+  if (heroRim && heroRim.material) {
+    heroRim.material.opacity = 0.26 + Math.sin(t * 0.5) * 0.05;
+  }
 
   // 3. Camera drift, preset-driven. Only when not recording AND user is not
   //    actively dragging. OrbitControls.update() handles damping when present.
