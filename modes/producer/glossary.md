@@ -49,7 +49,7 @@ This file locks the canonical English term for every recurring Chinese, loanword
 | Variations grid | variations grid | The side-by-side canvas showing variations. |
 | Discovery brief | discovery brief | Output of Discovery mode. |
 | Producer pass | Producer pass | A Sigillerie production cycle. |
-| 5-axis critique | 5-axis critique | philosophy alignment, visual hierarchy, craft quality, functionality, originality. |
+| 5-axis critique | 5-axis critique | philosophical coherence, visual hierarchy, execution, functionality, innovation. Axis names per `critique-guide.md`. |
 | Quick Wins | Quick Wins | The top 3 fixes a critique surfaces. |
 
 ## Render-pipeline terms
@@ -67,7 +67,7 @@ This file locks the canonical English term for every recurring Chinese, loanword
 | audio runtime | audio runtime | The Tone.js-based player a Sigillerie page boots. |
 | warmup context | warmup context | First Playwright context, throwaway. |
 | record context | record context | Second Playwright context, the one that writes WebM. |
-| chrome elements | chrome elements | Player UI hidden during record. Marked `.no-record`. |
+| chrome elements | chrome elements | Player UI hidden during record. Page gates chrome on `window.__recording` (no `.no-record` auto-hide is shipped). |
 | __ready signal | `window.__ready` | Monospace. Set in tick first frame. |
 | __recording signal | `window.__recording` | Monospace. Forces loop=false. |
 
@@ -86,7 +86,7 @@ Capabilities (proper nouns, capitalized):
 | Term | Canonical EN | Notes |
 |---|---|---|
 | Hi-Fi Base | Hi-Fi Base | Hyphen, both words capitalized. Default capability. |
-| Data Viz | Data Viz | Two words, both capitalized. Not "DataViz", not "data visualization". |
+| Data Viz | Data Viz | Two words, both capitalized. Short form. Formal long form "Data Visualization" (SKILL.md capability table). Never "DataViz". |
 | Knowledge Graph | Knowledge Graph | Both capitalized when naming the capability. |
 | Generative Audio | Generative Audio | Both capitalized. |
 

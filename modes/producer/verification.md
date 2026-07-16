@@ -7,7 +7,7 @@ description: Playwright-based validation patterns before delivery. Page contract
 
 Last pass before delivery. Open the HTML in Playwright, assert the page contract, screenshot, log console errors. No agent ships without a human glancing at the actual output.
 
-The harness gate `scripts/run-gates.mjs --gate=run` calls into this logic. This doc is the runtime contract producers must hit. The gate is the automation that fails the build when they don't.
+The live automation is `python scripts/verify.py <deliverable.html>` (also `npm run verify -- <file>`). It asserts the page contract, fails on console errors and pageerrors, checks network 4xx/5xx and image/font loads, and writes a screenshot via `--screenshot=<path>`. Add `--3d` or `--audio` for those contracts. This doc is the runtime contract producers must hit. Note: `scripts/run-gates.mjs` is a Phase 11 stub that always exits 0; it verifies nothing today.
 
 ## Why this exists
 
@@ -53,17 +53,21 @@ if (window.__recording) {
 For 3D scenes, expose a frame-stepper so the recorder can drive time deterministically instead of relying on rAF wallclock:
 
 ```js
-window.__renderFrame = (t) => { /* render at time t in seconds */ }
+window.__renderFrame = (t_ms) => { /* render at time t_ms, MILLISECONDS */ }
 window.__sceneReady === true  // after GLTF / textures / shaders compile
 ```
 
-If the deliverable produces audio that the capture path needs to intercept:
+`__renderFrame` takes milliseconds. A page that treats the argument as seconds animates 1000x too fast under capture. Full contract: `modes/three3d/page-contract.md`.
+
+If the deliverable synthesizes audio, declare the runtime as a string:
 
 ```js
-window.__audioRuntime = { ctx, masterGain, /* taps */ }
+window.__audioRuntime = 'tone'  // or 'static' / 'wam2'
 ```
 
-The gate checks each of these for the relevant capability. Missing `__sceneReady` on a 3D scene fails the gate. Missing `__audioRuntime` on a generative-audio deliverable fails the gate. Hi-Fi static pages only need `__ready`.
+(The legacy `{ ctx, masterGain }` object form passes `verify.py` only under a flagged grace path. Use the string.)
+
+`verify.py` checks each of these for the relevant mode flag. Missing `__sceneReady` under `--3d` fails. Missing `__audioRuntime` under `--audio` fails. Hi-Fi static pages only need `__ready`.
 
 ### 6. Screenshot, full page
 
@@ -96,9 +100,13 @@ Any tap that fires no handler fails. Any state change that doesn't render fails.
 ```bash
 npm i -D playwright
 npx playwright install chromium
+
+# verify.py needs the Python side too
+pip install playwright
+python -m playwright install chromium
 ```
 
-The harness ships a runner. Producers don't write Playwright by hand for every deliverable. Use the gate.
+`scripts/verify.py` automates checklist items 1 to 6. Items 7 to 9 (multi-viewport, click-flows, per-slide paging) are manual Playwright work today; no runner covers them. Do not lean on `run-gates.mjs`, it is a stub that always passes.
 
 ## When verification fails
 
@@ -110,7 +118,7 @@ Font wrong: confirm `@font-face` URL resolves. Confirm `font-display`. CJK fonts
 
 3D black: `__sceneReady` never flipped true. GLTF path 404'd, or a shader failed to compile, or the camera is inside geometry. Check `__renderFrame(0)` actually paints something.
 
-Audio silent during capture: `__recording` was never read, or `__audioRuntime` exposed the wrong gain node. Recorder taps the master, the page plays from a different chain.
+Audio silent during capture: `__recording` was never read, or `__audioRuntime` declares the wrong runtime (page says `'static'` while synthesizing via Tone.js). The capture path picks its tap from that string.
 
 ## The human glance
 

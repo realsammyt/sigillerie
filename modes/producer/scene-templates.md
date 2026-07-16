@@ -7,7 +7,7 @@ description: Starter templates by output type, landing hero, App prototype, slid
 
 Starter templates by output type. Producer picks one, customizes per brand-spec.
 
-> Pair with `design-styles.md`. Formula: `[style DNA] + [scene template] + [content brief]`.
+> Pair with `modes/discovery/direction-library.md` (20 philosophies, 5 schools). Formula: `[style DNA] + [scene template] + [content brief]`.
 
 Template = skeleton (canvas, duration, framerate, arc, slots). Brand-spec = flesh (palette, type, voice). Pick, then fill.
 
@@ -24,7 +24,7 @@ Above-the-fold. Value prop in 5s.
 - **Asset slots**: headline (8 words max), subhead (20 words max), CTA button, hero visual (image / 3D / motion)
 - **Stage stages**: composition, motion, polish
 
-Recommended styles: 05 Locomotive, 01 Pentagram, 11 Build, 06 Active Theory.
+Recommended styles: 7 Locomotive-Cinematic Scroll, 1 Pentagram-Typographic IA, 6 Active Theory WebGL.
 
 ```
 [style DNA]
@@ -50,7 +50,7 @@ Interactive screen flow in a device frame. Tappable, real data, real state.
 
 44pt min tap targets. State manager across taps. Real images from Wikimedia / Met / Unsplash, no lorem-ipsum.
 
-Recommended styles: 17 Takram, 11 Build, 03 Information Architects, 01 Pentagram.
+Recommended styles: 10 Takram-Speculative, 3 iA Content-First, 1 Pentagram-Typographic IA.
 
 ```
 [style DNA]
@@ -79,7 +79,7 @@ Presentation slides. One message per slide, projection-safe.
 
 60:40 image-to-text min. Whitespace, consistent spacing across deck.
 
-Recommended styles: 01 Pentagram, 10 Müller-Brockmann, 11 Build, 18 Kenya Hara, 04 Fathom.
+Recommended styles: 1 Pentagram-Typographic IA, 2 Vignelli-Modernist Grid, 9 Hara-Whitespace, 10 Takram-Speculative.
 
 ```
 [style DNA]
@@ -106,7 +106,7 @@ Static or scroll-revealed info graphic. Reading-ordered.
 
 Hierarchy: title → headline number → details. Top-down eye flow. Data accurate, no distortion.
 
-Recommended styles: 04 Fathom, 10 Müller-Brockmann, 02 Stamen, 17 Takram.
+Recommended styles: 2 Vignelli-Modernist Grid, 10 Takram-Speculative, 8 Lieberman-Code-Poetics.
 
 ```
 [style DNA]
@@ -133,7 +133,7 @@ Short loop or one-shot. Hero motion for social, web, inline article.
 
 Invisible loop seam. Fade 200ms each side for one-shot. Palette-optimized GIF, H.264 MP4.
 
-Recommended styles: 07 Field.io, 06 Active Theory, 08 Resn, 12 Sagmeister.
+Recommended styles: 5 Field.io Kinetic, 6 Active Theory WebGL, 13 Sagmeister-Visceral.
 
 ```
 [style DNA]
@@ -160,7 +160,7 @@ Hero product rotating. Camera orbit, lighting, materials.
 
 Cross-ref `modes/three3d/recipes.md` (camera rigs, lighting), `model-viewer.md` (embed contract), `ar-quicklook.md` (if AR ships too).
 
-Recommended styles: 17 Takram, 01 Pentagram, 06 Active Theory.
+Recommended styles: 10 Takram-Speculative, 1 Pentagram-Typographic IA, 6 Active Theory WebGL.
 
 ```
 [style DNA]
@@ -187,7 +187,7 @@ Long-scroll narrative driven by live data. Scroll advances chart state.
 
 Cross-ref `capabilities/data-viz/deliverable-types.md` (chart-type matrix), `animation-decisions.md` (transition rules), `duckdb-wasm.md` (browser-resident parquet).
 
-Recommended styles: 04 Fathom, 02 Stamen, 10 Müller-Brockmann, 17 Takram.
+Recommended styles: 10 Takram-Speculative, 2 Vignelli-Modernist Grid, 8 Lieberman-Code-Poetics.
 
 ```
 [style DNA]
@@ -214,7 +214,7 @@ Force-directed graph reveal. Nodes settle, edges trace, camera lands on focus cl
 
 Cross-ref `capabilities/knowledge-graph/deliverable-types.md` (format menu), `layout-algorithms.md` (force vs radial vs hierarchical), `color-and-style.md` (node-type palettes).
 
-Recommended styles: 07 Field.io, 02 Stamen, 17 Takram.
+Recommended styles: 5 Field.io Kinetic, 8 Lieberman-Code-Poetics, 10 Takram-Speculative.
 
 ```
 [style DNA]
@@ -240,7 +240,7 @@ Always-on installation visual + audio. Parametric, runs for hours, never exactly
 
 Cross-ref `capabilities/generative-audio/deliverable-types.md` (audio format menu), `parametric-sfx.md` (SFX recipes), `seed-library.md` (reusable seeds), `two-tracks.md` (visual-audio sync contract).
 
-Recommended styles: 07 Field.io, 06 Active Theory, 18 Kenya Hara.
+Recommended styles: 5 Field.io Kinetic, 6 Active Theory WebGL, 9 Hara-Whitespace.
 
 ```
 [style DNA]
@@ -257,7 +257,7 @@ Recommended styles: 07 Field.io, 06 Active Theory, 18 Kenya Hara.
 ## How to Invoke
 
 1. Match output type to one of the nine templates.
-2. Pick a style from `design-styles.md` per brand voice + audience.
+2. Pick a philosophy from `modes/discovery/direction-library.md` per brand voice + audience. Cite entries by that file's number and name; studios outside its 20-entry table are off-limits (its anti-pattern 5).
 3. Combine: style DNA + template block + content brief.
 4. Customize: canvas, duration, palette per brand-spec.
 5. Verify: run the Stage stages listed before delivery.

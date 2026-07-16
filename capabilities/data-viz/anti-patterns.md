@@ -1,12 +1,12 @@
 ---
 name: anti-patterns
 description: Data Viz capability — UX-law-derived anti-patterns the critic agent scans for
-status: seeded (Phase 3 of UX-laws integration; Phase 9 research pass will extend)
+status: seeded (Phase 3 of UX-laws integration; a future research pass will extend)
 ---
 
 # Data Viz Anti-Patterns
 
-This catalog lists named failure modes specific to data visualization deliverables. Each pattern maps to a UX law from `_planning/UX-LAWS-INTEGRATION.md §2`. The critic agent (G4 gate) scans for these by name before shipping. Read the table first; the "Notes per pattern" section below expands recipes for the three that need more than one sentence to fix.
+This catalog lists named failure modes specific to data visualization deliverables. Each pattern names the UX law it violates inline in the table. The critic agent (G4 gate) scans for these by name before shipping. Worked fix-side demo: `demos-viz/d1-anti-pattern-showcase/` (Chart.js 4.4.2, single file). Read the table first; the "Notes per pattern" section below expands recipes for the three that need more than one sentence to fix.
 
 ## The named anti-patterns
 
@@ -68,8 +68,8 @@ Split charts feel like more work. They're usually clearer. The decision rule:
 
 ## What this catalog does NOT cover
 
-- Chart type selection (scatter vs. bar vs. line vs. heatmap) -- that's `overview.md` territory and deferred to the Phase 9 research pass.
-- Performance budgets for datasets over 100k rows -- canvas vs. WebGL vs. DuckDB columnar tradeoffs belong in `duckdb-wasm.md`.
-- Accessibility specifics -- color blindness safe palettes, screen reader `aria-label` patterns, keyboard navigation for interactive charts -- deferred to Phase 9.
-- Print vs. screen tuning beyond the Loading Void skeleton -- resolution, CMYK color shift, bleed margins -- deferred to `print-export.md` Phase 9 pass.
-- Animation timing curves for chart transitions -- covered separately in `animation-decisions.md` Phase 9 pass.
+- Chart type selection (scatter vs. bar vs. line vs. heatmap) -- that's `overview.md` territory (stub today).
+- Performance budgets for datasets over 100k rows -- canvas vs. WebGL vs. DuckDB columnar tradeoffs belong in `duckdb-wasm.md` (stub today; the shipped demo runs without DuckDB).
+- Accessibility specifics -- color blindness safe palettes, screen reader `aria-label` patterns, keyboard navigation for interactive charts -- not yet written anywhere in this capability.
+- Print vs. screen tuning beyond the Loading Void skeleton -- resolution, CMYK color shift, bleed margins -- `print-export.md` territory (stub today).
+- Animation timing curves for chart transitions -- planned for `animation-decisions.md` (stub today); nearest shipped guidance is `modes/producer/animation-best-practices.md`.

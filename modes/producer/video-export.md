@@ -24,9 +24,9 @@ Default: ship three files, let the user pick.
 
 | Format | Spec | Best for | 30s typical size |
 |---|---|---|---|
-| MP4 25fps | 1920x1080, H.264, CRF 18 | WeChat, video platforms, embeds | 1-2 MB |
-| MP4 60fps | 1920x1080, minterpolate or fps-dup, H.264, CRF 18 | High-fps showcase, portfolio, Bilibili | 1.5-3 MB |
-| GIF | 960x540, 15fps, palette-optimized | Twitter/X, README, Slack preview | 2-4 MB |
+| MP4 30fps | 1920x1080, H.264, CRF 18 | WeChat, video platforms, embeds | 1-2 MB |
+| MP4 60fps | 1920x1080, minterpolate, H.264, CRF 18 | High-fps showcase, portfolio, Bilibili | 1.5-3 MB |
+| GIF | 720px wide, 25fps, palette-optimized | Twitter/X, README, Slack preview | 2-4 MB |
 
 ## Recording handshake (HTML mode contract)
 
@@ -41,7 +41,7 @@ Final-frame rule: the last sprite in the timeline sets `fadeOut = 0`. Video end 
 
 ## Tooling
 
-Two scripts in `scripts/`:
+Three scripts in `scripts/`:
 
 ### 1. `render-video.js` (HTML to MP4)
 
@@ -108,92 +108,99 @@ node scripts/render-video.js page.html --no-gpu --cpu-encode --ssaa=1
 
 Output: `<name>.mp4` next to the source HTML (or wherever `--output` points).
 
-### 2. `convert-formats.sh` (25fps MP4 to 60fps MP4 + GIF)
+### 2. `convert-formats.sh` (MP4 to 60fps MP4 / GIF / WebM / AVIF)
 
 ```bash
-bash scripts/convert-formats.sh <input.mp4> [gif_width] [--minterpolate]
+bash scripts/convert-formats.sh <input.mp4> --60fps --gif
 ```
 
-Outputs:
-- `<name>-60fps.mp4`. Default uses `fps=60` frame duplication (broadest compat). `--minterpolate` switches to motion-compensated interpolation.
-- `<name>.gif`. Two-pass palette, default 960px wide.
+Every output is opt-in. No flags, no files: the script exits 1 unless at least one of `--60fps --gif --gif-3d --webm --avif` is passed.
 
-60fps mode pick:
-
-| Mode | Command | Plays in | Use when |
-|---|---|---|---|
-| Frame dup (default) | `convert-formats.sh in.mp4` | QuickTime, Safari, Chrome, VLC | General delivery, social, uploads |
-| Minterpolate | `convert-formats.sh in.mp4 --minterpolate` | Chrome, VLC, most players. macOS QuickTime sometimes refuses | Bilibili-style showcases. Test on the target player before delivery |
-
-Why default flipped to frame-dup: minterpolate H.264 elementary streams hit a known QuickTime decoder bug. Multiple deliveries failed in the wild. See troubleshooting below.
-
-`gif_width`:
-- 960 default, social-friendly
-- 1280 sharper, bigger file
-- 600 fast-loading on Twitter/X
-
-### 3. `add-music.sh` (MP4 + BGM to MP4)
-
-Mixes a BGM track into a silent MP4. Picks from a built-in library by mood, or accepts an arbitrary file. Auto-trims to video length, applies fades.
-
-```bash
-bash add-music.sh <input.mp4> [--mood=<name>] [--music=<path>] [--out=<path>]
-```
-
-Built-in BGM library (`assets/bgm-<mood>.mp3`):
-
-| `--mood=` | Style | Fits |
+| Flag | Output | Notes |
 |---|---|---|
-| `tech` (default) | Apple-event-style minimal synth + piano | Product launches, AI tooling, skill promo |
-| `ad` | Upbeat modern electronic, build + drop | Social ads, teasers, promo cuts |
-| `educational` | Warm acoustic guitar, electric piano | Explainers, course intros |
-| `educational-alt` | Same lane, different track | Same |
-| `tutorial` | Lo-fi ambient, near-invisible | Software demos, long walkthroughs |
-| `tutorial-alt` | Same lane, different track | Same |
+| `--60fps` | `<name>-60fps.mp4` | minterpolate when source fps < 60, plain `fps=60` re-encode at 60+. Adds `-profile:v high -level 4.0`. |
+| `--gif` | `<name>.gif` | two-pass palette, bayer dither, diff stats |
+| `--gif-3d` | `<name>-3d.gif` | per-frame palette refresh, for camera-fly 3D scenes |
+| `--webm` | `<name>.webm` | VP9 two-pass |
+| `--avif` | `<name>.avif` | animated AVIF (libsvtav1, needs ffmpeg 5.1+) |
+| `--gif-width=<px>` | | GIF width, default 720. 1280 sharper, 600 fast-loading on Twitter/X |
+| `--gif-fps=<n>` | | GIF framerate, default 25 |
+| `--width=<px>` | | resize width for the 60fps MP4, default keep |
+| `--output-dir=<path>` | | derivatives dir, default next to input |
+
+There is no `--minterpolate` flag and no frame-dup mode: `--60fps` picks minterpolate automatically for sub-60 sources. Some macOS QuickTime builds refuse minterpolate H.264 streams; test the target player, and if it refuses, fall back to the manual frame-dup command in troubleshooting below.
+
+When `--60fps` runs, GIF / WebM / AVIF derive from the 60fps output.
+
+### 3. `add-music.sh` (MP4 + BGM + SFX cues to MP4)
+
+Mixes BGM and time-aligned SFX into a rendered MP4. Trims BGM to video length, applies fades, band isolation, optional sidechain ducking, two-pass loudnorm.
+
+```bash
+bash scripts/add-music.sh <input.mp4> [--bgm=<path>] [--bgm-volume=<db>] [--sfx-cues=<json>] [--duck-bgm] [--output=<path>] [--lufs=<target>]
+```
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--bgm=<path>` | `assets/audio/sigillerie-default/bgm-tutorial.mp3` | BGM track. The default file is not shipped yet, so pass `--bgm=` explicitly today. |
+| `--bgm-volume=<db>` | -18 | BGM master volume in dB |
+| `--sfx-cues=<json>` | auto-detects `<input>.audio-cues.json` next to input | SFX cue sidecar |
+| `--duck-bgm` | off | sidechain duck BGM under SFX (4:1, 5 ms attack, 200 ms release) |
+| `--output=<path>` | `<input>.scored.mp4` | output file |
+| `--lufs=<target>` | -14 | integrated LUFS target, two-pass loudnorm |
+
+Sidecar format:
+
+```json
+{ "cues": [
+  { "t": 1.2, "type": "sfx", "file": "assets/.../whoosh.mp3", "gain_db": -6 }
+] }
+```
 
 Behavior:
-- BGM trimmed to video duration
-- 0.3s fade-in, 1s fade-out
+- BGM trimmed to video duration, 0.3s fade-in, 1.5s fade-out
+- Band isolation: BGM lowpass 2 kHz, SFX highpass 1 kHz (numbers explained in `audio-design-rules.md`)
 - Video stream `-c:v copy` (no re-encode), audio AAC 192k
-- `--music=<path>` overrides `--mood`
-- Bad mood name lists valid options instead of silently failing
+- Missing cue files skip with a warning, they do not abort the mix
+
+A mood-keyed BGM library (`--mood=tech` and friends) is planned, not shipped. No BGM files ship in the repo today.
 
 ### Dual-track audio (BGM + SFX)
 
 For pages that synthesize SFX at runtime (Web Audio, Tone.js, generative drones), do not bake SFX into BGM. Two-track approach:
 
 1. Capture runtime SFX with `--audio=tone` during `render-video.js` (writes a separate OPUS track alongside the silent MP4)
-2. Mix BGM under SFX with `add-music.sh`, then layer the captured SFX on top using ffmpeg `amix` with sidechain ducking on the BGM bus
+2. Mix BGM + SFX in one `add-music.sh` pass: `--bgm=` for the bed, `--sfx-cues=` for the hits, `--duck-bgm` for sidechain ducking. Band isolation and duck parameters are built into the script; no hand-rolled `amix` needed.
 
-Full mix recipe and ducking parameters live in `capabilities/generative-audio/audio-design-rules.md`. The capture mechanics live in `capabilities/generative-audio/capture-pipeline.md`. Both cross-link back here.
+The why behind the mix numbers lives in `modes/producer/audio-design-rules.md`. Capture mechanics: `capabilities/generative-audio/capture-pipeline.md` (stub today).
 
 ## Standard pipeline
 
 ```bash
 cd <project>
 
-# 1. Record 25fps base MP4 (silent, or with --audio=tone for runtime SFX)
+# 1. Record 30fps base MP4 (silent, or with --audio=tone for runtime SFX)
 NODE_PATH=$(npm root -g) node "$SKILL/scripts/render-video.js" my-anim.html
 
 # 2. Derive 60fps MP4 + GIF
-bash "$SKILL/scripts/convert-formats.sh" my-anim.mp4
+bash "$SKILL/scripts/convert-formats.sh" my-anim.mp4 --60fps --gif
 
-# 3. Mix BGM
-bash "$SKILL/scripts/add-music.sh" my-anim-60fps.mp4 --mood=tech
+# 3. Mix BGM (no default BGM ships yet, bring a file)
+bash "$SKILL/scripts/add-music.sh" my-anim-60fps.mp4 --bgm=path/to/bed.mp3
 
 # Outputs:
-# my-anim.mp4              25fps, silent
-# my-anim-60fps.mp4        60fps, silent
-# my-anim.gif              15fps, palette-optimized
-# my-anim-60fps-bgm.mp4    60fps, BGM mixed
+# my-anim.mp4                 30fps, silent
+# my-anim-60fps.mp4           60fps, silent
+# my-anim.gif                 720px, 25fps, palette-optimized (derived from the 60fps file)
+# my-anim-60fps.scored.mp4    60fps, BGM mixed
 ```
 
 ## Technical notes (troubleshooting)
 
 ### Playwright `recordVideo` quirks
 
-- Frame rate is locked at 25fps. Chromium headless compositor ceiling. You cannot record native 60fps from Playwright.
-- Recording starts at context creation, before navigation. The first 1-2 seconds are reload + font load. Always `--trim`.
+- Capture runs at `--base-fps`, default 30. You cannot record native 60fps from Playwright; 60fps comes from post interpolation.
+- Recording starts at context creation, before navigation. The first 1-2 seconds are reload + font load. `render-video.js` waits for `window.__ready`, then trims that warmup head automatically with ffmpeg `-ss` (no flag needed).
 - Output is webm by default. Transcode to H.264 MP4 for universal playback. `render-video.js` does this.
 
 ### ffmpeg minterpolate config
@@ -217,7 +224,7 @@ GIF is 256-color. Single-pass uses a generic palette and crushes subtle gradient
 
 Two-pass:
 1. `palettegen=stats_mode=diff` scans the whole video, builds a palette tuned to this animation
-2. `paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle` encodes with that palette. `rectangle` diff only redraws changed regions, shrinking file size.
+2. `paletteuse=dither=bayer:bayer_scale=3:diff_mode=rectangle` encodes with that palette. `rectangle` diff only redraws changed regions, shrinking file size.
 
 `dither=bayer` is smoother on fades than `none` but adds a few hundred KB. Worth it.
 
@@ -241,14 +248,14 @@ Delivery
 
 | File | Format | Spec | Size |
 |---|---|---|---|
-| foo.mp4 | MP4 | 1920x1080, 25fps, H.264 | X MB |
+| foo.mp4 | MP4 | 1920x1080, 30fps, H.264 | X MB |
 | foo-60fps.mp4 | MP4 | 1920x1080, 60fps (motion interp), H.264 | X MB |
-| foo.gif | GIF | 960x540, 15fps, palette-optimized | X MB |
+| foo.gif | GIF | 720px wide, 25fps, palette-optimized | X MB |
 
 Notes
 - 60fps uses minterpolate motion estimation, strong on transform animations
 - GIF is palette-optimized, ~3 MB at 30s
-- BGM mood: <mood>, fades 0.3s in / 1s out
+- BGM: <file>, -18 dB under SFX, fades 0.3s in / 1.5s out, loudnorm to -14 LUFS
 
 Want a different size or fps? Say the word.
 ```
@@ -257,8 +264,8 @@ Want a different size or fps? Say the word.
 
 | User says | Response |
 |---|---|
-| "Too big" | MP4: raise CRF to 23-28. GIF: drop width to 600 or fps to 10. |
-| "GIF looks bad" | Bump `gif_width` to 1280, or recommend MP4 (WeChat Moments accepts it). |
+| "Too big" | MP4: raise CRF to 23-28. GIF: re-run with `--gif-width=600` or `--gif-fps=10`. |
+| "GIF looks bad" | Re-run with `--gif-width=1280`, or recommend MP4 (WeChat Moments accepts it). |
 | "Need 9:16 vertical" | Re-record with `--width=1080 --height=1920`. |
 | "Add a watermark" | ffmpeg `-vf "drawtext=..."` or PNG `overlay=`. |
 | "Need transparent bg" | MP4 has no alpha. Use WebM VP9 + alpha, or APNG. |

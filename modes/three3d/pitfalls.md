@@ -210,27 +210,27 @@ useEffect(() => () => disposeNode(group), []);  // cleanup on unmount
 
 Stage3D's `<Sprite3D>` wrapper does this for any group passed via `ref`. Custom mount/unmount must do it manually.
 
-## 9. Loaders running outside Stage3D's asset registry race with `__sceneReady`
+## 9. Async loads racing `__sceneReady` (Stage3D does not await assets yet)
 
-**Looks like**: a Sprite3D loads its own GLB inside a `useEffect`. Stage3D sets `__sceneReady = true` after its own asset list resolves. Stage's list is shorter than the page's actual asset set. Recorder fires before the Sprite's loader returns. The Sprite is empty in MP4 frame 0.
+**Looks like**: a Sprite3D loads its own GLB inside a `useEffect`. Stage3D sets `__sceneReady = true` after fonts settle and React commits, before the loader returns. Recorder fires. The Sprite is empty in MP4 frame 0.
 
-**Why**: Stage3D collects loader promises through a registry. Loaders called outside the registry are invisible to Stage3D's `Promise.all`.
+**Why**: Stage3D flips `__sceneReady` on first paint, not on asset resolution (`assets/stage3d.jsx` defers GLTF/HDRI gating to a later pass). The shipped loaders `Sigillerie3D.helpers.loadGLTF` / `loadHDRI` register their promises into `window.__sceneAssets.pending` (the real registry, see `assets/three-helpers.js`), but nothing awaits that registry unless your page does. Raw `new GLTFLoader().load(...)` calls are invisible to everything.
 
 **Detect**: scene works in browser, recorder MP4 has a missing element only in the first scene's window.
 
-**Fix**: register all loaders with Stage3D.
+**Fix**: use the shipped loaders, then gate `__sceneReady` yourself.
 
-```jsx
-<Sprite3D start={0} end={6} scene="hero">
-  {(threeApi, t) => {
-    // request asset through registry, NOT inside useEffect
-    const model = threeApi.useAsset('hero.glb');
-    if (model) model.rotation.y = t * 0.5;
-  }}
-</Sprite3D>
+```js
+// inside the scene boot / Sprite3D mount
+window.__sceneReady = false;                        // gate while loads pend
+const gltf = await Sigillerie3D.helpers.loadGLTF('hero.glb');
+threeApi.group.add(gltf.scene);
+await Promise.all(window.__sceneAssets.pending);    // the shipped registry
+window.__sceneReady = true;
+window.__renderFrame(0);                            // frame 0 shows the loaded state
 ```
 
-`useAsset` returns null until Stage3D's registry resolves the promise, and the registry is what feeds `__sceneReady`. If a recipe needs an ad-hoc loader, escalate it to Stage3D's `registerAsset(promise)` in mount.
+Any scene with async assets must own this gate until Stage3D consumes the registry (roadmap).
 
 ## 10. WebXR session capture: you can't `recordVideo` a WebXR session
 
@@ -240,7 +240,7 @@ Stage3D's `<Sprite3D>` wrapper does this for any group passed via `ref`. Custom 
 
 **Detect**: open the MP4. If the brief said WebXR but the export is flat 3D, you're capturing the fallback.
 
-**Fix (the workaround)**: record a non-XR walkthrough alongside the XR build. The `walkthrough.md` recipe builds two entry points:
+**Fix (the workaround)**: record a non-XR walkthrough alongside the XR build. Build two entry points by hand (a packaged walkthrough recipe is planned with Track B, Phase 6):
 
 1. `index.html`, the WebXR build, ships to user
 2. `recording.html`, same scene, no XR session, scripted camera fly-through driven by `__renderFrame(t)`. The recorder captures this.
@@ -272,7 +272,7 @@ scene.environment = envMap;
 scene.background = envMap;  // optional, only if you want HDR as backdrop
 ```
 
-Stage3D's `useHDR(url)` does this internally. Manual scenes must do it.
+`Sigillerie3D.helpers.loadHDRI(url, renderer)` runs the PMREM pipeline for you (`fromEquirectangular` plus disposal, see `assets/three-helpers.js`). Scenes wiring `RGBELoader` by hand must do it themselves.
 
 ## 12. Blender / glTF gotchas: scale, axis, animation clip names
 
@@ -314,7 +314,7 @@ If you inherit an unnamed GLB, `console.log(gltf.animations.map(a => a.name))` t
 - Texture color spaces correct (albedo sRGB, others LinearSRGB)?
 - MSAA enabled on `EffectComposer` render target?
 - Disposers wired on Sprite3D unmount?
-- All loaders registered with Stage3D's asset registry?
+- Async loads via `helpers.loadGLTF` / `loadHDRI`, and `__sceneReady` gated on `window.__sceneAssets.pending`?
 - WebXR deliverable has a parallel `recording.html` for MP4 export?
 - HDRI passed through `PMREMGenerator`?
 - glTF: scale applied in Blender, Y-up, animation clips named?
@@ -326,4 +326,4 @@ If you inherit an unnamed GLB, `console.log(gltf.animations.map(a => a.name))` t
 - Color rules expanded: `color-management.md`
 - 2D version of pitfalls 2/3/4: `modes/producer/animation-pitfalls.md` § 5, 6, 12, 13
 - Recorder source: `scripts/render-video.js`
-- Lint rules: `capabilities/_shared/verifier-rules.md`
+- Runtime gate: `scripts/verify.py` (no static lint exists today; `capabilities/_shared/verifier-rules.md` is a Phase 11 stub)

@@ -138,10 +138,7 @@ Typewriter and counter still work the same way: use `t`, derive a discrete value
 
 ## Recording Mode
 
-`scripts/render-video.js` (Playwright + ffmpeg) drives the page in headless Chromium and reads two flags:
-
-- `window.__recording`, set true before the page loads. Stage sees this and forces `loop = false`, parking the final frame at `duration - 0.001` instead of wrapping to 0.
-- `window.__ready`, Stage sets this true on the first `requestAnimationFrame` tick, after `document.fonts.ready` resolves. The renderer uses this as frame 0, so the trim offset equals the pre-animation gap.
+Stage implements the `__ready` / `__recording` handshake for `scripts/render-video.js`. Contract, root causes, starter template: `animation-pitfalls.md` sections 12-13. Recorder-side flow: `video-export.md`.
 
 You do not write this handshake. You inherit it by using `<Stage>`. Just keep custom font loads in CSS so `document.fonts.ready` covers them.
 

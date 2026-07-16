@@ -1,12 +1,12 @@
 ---
 name: anti-patterns
 description: Knowledge Graph capability — UX-law-derived anti-patterns the critic agent scans for
-status: seeded (Phase 3 of UX-laws integration; Phase 10 research pass will extend)
+status: seeded (Phase 3 of UX-laws integration; a future research pass will extend)
 ---
 
 # Knowledge Graph Anti-Patterns
 
-This catalog names concrete failure modes the critic agent (G4) scans for in knowledge graph deliverables. It covers 2D force-directed graphs, 3D node-link scenes, and WebXR graph walks. The patterns are derived from the UX-law catalog in `_planning/UX-LAWS-INTEGRATION.md §2`. 3D and WebXR variants amplify most of these failures because spatial depth and locomotion add complexity the viewer didn't ask for. Patterns marked **(3D)** or **(WebXR)** are medium-specific; all others apply across all three rendering modes.
+This catalog names concrete failure modes the critic agent (G4) scans for in knowledge graph deliverables. It covers 2D force-directed graphs, 3D node-link scenes, and WebXR graph walks. Each pattern names the UX law it violates inline in the table. Worked fix-side demo: `demos-kg/d1-anti-pattern-showcase/` (D3 v7 force + inline SVG, single file). 3D and WebXR variants amplify most of these failures because spatial depth and locomotion add complexity the viewer didn't ask for. Patterns marked **(3D)** or **(WebXR)** are medium-specific; all others apply across all three rendering modes.
 
 ## The named anti-patterns
 
@@ -29,15 +29,15 @@ This catalog names concrete failure modes the critic agent (G4) scans for in kno
 
 ### Hairball-at-Load: progressive disclosure recipe
 
-Render the root node and its immediate neighbors (depth 1) on load. Gate further expansion on user interaction: click a node to reveal its neighbors. Cap visible nodes at 30 with an LRU eviction strategy (hide the least-recently-focused subtree when the cap is hit). Use an enter animation (nodes fade in over 200 ms) so expansion reads as a deliberate reveal, not a data dump. Libraries that support this natively: Sigma.js `NodeReducer` / `EdgeReducer` pipeline, and vis.js `hideNodesOnDrag` with a custom expansion handler.
+Render the root node and its immediate neighbors (depth 1) on load. Gate further expansion on user interaction: click a node to reveal its neighbors. Cap visible nodes at 30 with an LRU eviction strategy (hide the least-recently-focused subtree when the cap is hit). Use an enter animation (nodes fade in over 200 ms) so expansion reads as a deliberate reveal, not a data dump. Libraries that support this natively: Sigma.js `nodeReducer` / `edgeReducer` pipeline, and vis-network's clustering API (`network.cluster()` / `clusterByConnection()` to collapse, `openCluster()` to expand on click).
 
 ### Edge Spaghetti: bundling options
 
-Hierarchical edge bundling (D3 `d3.edgeBundling`) works well for tree-structured graphs. For general force-directed graphs, FDEB (Force-Directed Edge Bundling) is the standard; `d3-edge-bundling` implements it. In Three.js/WebXR, use quadratic Bezier curves with shared control points per community pair rather than straight `Line` geometries. Reduce edge draw calls: batch edges by color/type into a single `LineSegments` geometry per type group.
+Hierarchical edge bundling built from a `d3.cluster` layout (d3-hierarchy) with the `d3.curveBundle` curve (d3-shape) works well for tree-structured graphs; there is no `d3.edgeBundling` function in any D3 version. For general force-directed graphs, FDEB (Force-Directed Edge Bundling) is the standard; the community `d3.ForceBundle` plugin implements it. In Three.js/WebXR, use quadratic Bezier curves with shared control points per community pair rather than straight `Line` geometries. Reduce edge draw calls: batch edges by color/type into a single `LineSegments` geometry per type group.
 
 ### Label Collision: suppression strategy
 
-At each render frame (or on zoom-change), compute node screen positions. Sort by importance descending. Iterate the sorted list; for each node, place the label only if it doesn't overlap any already-placed label (AABB check with 4 px padding). This is O(n log n) with a spatial hash. For static SVG renders (D3), use the `labella.js` or `d3-annotation` force-based placement passes. In WebXR, use world-space billboarded labels and suppress at angular size < 1.5° (same floor as the Fitts's Law hit target threshold in `modes/three3d/aesthetic.md §13`).
+At each render frame (or on zoom-change), compute node screen positions. Sort by importance descending. Iterate the sorted list; for each node, place the label only if it doesn't overlap any already-placed label (AABB check with 4 px padding). This is O(n log n) with a spatial hash. For static SVG renders (D3), use the `labella.js` or `d3-annotation` force-based placement passes. In WebXR, use world-space billboarded labels and suppress at angular size < 1.5°. Labels are display-only, so they may sit below the 2° interactive-target floor from `modes/three3d/aesthetic.md §10`; the per-platform hit floors in §13 (2.6°-3.6°) apply only to clickable targets.
 
 ### Offscreen Legend: placement contract
 
@@ -58,8 +58,8 @@ Run community detection on the raw adjacency list before any layout pass. Commun
 
 ## What this catalog does NOT cover
 
-- Layout algorithm selection: which force-directed, hierarchical, or radial algorithm fits which data shape. That's `capabilities/knowledge-graph/layout-algorithms.md` territory.
-- Accessibility for screen-reader graph traversal: keyboard navigation, ARIA live regions for node announcements, focus management in SVG. Noted as a gap; belongs in `capabilities/knowledge-graph/accessibility.md`.
+- Layout algorithm selection: which force-directed, hierarchical, or radial algorithm fits which data shape. That's `capabilities/knowledge-graph/layout-algorithms.md` territory (stub today).
+- Accessibility for screen-reader graph traversal: keyboard navigation, ARIA live regions for node announcements, focus management in SVG. Noted as a gap; belongs in `capabilities/knowledge-graph/accessibility.md` (stub today).
 - Performance budgets for graphs exceeding 10k nodes: WebWorker offloading for force simulation, GPU-accelerated layout with WebGL compute or WASM, level-of-detail geometry switching.
 - Semantic ontology design: how to model entity types and relationship types in the source data before visualization. Out of scope for a rendering anti-pattern catalog.
-- Color contrast compliance for node and edge colors across the full palette. Belongs in `capabilities/knowledge-graph/color-and-style.md` with WCAG 2.1 AA cross-check.
+- Color contrast compliance for node and edge colors across the full palette. Belongs in `capabilities/knowledge-graph/color-and-style.md` (stub today) with WCAG 2.1 AA cross-check.

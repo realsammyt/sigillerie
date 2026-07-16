@@ -61,7 +61,7 @@ Scene length in seconds. Lets the recorder stop early without hitting a timeout.
 
 ### `window.__audioCues`
 
-Array of cues. Each: `{t: <seconds>, type: 'sfx' | 'bgm', file?: <path>, position?: [x, y, z]}`. The recorder writes a sidecar JSON to `add-music.sh` which mixes audio offset-aware. `position` (when present) routes through `PositionalAudio` for HRTF panning. See `spatial-audio.md`.
+Array of cues. Each: `{t: <seconds>, type: 'sfx' | 'bgm', file?: <path>, position?: [x, y, z]}`. The recorder does NOT write a sidecar. The agent authors the sidecar JSON from `__audioCues` by hand (`verify.py` reports the cue count only). `add-music.sh` reads it: auto-detects `<video>.mp4.audio-cues.json` next to the rendered MP4 (full basename including `.mp4`), or takes `--sfx-cues=<path>`. `position` (when present) routes through `PositionalAudio` for HRTF panning. See `spatial-audio.md` (stub today).
 
 ### `window.__audioRuntime`
 
@@ -126,7 +126,7 @@ Permitted:
 - Reading `t_ms` from `__renderFrame` parameter
 - One-time setup inside `await` before `__sceneReady`
 
-`verify.py` greps for these patterns. CI fails if any appear in a 3D scene file.
+Convention, hand-check. `verify.py` does NOT scan source for these patterns today. It checks the contract at runtime only: `__ready` / `__sceneReady` gates, `__renderFrame`-is-a-function, a `__renderFrame(0)` smoke call, image / font / network asset gates, console-error gates. Grep your scene file for this list yourself before running `verify.py`.
 
 ## A conformant page (Track A skeleton)
 
@@ -207,6 +207,8 @@ Permitted:
 </html>
 ```
 
+The `three@0.181` pin is deliberate. Shipped assets pin the same release (`assets/three3d-loader.js` import map, `assets/three-helpers.js` DRACO decoder path). Current three is r185 (2026-07); do not bump the pin here alone. To bump: update this pin and the asset pins together, read the three.js migration guide for r182-r185, then re-run `verify.py --3d` and a capture pass.
+
 What's right:
 
 - `loadAsync` + `Promise.all` before `__sceneReady`
@@ -253,7 +255,7 @@ Symptoms:
 - Capture desyncs from interactive playback by ~0.4 s over 12 s (FAIL 1)
 - Last 0.5 s of MP4 catches a half-rendered frame from second loop iteration (FAIL 4)
 
-All four are caught by `verify.py` lint rules. Fix is the conformant skeleton above.
+`verify.py` has no lint rules and does not reliably catch any of these four. FAIL 2 and 3 surface only indirectly, when the asset request itself fails (network 4xx gate or console-error gate); a slow-but-successful load behind a premature `__sceneReady` passes cleanly. FAIL 1 and 4 are never caught (`render-video.js` neutralizes wall-clock and rAF at capture time, which masks rather than detects them). Hand-check against the conformant skeleton above.
 
 ## Track B (R3F) contract
 
@@ -284,11 +286,18 @@ function Scene() {
 }
 ```
 
-Track B's `webxr-bundle.js` build emits the contract automatically when the entry uses `<XR>` or `<Canvas frameloop="demand">`.
+Track B tooling is planned, not shipped (`scripts/webxr-bundle.js` does not exist yet, `assets/r3f-starter/` is empty). When it lands, the build will emit the contract automatically for entries using `<XR>` or `<Canvas frameloop="demand">`. Until then, wire the contract by hand as above.
 
 ## `<model-viewer>` (easy path) contract
 
-`<model-viewer>` is special. The recorder handles it without `__renderFrame`. The page just needs:
+The recorder (`render-video.js`) has NO model-viewer-specific path. Two capture options:
+
+| Page shape | Capture path | Determinism |
+|---|---|---|
+| No `__renderFrame` | auto-detect picks html mode, Playwright `recordVideo` | wall-clock; auto-rotate captured in real time |
+| `__renderFrame(t_ms)` shim sets `mv.cameraOrbit` (and `mv.currentTime`) as a pure function of `t_ms` | 3d mode, CDP `beginFrame` | deterministic |
+
+Minimum page wiring either way:
 
 ```js
 const mv = document.querySelector('model-viewer');
@@ -299,7 +308,7 @@ mv.addEventListener('load', () => {
 });
 ```
 
-The recorder pulls turntable frames via `mv.toBlob({ idealAspect: true })` at virtual time stops. No CDP `beginFrame` needed. See `model-viewer.md`.
+Set `__sceneReady` in the `load` handler as above. For deterministic turntables, add the `__renderFrame` shim; without it the export drifts with wall-clock. `model-viewer.md` is a stub today; this section is the contract.
 
 ## Cross-references
 
@@ -308,4 +317,4 @@ The recorder pulls turntable frames via `mv.toBlob({ idealAspect: true })` at vi
 - Recipe code that conforms by construction: `recipes.md`
 - 2D version of the seekable-render rule: `modes/producer/animation-pitfalls.md` § 5 and § 12
 - Recorder source: `scripts/render-video.js`
-- Lint rules: `capabilities/_shared/verifier-rules.md`
+- Runtime gate: `scripts/verify.py` (no static lint exists today; `capabilities/_shared/verifier-rules.md` is a Phase 11 stub)

@@ -6,4 +6,4 @@ status: stub
 
 # deliverable-types
 
-Phase 10 will populate this. See _research/KNOWLEDGE-GRAPH-CAPABILITY.md.
+Stub, planned for Phase 10. No content yet. Nearest real guidance: the single-file interactive graph shape of `demos-kg/d1-anti-pattern-showcase/`.

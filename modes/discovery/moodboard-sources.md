@@ -5,7 +5,7 @@ description: Discovery Phase 2, 3-lane reference registry, fetch and license pat
 
 # Moodboard Sources
 
-Moodboard is taste capture. The agent fetches images across three lanes, then the user passes through them like Tinder. Keeps tell us what to chase. Cuts tell us what to avoid. Flinches tell us where the brand has nerves. Both signals carry equal weight, and the cut pile is the main defense against generic-AI output. Read `_planning/DISCOVERY-STUDIO-MODE.md` §B Phase 2 and §I before running this stage.
+Moodboard is taste capture. The agent fetches images across three lanes, then the user passes through them like Tinder. Keeps tell us what to chase. Cuts tell us what to avoid. Flinches tell us where the brand has nerves. Both signals carry equal weight, and the cut pile is the main defense against generic-AI output. Without a cut pile, brand output regresses to the generic-AI mean. Binary keep/cut swipes also hold off decision fatigue. Read the Phase 2 row and the Phase 3 direction reveal rule in `pipeline.md` before running this stage.
 
 ## The Three Lanes
 
@@ -48,8 +48,8 @@ The flow is small and traceable.
 1. Agent runs `WebFetch` on the source HTML page and extracts candidate image URLs.
 2. Agent filters by minimum dimension (1200px on the long edge) and rejects sprite or icon URLs.
 3. Agent shells out to `curl` with a polite User-Agent string, a 1-second delay between requests to the same host, and a 30-second timeout.
-4. Image saves to `moodboard/<lane>/NN.jpg` where `<lane>` is `direct`, `aspirational`, or `philosophy` and `NN` is a zero-padded index.
-5. Agent writes a sibling `moodboard/<lane>/NN-source.json` capturing provenance.
+4. Image saves to `moodboard/<lane>/NN-slug.jpg` where `<lane>` is `01-direct`, `02-aspirational`, or `03-philosophy`, `NN` is a zero-padded index, and `slug` names the subject. Example: `moodboard/01-direct/04-matter-app-quiet.png`. Matches the `pipeline.md` Phase 2 checkpoint writes.
+5. Agent writes a sibling `moodboard/<lane>/NN-slug-source.json` capturing provenance.
 
 User-Agent template: `Sigillerie-Moodboard-Agent/1.0 (research; +contact-on-request)`. Never spoof a browser. Never bypass robots.txt.
 
@@ -59,7 +59,7 @@ Small JSON, one per image. Lives next to the image file.
 
 ```json
 {
-  "image": "moodboard/aspirational/03.jpg",
+  "image": "moodboard/02-aspirational/03-acme-rebrand.jpg",
   "lane": "aspirational",
   "source_url": "https://www.underconsideration.com/brandnew/archives/example.php",
   "source_type": "editorial_review",
@@ -88,7 +88,7 @@ Layout: 12 to 18 thumbnails in a responsive grid. Each card has the image, a sma
 | Star | Hero. Anchor image. | Highest positive, cap at 3 |
 | Flinch note | Optional one-line text on a thumbs-down. "Why does this make you uncomfortable." | Surfaces hidden constraints |
 
-The user picks 5 keeps, marks at most 3 hero stars, and writes 1 flinch with a short reason. Selections POST to a small JSON file `moodboard/decisions.json`. The agent reads that file at the start of Phase 3.
+The user picks 5 keeps, marks at most 3 hero stars, and writes 1 flinch with a short reason. Selections land in `discovery.json#moodboard` as `kept`, `rejected`, and `flinch` arrays. Phase 3 reads them from there.
 
 Flinches are gold. A user who cuts something with "feels too startup-y" has named a constraint nobody captured in the intake form. Pneuma reads that and routes the brand away from the flinch zone in later phases.
 
@@ -101,7 +101,7 @@ Two rules the agent enforces.
 | Rule | Enforcement |
 |---|---|
 | No image from the moodboard ships in the final brand artifact | Agent refuses to copy from `moodboard/` into `deliverables/` |
-| Attribution carries through to handoff | Phase 8 brief includes a `references.md` listing every kept image with its `source.json` data |
+| Attribution carries through to handoff | Phase 6 hand-off includes a `references.md` listing every kept image with its `source.json` data |
 
 Edge cases the user must confirm before publication: direct competitor screenshots used in pitch decks, Behance and Dribbble shots from individual authors (some authors prefer takedowns even on fair-use reference), and any image flagged `verified_real: false`.
 
@@ -129,6 +129,6 @@ These produce flat moodboards and the agent refuses them.
 | All Dribbble | One trend cycle, generic-AI adjacent | Cap Dribbble at 2 per board, prefer studio sites |
 | No philosophy lane | Brand floats with no tradition, drifts to AI defaults | Philosophy lane is mandatory, seeded from `direction-library.md` |
 | No flinches captured | User sees only positive signal, hidden constraints stay hidden | Chooser requires at least 1 flinch note before submit |
-| Skipping the cut pile in handoff | Phase 3 onward forgets what the brand is not | `decisions.json` carries cuts and flinches into every later phase |
+| Skipping the cut pile in handoff | Phase 3 onward forgets what the brand is not | `discovery.json#moodboard` carries cuts and flinches into every later phase |
 
 The cut pile is the main defense against generic-AI output. Treat it as primary data.

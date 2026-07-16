@@ -22,7 +22,7 @@ Parkinson's Law applies here: open scope produces open answers; bounded scope pr
 | 3 | What problem does it kill? | 它解决什么问题？ | Forces the value claim. Vibe lives downstream of stakes. | Pain in user's own words, not feature-speak. answer format: 1-2 sentences. | Reflect feature, ask for cost. "iNaturalist is slow at 5am offline" beats "fast offline ID." |
 | 4 | Three vibe-words. | 三个气质词。 | Triangulates taste. Three is the minimum that locates a point. | Three adjectives, comma-separated. "Calm, technical, irreverent." answer format: three words, comma-separated. | Offer 5 paired contrasts: warm/cool, loud/quiet, dry/playful, dense/airy, classic/strange. User picks one from each, agent compresses to three. |
 | 5 | What you're not. | 你绝对不是什么？ | Anti-brand sharpens the brand. One adjacent thing user actively rejects beats ten things they like. | One or two named adjacent brands or descriptors. "Not Apple-clean. Not REI-rugged." answer format: 1-2 brand names or short descriptors, comma-separated. | Ask: "Pick a brand close to yours that you'd hate being mistaken for." |
-| 6 | Where will it ship first? | 第一站在哪里上线？ | Locks the first surface. Determines aspect ratios, asset list, 3D lane on/off. | One of: landing page, App Store screenshots, pitch deck, AR preview, slide deck, dashboard. answer format: one item from the list above. | Ask: "Where does the first stranger see this?" |
+| 6 | Where will it ship first? | 第一站在哪里上线？ | Locks the first surface. Determines aspect ratios, asset list, 3D lane on/off. | One of: landing page, product app, App Store screenshots, pitch deck, slide deck, dashboard, AR preview, XR scene, 3D deck, model-viewer embed. answer format: one item from the list above. | Ask: "Where does the first stranger see this?" |
 
 ---
 
@@ -91,7 +91,7 @@ Phase 1 captures the brief. Phase 1 does not generate or propose. Holding this l
 
 ## Output Write, `discovery.json#intake`
 
-After Q6, agent writes to `discovery.json` per spec §D:
+After Q6, agent writes to `discovery.json` per the schema in `pipeline.md`:
 
 ```json
 "intake": {
@@ -100,10 +100,12 @@ After Q6, agent writes to `discovery.json` per spec §D:
   "problem": "string",
   "vibe_words": ["string", "string", "string"],
   "anti_brands": ["string"],
-  "first_surface": "landing | app | deck | ar | dashboard | screenshots",
+  "first_surface": "landing | app | deck | dashboard | screenshots | ar | xr | 3d-deck | model-viewer",
   "inferred_fields": ["product"]
 }
 ```
+
+Normalize the Q6 answer to the nearest `first_surface` value. The Phase 4 3D lane fires only on `ar` / `xr` / `3d-deck` / `model-viewer` (see the `pipeline.md` phase-end checkpoint script).
 
 Plus top-level `locale` set from question language. `intake.locale` is read by Phases 2–6.
 

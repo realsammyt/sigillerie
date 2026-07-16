@@ -6,4 +6,4 @@ status: stub
 
 # overview
 
-Phase 10 will populate this. See _research/KNOWLEDGE-GRAPH-CAPABILITY.md.
+Stub, planned for Phase 10. No content yet. Nearest real guidance: `anti-patterns.md` (this dir), the shipped demo at `demos-kg/d1-anti-pattern-showcase/`, and the capability scan in `modes/producer/critique-guide.md`.

@@ -23,8 +23,6 @@ The Phase 4 `demos3d/d6-holo-ui` initially used stacked-z and content was hidden
 
 ## The three tracks
 
-## The three tracks
-
 | Track | What it is | Bundle (gz) | Build step? | Single-file deploy? |
 |---|---|---|---|---|
 | **Easy path** | `<model-viewer>` web component | ~200 KB (incl. bundled three) | no | yes |
@@ -32,6 +30,8 @@ The Phase 4 `demos3d/d6-holo-ui` initially used stacked-z and content was hidden
 | **Track B** | R3F + drei + react-three-xr + uikit + react-spring + postprocessing in a Vite project | ~1.4 MB | yes (`npm run build`) | no, ships `dist/` folder |
 
 Track A is the default. Easy path wins for AR-first product pages. Track B fires when the brief actually needs R3F's reactive scene graph, WebXR runtime, or in-scene UIKit panels.
+
+**Track B status: planned, not shipped** (Phase 6, see README status). `assets/r3f-starter/` is empty and `scripts/webxr-bundle.js` does not exist. Until it lands, downgrade Track B briefs to Track A plus a `recording.html` fly-through (see `pitfalls.md` § 10), or A-Frame for minimum-viable WebXR.
 
 ## Decision tree
 
@@ -54,6 +54,8 @@ brief mentions 3D / spatial / AR / WebXR?
 ```
 
 If two tracks tie, pick smaller. Easy path < Track A < Track B.
+
+Two field notes: (1) Track B routing dead-ends at build time until its tooling ships, see status above. (2) Android Scene Viewer AR has been flaky since the Oct 2025 Play Services for AR update (arcore-android-sdk#1752); keep `scene-viewer` in `ar-modes` as fallback but verify on-device, or treat `webxr` + `quick-look` as the tested pair.
 
 ## Trigger words that auto-route
 
@@ -102,7 +104,7 @@ So the rule:
 - 3D content in Track A is **vanilla three.js in a sibling `<script type="module">`**. Stage3D mounts a `<canvas>` ref, the three code lives outside Babel.
 - Track B is the only place R3F runs. It demands a build step.
 
-Lint rule in `verify.py`: any `<script type="text/babel">` containing `@react-three/fiber` or `<Canvas>` JSX fails the check.
+Authoring rule (hand-check, no static lint exists today): never place `@react-three/fiber` or `<Canvas>` JSX inside `<script type="text/babel">`. `verify.py` is a runtime page-contract validator only; it does not scan source. The mistake surfaces at runtime instead: the page throws or never sets `window.__ready`, so `verify.py` exits 1/2, but only if you actually run it.
 
 ## Bundle budgets per track
 
@@ -140,26 +142,28 @@ modes/three3d/
 ├── page-contract.md         (window.__renderFrame and friends)
 ├── pitfalls.md              (12 named 3D failure modes)
 ├── recipes.md               (turntable, glass, hero-shot, parallax-scroll)
-├── webxr-deliverables.md    (Track B specifics)
-├── ar-quicklook.md          (USDZ + iOS routing)
-├── model-viewer.md          (easy path patterns)
-├── postprocessing.md        (bloom, DOF, n8ao)
-├── spatial-audio.md         (HRTF + PositionalAudio)
-└── color-management.md      (ACES + sRGB defaults)
+├── aesthetic.md             (taste rules: lighting, materials, postfx defaults)
+├── color-management.md      (ACES + sRGB defaults)
+├── webxr-deliverables.md    (stub; Track B specifics, planned)
+├── ar-quicklook.md          (stub; USDZ + iOS routing, planned)
+├── model-viewer.md          (stub; easy path patterns, planned)
+├── postprocessing.md        (stub; bloom, DOF, n8ao, planned)
+└── spatial-audio.md         (stub; HRTF + PositionalAudio, planned)
 
 assets/
 ├── three3d-loader.js        (Track A importmap + WebGPU/WebGL2 detect)
-├── stage3d.jsx              (Stage3D + Sprite3D React wrappers)
-├── three-helpers.js         (drei-vanilla re-exports)
-├── tsl-effects.js           (TSL postfx nodes)
-├── recipes/                 (Track A recipe code)
-├── r3f-starter/             (Track B Vite project)
-├── glb-templates/           (starter GLBs, DRACO + meshopt)
-└── usdz-templates/          (starter USDZ for AR Quick Look)
+├── stage3d.jsx              (Stage3D + Sprite3D React wrappers, owns page contract)
+├── three-helpers.js         (loadGLTF / loadHDRI / ground shadow / easings)
+├── tsl-effects.js           (composer + bloom / DOF / vignette passes)
+├── recipes/                 (Track A recipe code, 4 recipes)
+├── three3d/                 (recipe-baseline, lighting-moods, materials, scene-presets, uikit-panel)
+├── glb-templates/           (starter GLBs, empty today)
+├── usdz-templates/          (starter USDZ, empty today)
+└── r3f-starter/             (Track B Vite project, planned Phase 6, empty today)
 
 scripts/
-├── render-video.js          (--mode=3d auto-detects via __renderFrame)
-└── webxr-bundle.js          (build Track B to dist/)
+├── render-video.js          (html / 3d / tone capture, 3d auto-detects via __renderFrame)
+└── webxr-bundle.js          (planned Phase 6, does not exist yet)
 ```
 
 ## Engine niches outside three.js
@@ -193,7 +197,7 @@ Modes and capabilities cross. Track choice does not change.
 - Don't pick Track A because someone wrote "AR" once. AR triggers route to easy path or Track B (WebXR-AR on Quest 3 / Chrome Android).
 - Don't load R3F under `<script type="text/babel">`. It will not work.
 - Don't author 3D animation that reads `Date.now()` or `Clock.getDelta()`. See `page-contract.md` and `pitfalls.md` 2.
-- Don't ship Track B without running `webxr-bundle.js`. The dist folder is the deliverable, not the src.
+- Don't ship Track B until its tooling lands (`webxr-bundle.js`, planned Phase 6). When it does: the dist folder is the deliverable, not the src.
 
 ## Cross-references
 

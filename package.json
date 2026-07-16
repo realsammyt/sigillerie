@@ -21,7 +21,6 @@
     "test:critique": "node scripts/run-gates.mjs --gate=critique",
     "verify": "python scripts/verify.py",
     "render": "node scripts/render-video.js",
-    "seed-audio": "node scripts/seed-audio-library.mjs",
     "archon-sync": "bash scripts/archon-sync.sh",
     "export-jsx": "node scripts/jsx-export/index.mjs",
     "test:jsx-export": "node --test scripts/jsx-export/transformers/css.test.mjs scripts/jsx-export/transformers/js.test.mjs scripts/jsx-export/transformers/markup.test.mjs scripts/jsx-export/templates/render.test.mjs tests/jsx-export/integration.test.mjs"

@@ -6,4 +6,4 @@ status: stub
 
 # accessibility
 
-Phase 10 will populate this. See _research/KNOWLEDGE-GRAPH-CAPABILITY.md.
+Stub, planned for Phase 10. No content yet. `anti-patterns.md` (this dir) names screen-reader graph traversal as a known gap in its "does NOT cover" list.

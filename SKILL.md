@@ -1,11 +1,13 @@
 ---
 name: sigillerie
-description: Sigillerie · AI design studio that ships single-file HTML deliverables (animations, prototypes, slide decks, infographics, data viz, knowledge graphs, 3D / immersive, generative audio). Three modes (Discovery / Producer / 3D) × four capabilities (Hi-Fi Base / Data Viz / Knowledge Graph / Generative Audio). Triggers EN/ZH — discover, studio, brand, design, prototype, app mockup, iOS prototype, slide deck, presentation, animation, hero, MP4 export, GIF export, infographic, dashboard, chart, viz, data-story, scrollytelling, knowledge graph, ontology, network, vault explorer, agent-os swarm, 3D, spatial, AR, AR Quick Look, model-viewer, WebXR, Vision Pro, Quest, walkthrough, generative audio, BGM, SFX, audio brand, parametric SFX, sonification, expert review, critique, ux audit, ux review, heuristic review, usability check, cognitive load review, decision fatigue, 评审, 做原型, 设计变体, 推荐风格, 沉浸式, 立体展示, 动画 Demo, 数据可视化, 知识图谱, 生成音频. English-canonical docs.
+description: Use when the user wants a designed, self-contained HTML deliverable or a design-studio pass on one. Covers hero animations, app prototypes and mockups, slide decks, infographics, dashboards and data stories, knowledge-graph explorers, 3D product scenes, generative audio scoring, and expert design critique / ux audit. Triggers EN/ZH - single-file HTML deliverable, hero animation, iOS prototype, app mockup, slide deck, MP4 or GIF export, scrollytelling data story, visualize this CSV, knowledge graph explorer, ontology map, 3D product hero, spatial scene, generative audio brand, parametric SFX, score this deck, 做原型, 设计变体, 数据可视化, 知识图谱, 生成音频, 沉浸式, 评审. Also fires on /discover, /studio, /animate, /deck, /prototype, /viz, /chart, /dashboard, /kg, /graph, /audio, /bgm, /sfx.
+license: Custom. See LICENSE (personal use unrestricted; commercial use requires authorization).
+compatibility: Claude Code with Node 18+ (Playwright Chromium) and Python 3. Network access only for optional Stable Audio / ElevenLabs generation.
 ---
 
 # Sigillerie
 
-One sentence in. Real-studio design out. Flat or spatial, AR or page, animated or scored. Three modes, four capabilities, one tool.
+One sentence in. Real-studio design out. Flat or spatial, page or scene, animated or scored. Three modes, four capabilities, one tool.
 
 ## Modes (operational stance)
 
@@ -13,7 +15,7 @@ One sentence in. Real-studio design out. Flat or spatial, AR or page, animated o
 |---|---|---|
 | **Discovery** | brief is vague, no `brand-spec.md`, "starting from scratch", `/discover`, `/studio` | populated `brand-spec.md` + assets ready for Producer |
 | **Producer** | brand-spec exists, brief is concrete | hi-fi HTML deliverable + MP4/PDF/PPTX/GIF as needed |
-| **3D / Immersive** | "3D", "spatial", "AR", "WebXR", "Vision Pro", "Quest", "walkthrough" | three.js / R3F / `<model-viewer>` HTML + MP4 |
+| **3D / Immersive** | "3D", "spatial", "product hero", "walkthrough" | three.js Track A single-file HTML + MP4 (AR Quick Look / WebXR / R3F Track B planned, docs stubbed) |
 
 Modes compose. `/discover` then `/3d product hero` is normal.
 
@@ -22,19 +24,19 @@ Modes compose. `/discover` then `/3d product hero` is normal.
 | Capability | Triggers | Reads |
 |---|---|---|
 | **Hi-Fi Base** | "hero animation", "iOS prototype", "slide deck", "infographic", `/animate`, `/deck`, `/prototype` | `modes/producer/` |
-| **Data Visualization** | `/viz`, `/chart`, `/dashboard`, "visualize this CSV", "scrollytelling", "data story" | `capabilities/data-viz/` |
-| **Knowledge Graph** | `/kg`, `/graph`, `/network`, `/ontology`, "visualize my Notion / Obsidian / agent-os graph" | `capabilities/knowledge-graph/` |
-| **Generative Audio** | `/audio`, `/bgm generate`, `/sfx generate`, `/audio brand`, "score this deck", "spatial audio" | `capabilities/generative-audio/` |
+| **Data Visualization** | `/viz`, `/chart`, `/dashboard`, "visualize this CSV", "scrollytelling", "data story" | `capabilities/data-viz/anti-patterns.md` (rest of dir stubbed) |
+| **Knowledge Graph** | `/kg`, `/graph`, `/network`, `/ontology`, "visualize my Notion / Obsidian / agent-os graph" | `capabilities/knowledge-graph/anti-patterns.md` (rest of dir stubbed) |
+| **Generative Audio** | `/audio`, `/bgm generate`, `/sfx generate`, `/audio brand`, "score this deck", "spatial audio" | `capabilities/generative-audio/anti-patterns.md` (rest of dir stubbed) |
 
 ## Routing
 
 1. Check brief for triggers above. If multiple match, pick the most specific.
 2. Check for `brand-spec.md` at project root or `assets/<brand>-brand/`. If missing → Discovery first unless user says skip.
-3. Pick rendering pipeline:
+3. Pick rendering pipeline (flags belong to `scripts/render-video.js`; full reference in `modes/producer/video-export.md`):
    - HTML/CSS only → `--mode=html` (Playwright recordVideo)
    - WebGL/WebGPU → `--mode=3d` (CDP `HeadlessExperimental.beginFrame`)
    - Runtime audio synthesis → add `--audio=tone`
-4. Read the relevant capability's references before authoring. Never guess a chart type, layout algorithm, audio engine, or device frame from memory.
+4. Read the capability's `anti-patterns.md` and the relevant mode docs before authoring. The remaining reference docs under `capabilities/` are stubs until Phases 8-10; fall back to `modes/producer/` and state assumptions in the Junior Pass instead of silently guessing.
 
 ## Core principles (non-negotiable)
 
@@ -69,27 +71,27 @@ These four gates cover the must-cite laws most likely to fail silently (no visua
 | `window.__audioRuntime` | when synthesizing audio | `"static"` / `"tone"` / `"wam2"` |
 | `window.__capabilities` | optional | `{ webgpu, webxr, modelViewer, audio }` introspection |
 
-`verify.py` enforces this. No `Date.now`, no `Clock.getDelta` for animation timing — only `__renderFrame(t)`.
+Run `python scripts/verify.py <file.html>` before shipping (`--3d`, `--audio` add the mode contracts); it checks the variables above. Animation timing comes from `__renderFrame(t)` only, never `Date.now` or `Clock.getDelta`. The timing rule is convention: no script scans source for it today.
 
 ## References map
 
 | Topic | Path |
 |---|---|
-| Discovery (6 phases, options UX, JSON schema) | `modes/discovery/` |
-| Producer workflow + asset protocol + critique | `modes/producer/` |
+| Discovery (6 phases, options UX, JSON schema) | `modes/discovery/pipeline.md` |
+| Producer workflow + asset protocol + critique | `modes/producer/workflow.md` |
 | Producer dials (VARIANCE / MOTION / DENSITY) | `modes/producer/dials.md` |
 | Producer Pass 5 (HTML to React/Tailwind export) | `modes/producer/export-jsx.md` |
-| 3D Track A vs B + page contract + recipes | `modes/three3d/` |
-| Data viz stack + ingestion + print export | `capabilities/data-viz/` |
-| Knowledge graph stack + storytelling + dogfood | `capabilities/knowledge-graph/` |
-| Generative audio (Tone.js + Stable Audio + ElevenLabs) | `capabilities/generative-audio/` |
-| brand-spec.md schema | `capabilities/_shared/brand-spec-schema.md` |
-| UX laws rubric + integration plan | `_planning/UX-LAWS-INTEGRATION.md` |
+| 3D Track A vs B + page contract + recipes | `modes/three3d/architecture.md` (AR / WebXR / model-viewer topics stubbed) |
+| Data viz anti-pattern catalog | `capabilities/data-viz/anti-patterns.md` (rest of dir stubbed until Phase 9) |
+| Knowledge graph anti-pattern catalog | `capabilities/knowledge-graph/anti-patterns.md` (rest stubbed until Phase 10) |
+| Generative audio anti-pattern catalog | `capabilities/generative-audio/anti-patterns.md` (rest stubbed until Phase 8) |
+| brand-spec.md schema | `capabilities/_shared/brand-spec-schema.md` (worked examples: `launch/brand-spec.md`, `demos/d9-discovery-walkthrough/brand-spec.md`) |
+| UX laws rubric | inline above ("UX law self-check") + per-capability derivations in `capabilities/*/anti-patterns.md` |
 
 ## What this skill does NOT do
 
-- iOS Safari WebXR (does not exist in 2026)
-- visionOS WebXR-AR passthrough (non-functional, ship VR-only on Vision Pro)
+- iOS Safari WebXR (unsupported at last check, 2026-07; re-verify on caniuse before assuming)
+- visionOS WebXR-AR passthrough (non-functional at last check, 2026-07; ship VR-only on Vision Pro)
 - 5.1 surround / Atmos export from browser
 - Server-side three.js rendering
 - Figma round-trip
