@@ -291,7 +291,29 @@ export function createHeroShot(threeApi, opts = {}) {
     let texture = null;
     if (data.textureUrl) {
       try {
-        texture = loader.load(data.textureUrl);
+        // Register the async texture load in window.__sceneAssets so
+        // Stage3D's __sceneReady gate waits for it (frame 0 gets the
+        // textured card, not a flat accent plate).
+        const assets = (typeof window !== 'undefined')
+          ? (window.__sceneAssets = window.__sceneAssets || { pending: [], loaded: [] })
+          : null;
+        const loadPromise = new Promise((resolve, reject) => {
+          texture = loader.load(
+            data.textureUrl,
+            () => {
+              if (assets) assets.loaded.push({ kind: 'texture', url: data.textureUrl });
+              resolve(texture);
+            },
+            undefined,
+            (err) => reject(err)
+          );
+        });
+        if (assets) {
+          assets.pending.push(loadPromise);
+          // gate uses allSettled; keep a failed load from spamming
+          // unhandledrejection when no gate is listening.
+          loadPromise.catch(() => {});
+        }
         texture.colorSpace = THREE.SRGBColorSpace;
         texture.anisotropy = 8;
       } catch (e) {

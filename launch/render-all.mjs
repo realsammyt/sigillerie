@@ -23,8 +23,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const LAUNCH_DIR = path.resolve(__dirname, '..');
-const REPO_DIR = path.resolve(LAUNCH_DIR, '../repo');
+// This script lives at launch/<name>.mjs in the repo (the private workspace keeps
+// it under launch/scripts/), so the launch dir is __dirname itself.
+const LAUNCH_DIR = __dirname;
+const REPO_DIR = path.resolve(LAUNCH_DIR, '..');
 
 // Resolve playwright from the repo's node_modules (launch/ has none).
 const playwrightEntry = path.join(REPO_DIR, 'node_modules', 'playwright', 'index.mjs');
@@ -76,8 +78,8 @@ function startServer(root) {
   });
 }
 
-// SERVE_ROOT = the sigillerie project root so posts can reference ../../repo/assets/
-const SERVE_ROOT = path.resolve(LAUNCH_DIR, '..');
+// SERVE_ROOT = the repo root so posts can reference ../../../assets/
+const SERVE_ROOT = REPO_DIR;
 const { server, port } = await startServer(SERVE_ROOT);
 console.log(`▸ static server on http://127.0.0.1:${port} (root: ${SERVE_ROOT})`);
 

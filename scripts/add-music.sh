@@ -76,6 +76,11 @@ DURATION=$(ffprobe -v error -show_entries format=duration \
             -of default=noprint_wrappers=1:nokey=1 "$INPUT")
 [ -z "$DURATION" ] && { echo "✗ Could not read duration" >&2; exit 1; }
 
+# Detect an input audio stream (runtime capture from render-video.js --audio=tone).
+HAS_AUDIO=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_type \
+              -of default=noprint_wrappers=1:nokey=1 "$INPUT" || true)
+if [ "$HAS_AUDIO" = "audio" ]; then HAS_AUDIO=1; else HAS_AUDIO=0; fi
+
 # Resolve BGM with fallback.
 if [ -z "$BGM" ]; then BGM="$DEFAULT_BGM"; fi
 if [ ! -f "$BGM" ]; then
@@ -110,6 +115,7 @@ echo "▸ Sigillerie audio post"
 echo "  input:    $INPUT (${DURATION}s)"
 echo "  bgm:      $BGM ($BGM_VOLUME_DB dB → $BGM_VOL_LINEAR)"
 echo "  cues:     ${SFX_CUES:-<none>}"
+echo "  in-audio: $([ "$HAS_AUDIO" = 1 ] && echo "yes (mixed as foreground)" || echo no)"
 echo "  duck:     $([ "$DUCK_BGM" = 1 ] && echo on || echo off)"
 echo "  lufs:     $LUFS_TARGET"
 echo "  output:   $OUTPUT"
@@ -157,11 +163,15 @@ echo "  loaded:   $N_CUES sfx cues"
 MIXED_WAV="$TMPDIR_LOCAL/mixed.wav"
 NORM_WAV="$TMPDIR_LOCAL/normalized.wav"
 
-# BGM chain: trim to video duration, fade in/out, lowpass 2 kHz, set volume.
+# BGM chain: pad with silence (covers BGM shorter than video), trim to video
+# duration, fade in/out, lowpass 2 kHz, set volume.
 FADE_OUT_START=$(awk "BEGIN { d = $DURATION - 1.5; if (d < 0) d = 0; print d }")
-BGM_CHAIN="atrim=0:${DURATION},asetpts=PTS-STARTPTS,afade=t=in:st=0:d=0.3,afade=t=out:st=${FADE_OUT_START}:d=1.5,lowpass=f=2000,volume=${BGM_VOL_LINEAR}"
+BGM_CHAIN="apad,atrim=0:${DURATION},asetpts=PTS-STARTPTS,afade=t=in:st=0:d=0.3,afade=t=out:st=${FADE_OUT_START}:d=1.5,lowpass=f=2000,volume=${BGM_VOL_LINEAR}"
 
-if [ "$N_CUES" -eq 0 ]; then
+# Foreground sources: SFX cues + the input's own audio track (if any).
+N_FG=$((N_CUES + HAS_AUDIO))
+
+if [ "$N_FG" -eq 0 ]; then
   # Simple path: BGM only.
   echo "▸ Mixing BGM only (no cues)"
   ffmpeg -y -hide_banner -loglevel error \
@@ -171,9 +181,10 @@ if [ "$N_CUES" -eq 0 ]; then
     "$MIXED_WAV" 2> "$TMPDIR_LOCAL/ffmpeg.err" || {
       echo "✗ ffmpeg BGM mix failed:" >&2; cat "$TMPDIR_LOCAL/ffmpeg.err" >&2; exit 1; }
 else
-  # Complex path: BGM + N SFX with delays, optional ducking, then mix.
+  # Complex path: BGM + foreground (SFX cues, runtime capture), optional ducking, then mix.
   FG_INPUTS=( -i "$BGM" )
   for f in "${CUE_FILES[@]}"; do FG_INPUTS+=( -i "$f" ); done
+  [ "$HAS_AUDIO" = 1 ] && FG_INPUTS+=( -i "$INPUT" )
 
   FG=""
   FG+="[0:a]${BGM_CHAIN}[bgm];"
@@ -190,8 +201,19 @@ else
     SFX_LABELS+="[sfx${i}]"
   done
 
-  # Combine all SFX into one bus.
-  FG+="${SFX_LABELS}amix=inputs=${N_CUES}:duration=longest:normalize=0[allsfx];"
+  # Runtime-captured track from the input MP4 joins the foreground bus, like SFX.
+  if [ "$HAS_AUDIO" = 1 ]; then
+    CAP_IDX=$((N_CUES + 1))  # last ffmpeg input
+    FG+="[${CAP_IDX}:a]asetpts=PTS-STARTPTS,apad[cap];"
+    SFX_LABELS+="[cap]"
+  fi
+
+  # Combine all foreground sources into one bus.
+  if [ "$N_FG" -gt 1 ]; then
+    FG+="${SFX_LABELS}amix=inputs=${N_FG}:duration=longest:normalize=0[allsfx];"
+  else
+    FG+="${SFX_LABELS}anull[allsfx];"
+  fi
   FG+="[allsfx]atrim=0:${DURATION},asetpts=PTS-STARTPTS[sfxbus];"
 
   # Optional sidechain ducking. Use a copy of sfxbus as the trigger (asplit).
@@ -205,7 +227,7 @@ else
 
   FG+="[mix]aformat=sample_rates=48000:channel_layouts=stereo[a]"
 
-  echo "▸ Mixing BGM + $N_CUES SFX cues"
+  echo "▸ Mixing BGM + $N_CUES SFX cues$([ "$HAS_AUDIO" = 1 ] && echo " + input audio track")"
   ffmpeg -y -hide_banner -loglevel error \
     "${FG_INPUTS[@]}" \
     -filter_complex "$FG" \
@@ -273,7 +295,8 @@ if [ "${OUT_ACHAN:-0}" -lt 2 ]; then
   echo "⚠ Output audio has <2 channels ($OUT_ACHAN)" >&2
 fi
 if awk -v d="$DUR_DIFF" 'BEGIN { exit !(d > 0.5) }'; then
-  echo "⚠ Output duration drift: ${DUR_DIFF}s (in=${DURATION}, out=${OUT_DUR})" >&2
+  echo "✗ Output duration drift: ${DUR_DIFF}s (in=${DURATION}, out=${OUT_DUR})" >&2
+  exit 1
 fi
 
 SIZE=$(du -h "$OUTPUT" 2>/dev/null | cut -f1 || echo "?")

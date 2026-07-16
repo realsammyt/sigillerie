@@ -33,7 +33,7 @@ Install once at repo root. The export script picks them up from `node_modules`.
 
 ## Canvas: 960pt by 540pt, layout `LAYOUT_WIDE`
 
-PPTX units are inches. The body's computed dimensions must match the presentation layout's inch dimensions within 0.1", and `html2pptx.js` enforces this with `validateDimensions`.
+PPTX units are inches. `html2pptx.js` maps the body's rendered box onto the slide's inch dimensions: element positions and font sizes scale by the same width ratio. Keep the body at the layout's 16:9 aspect; a taller aspect overflows the slide bottom, a wider one leaves dead space.
 
 Use one of these three equivalent body declarations:
 
@@ -167,35 +167,50 @@ One HTML file per slide. Scope isolation per file beats one big deck file (CSS b
 
 ## Build script
 
+The translator's real signature is `translateSlideToPptx(page, pptxSlide, options)`: it reads a live Playwright page and emits onto a pptxgenjs slide, returning `{ translated, skipped, errors }`. A minimal hand-rolled build looks like this:
+
 ```js
+const path = require('path');
+const { chromium } = require('playwright');
 const pptxgen = require('pptxgenjs');
-const html2pptx = require('../scripts/html2pptx.js');
+const { translateSlideToPptx } = require('../scripts/html2pptx.js');
 
 (async () => {
   const pres = new pptxgen();
   pres.layout = 'LAYOUT_WIDE';
 
+  const browser = await chromium.launch();
+  const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+
   const slides = ['01-cover.html', '02-agenda.html', '03-content.html'];
   for (const file of slides) {
-    await html2pptx(`./slides/${file}`, pres);
+    await page.goto('file://' + path.resolve('./slides', file));
+    const slide = pres.addSlide();
+    const res = await translateSlideToPptx(page, slide, { width: 13.333, height: 7.5 });
+    if (res.errors.length || res.skipped) {
+      throw new Error(`${file}: ${res.errors.join('; ')}`);
+    }
   }
+  await browser.close();
   await pres.writeFile({ fileName: 'deck.pptx' });
 })();
 ```
 
-The Sigillerie wrapper is `scripts/export_deck_pptx.mjs`. It walks a slides directory, calls `html2pptx.js` per file, writes the deck.
+In practice, use the Sigillerie wrapper `scripts/export_deck_pptx.mjs`. It detects the deck architecture (`window.DECK_MANIFEST` or `<deck-stage>`), drives each slide in headless Chromium, and calls the translator per slide. Any slide whose result carries errors or skipped elements fails the export: exit code 2 when some slides fail, 1 when all fail. Passing `--image-fallback` replaces failing slides with full-slide screenshots instead (exit 0, but those slides are not editable).
 
 ## Common errors
 
+These are the messages `html2pptx.js` actually reports (surfaced per slide by `export_deck_pptx.mjs`, which then exits non-zero):
+
 | Error | Cause | Fix |
 |---|---|---|
-| `DIV element contains unwrapped text "X"` | bare text in a div | wrap in `<p>` or `<h*>` |
-| `CSS gradients are not supported` | linear/radial-gradient | solid fill, or flex children |
-| `Text element <p> has background` | chrome on a text tag | move chrome to wrapping div |
-| `Background images on DIV elements are not supported` | `background-image` | use `<img>` |
-| `HTML content overflows body by Xpt vertically` | content past 540pt | trim copy, smaller font, or `overflow: hidden` |
-| `HTML dimensions don't match presentation layout` | body and layout disagree | 960x540pt body with `LAYOUT_WIDE` |
-| `Text box "X" ends too close to bottom edge` | large `<p>` under 0.5" from bottom | raise it; projector edges crop |
+| `DIV contains unwrapped text "X". Wrap in <p> or <h*>.` | bare text in a div | wrap in `<p>` or `<h*>` |
+| `CSS gradients are not supported. Rasterize to PNG first or use solid fill.` | linear/radial/conic-gradient | solid fill, or flex children |
+| `Text element <p> has background. Move chrome to the wrapping <div>.` | chrome on a text tag (also fires for border, shadow) | move chrome to wrapping div |
+| `background-image on <div> is not supported. Use <img>.` | `background-image` | use `<img>` |
+| `<p> starts with bullet symbol. Use <ul>/<ol> instead of manual bullets.` | hand-typed bullet characters | real `<ul>`/`<ol>` lists |
+| `Inline element <span> has margin which PPT cannot represent. Remove it.` | margin on an inline run | pad the wrapping div instead |
+| `Root "body" has zero dimensions` | body has no rendered size | give body explicit width/height |
 
 ## Fallback: client has visual HTML, demands editable PPTX
 

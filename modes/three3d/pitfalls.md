@@ -214,7 +214,7 @@ Stage3D's `<Sprite3D>` wrapper does this for any group passed via `ref`. Custom 
 
 **Looks like**: a Sprite3D loads its own GLB inside a `useEffect`. Stage3D sets `__sceneReady = true` after fonts settle and React commits, before the loader returns. Recorder fires. The Sprite is empty in MP4 frame 0.
 
-**Why**: Stage3D flips `__sceneReady` on first paint, not on asset resolution (`assets/stage3d.jsx` defers GLTF/HDRI gating to a later pass). The shipped loaders `Sigillerie3D.helpers.loadGLTF` / `loadHDRI` register their promises into `window.__sceneAssets.pending` (the real registry, see `assets/three-helpers.js`), but nothing awaits that registry unless your page does. Raw `new GLTFLoader().load(...)` calls are invisible to everything.
+**Why**: Stage3D awaits `window.__sceneAssets.pending` (the shared registry, see `assets/three-helpers.js`) before flipping `__sceneReady`, so anything loaded through `Sigillerie3D.helpers.loadGLTF` / `loadHDRI` or the shipped recipes is gated automatically. Raw `new GLTFLoader().load(...)` calls are invisible to the registry and can still slip past the gate.
 
 **Detect**: scene works in browser, recorder MP4 has a missing element only in the first scene's window.
 
@@ -230,7 +230,7 @@ window.__sceneReady = true;
 window.__renderFrame(0);                            // frame 0 shows the loaded state
 ```
 
-Any scene with async assets must own this gate until Stage3D consumes the registry (roadmap).
+Stage3D owns this gate for registry-tracked loads. Only own it yourself when you load assets outside the helpers, and register those promises instead where possible.
 
 ## 10. WebXR session capture: you can't `recordVideo` a WebXR session
 

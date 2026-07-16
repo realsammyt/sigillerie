@@ -12,8 +12,9 @@
  *   - single-file: <deck-stage> web component -> one URL, use goTo(i)
  *
  * The 4 hard constraints (see modes/producer/editable-pptx.md) live in the HTML,
- * not here. If a slide violates them, html2pptx throws; we log and (optionally)
- * fall back to a screenshot for that slide.
+ * not here. If a slide violates them, html2pptx reports errors in its result;
+ * we fail that slide (non-zero exit) or, with --image-fallback, replace it
+ * with a screenshot.
  *
  * Deps: playwright, pptxgenjs, sharp
  *
@@ -249,15 +250,31 @@ async function main() {
       }
 
       try {
-        await translateSlideToPptx(page, pptxSlide, {
+        const res = await translateSlideToPptx(page, pptxSlide, {
           width: opts.width,
           height: opts.height,
-          imageFallback: opts.imageFallback,
+          imageFallback: false, // slide-level fallback is handled below
           verbose: opts.verbose,
         });
-        console.log(`  ${tag} ok`);
+        // the translator returns {translated, skipped, errors} instead of
+        // throwing. Non-empty errors or skipped means the slide lost content
+        // (constraint violations, failed emits): treat as slide failure.
+        const problems = [...res.errors];
+        if (res.skipped > 0) problems.push(`${res.skipped} element(s) skipped`);
+        if (problems.length) {
+          console.error(`  ${tag} translation failed:`);
+          for (const p of problems) console.error(`    - ${p}`);
+          if (opts.imageFallback) {
+            await imageFallbackSlide(page, pptxSlide, opts, log);
+            console.log(`  ${tag} fell back to screenshot`);
+          } else {
+            errors.push({ slide: i + 1, label: s.label, error: problems.join('; ') });
+          }
+        } else {
+          console.log(`  ${tag} ok`);
+        }
       } catch (transErr) {
-        // translator told us which element broke. surface it cleanly.
+        // translator threw outright. surface it cleanly.
         console.error(`  ${tag} translator error: ${transErr.message}`);
         if (opts.imageFallback) {
           await imageFallbackSlide(page, pptxSlide, opts, log);

@@ -31,8 +31,10 @@ Options:
   --output=<path>          default: <input>.pdf
   --width=<n>              PDF page width in pt (default 1920)
   --height=<n>             PDF page height in pt (default 1080)
-  --landscape              default true (1920x1080); set --landscape=false
-                           only for portrait 1080x1920 layouts
+  --landscape              default false: orientation follows the explicit
+                           --width/--height (1920x1080 already prints wide).
+                           Passing --landscape makes Chromium swap the
+                           dimensions; almost never what you want here
   --background=true|false  print background colors/images (default true)
   --margin=<n>             page margin in pt (default 0)
   --verbose
@@ -45,7 +47,7 @@ function parseArgs(argv) {
     output: null,
     width: 1920,
     height: 1080,
-    landscape: true,
+    landscape: false,
     background: true,
     margin: 0,
     verbose: false,

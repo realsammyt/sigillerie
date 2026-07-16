@@ -120,3 +120,11 @@ test('merges classes via id selector', async () => {
   assert.ok(out.includes('bg-blue-500'), `got: ${out}`);
   assert.ok(out.includes('p-4'), `got: ${out}`);
 });
+
+// 15. attribute values containing quotes stay valid JSX (expression form)
+test('escapes double quotes in attribute values via expression form', async () => {
+  const out = await jsx('<div title="He said &quot;hi&quot;" data-note="a &quot;b&quot;">x</div>');
+  assert.ok(out.includes('title={"He said \\"hi\\""}'), `got: ${out}`);
+  assert.ok(out.includes('data-note={"a \\"b\\""}'), `got: ${out}`);
+  assert.ok(!out.includes('title="He said "hi""'), `raw quotes must not appear: ${out}`);
+});

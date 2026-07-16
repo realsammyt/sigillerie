@@ -117,13 +117,28 @@
   //   wide: horizontal arc, panels rotated to face center
   //   square: 2x2 grid with z-stagger so depth reads
   //   portrait: vertical stack
-  //   ultrawide: long horizontal line, no curve
-  function gridForLayout(layout, count) {
+  //   ultrawide: shallow arc across a long horizontal span
+  //
+  // scales (optional): per-slot footprint array. Each entry is that slot's
+  // world-space width (panel width times its scale factor). When present,
+  // the wide/ultrawide rows space slots so every adjacent gap clears the
+  // half-width sums (a hero-scaled panel no longer swallows its neighbors)
+  // and scaled-up slots come forward, toward the camera, instead of
+  // sinking deeper into the arc. Missing entries assume a ~2.2 unit panel.
+  function gridForLayout(layout, count, scales) {
     const n = Math.max(1, count | 0);
     const out = [];
     if (n === 1) {
       out.push({ position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] });
       return out;
+    }
+
+    // Per-slot world footprints. Default approximates a uikit panel so
+    // scale-less callers still get gaps that clear typical panels.
+    const widths = [];
+    for (let i = 0; i < n; i += 1) {
+      const v = Array.isArray(scales) ? scales[i] : null;
+      widths.push(typeof v === 'number' && v > 0 ? v : 2.2);
     }
 
     if (layout === 'portrait') {
@@ -149,10 +164,16 @@
     if (layout === 'square') {
       // 2x2 grid. Hero (slot 0) sits top-left and forward; subtitle top-
       // right; caps + status on bottom row receding. Generous spacing so
-      // the hero doesn't crash into its neighbor.
+      // the hero doesn't crash into its neighbor; widen the column step
+      // when a footprint pair demands more room.
       const cols = 2;
       const rows = Math.ceil(n / cols);
-      const xStep = 3.2;
+      let xStep = 3.2;
+      for (let i = 0; i + 1 < n; i += 1) {
+        if (i % cols === 0) {
+          xStep = Math.max(xStep, (widths[i] + widths[i + 1]) / 2 + 0.3);
+        }
+      }
       const yStep = 2.0;
       for (let i = 0; i < n; i += 1) {
         const r = Math.floor(i / cols);
@@ -174,39 +195,84 @@
       return out;
     }
 
-    if (layout === 'ultrawide') {
-      // shallow arc across a long horizontal span. flatter than wide arc.
-      // arcRadius unchanged; camera widened (fov 42 + z 10.0) to fit.
-      const arcRadius = 9.0;
-      const arcSpan = Math.min(Math.PI * 0.36, n * 0.20);
-      for (let i = 0; i < n; i += 1) {
-        const f = n === 1 ? 0.5 : i / (n - 1);
-        const theta = -arcSpan / 2 + f * arcSpan;
-        const x = Math.sin(theta) * arcRadius;
-        const z = -Math.cos(theta) * arcRadius + arcRadius * 0.85;
-        out.push({
-          position: [x, 0, z],
-          rotation: [0, -theta * 0.7, 0],
-          scale: [1, 1, 1],
-        });
-      }
-      return out;
+    // wide + ultrawide: a footprint-spaced horizontal row on a shallow arc.
+    // The old fixed arc span packed n=4 slots into ~5.3 units of x, so a
+    // hero-scaled panel (~4 units wide) overlapped both neighbors, and the
+    // arc put center slots DEEPER than the wings (hero behind supporting
+    // panels). Now adjacent gaps clear the half-width sums and depth comes
+    // from footprint: the biggest slot sits most forward (toward the
+    // camera), small slots recede. Cameras unchanged (wide fov 46 + z 8.0,
+    // ultrawide fov 42 + z 10.0).
+    const isUltra = layout === 'ultrawide';
+    const arcRadius = isUltra ? 9.0 : 5.2;
+    const marginX = isUltra ? 0.9 : 0.3;
+    const yawFactor = isUltra ? 0.55 : 0.7;
+
+    // cumulative x: each gap = half-width sum + breathing margin.
+    const xs = [0];
+    for (let i = 1; i < n; i += 1) {
+      xs.push(xs[i - 1] + (widths[i - 1] + widths[i]) / 2 + marginX);
     }
 
-    // default: wide, horizontal arc. Each panel rotated toward center.
-    // tighter angle + bigger radius so the arc curves elegantly without
-    // panels eating each other. arcRadius 5.2 unchanged; camera widened
-    // (fov 46 + z 8.0) to fit the full arc.
-    const arcRadius = 5.2;
-    const arcSpan = Math.min(Math.PI * 0.46, n * 0.27);
+    let wMin = Infinity;
+    let wMax = -Infinity;
     for (let i = 0; i < n; i += 1) {
-      const f = n === 1 ? 0.5 : i / (n - 1);
-      const theta = -arcSpan / 2 + f * arcSpan;
-      const x = Math.sin(theta) * arcRadius;
-      const z = -Math.cos(theta) * arcRadius + arcRadius * 0.88;
+      if (widths[i] < wMin) wMin = widths[i];
+      if (widths[i] > wMax) wMax = widths[i];
+    }
+    const wSpan = wMax - wMin;
+
+    // depth ladder from footprint: -0.15 (smallest, recedes) up to +0.35
+    // (biggest, forward). Uniform rows sit flat mid-ladder.
+    const zs = [];
+    for (let i = 0; i < n; i += 1) {
+      const zf = wSpan > 0 ? (widths[i] - wMin) / wSpan : 0.5;
+      zs.push(-0.15 + zf * 0.5);
+    }
+
+    // center the row extents on x = 0.
+    const recenter = () => {
+      const shift =
+        (xs[0] - widths[0] / 2 + xs[n - 1] + widths[n - 1] / 2) / 2;
+      for (let i = 0; i < n; i += 1) xs[i] -= shift;
+    };
+    recenter();
+
+    // Screen-space clearance pass. Slots sit at different depths and toe
+    // in toward center, so world gaps that look safe can still overlap
+    // after projection: a forward slot's near edge swings toward the
+    // camera and projects wider, while the neighbor's toed-in edge
+    // recedes. Check each adjacent pair's projected edges against the
+    // layout's paired camera (cameraForLayout) and widen any deficit.
+    const cam = cameraForLayout(layout);
+    const camX = cam.pos[0];
+    const camZ = cam.pos[2];
+    const yawAt = (x) => -(x / arcRadius) * yawFactor;
+    // angle here is the projected slope (x over depth) of a slot edge;
+    // side -1 = left edge, +1 = right edge.
+    const edgeAngle = (i, side) => {
+      const yaw = yawAt(xs[i]);
+      const half = widths[i] / 2;
+      const ex = xs[i] + side * half * Math.cos(yaw);
+      const ez = zs[i] - side * half * Math.sin(yaw);
+      return (ex - camX) / Math.max(0.5, camZ - ez);
+    };
+    const angPad = 0.03; // projected seam between neighbors
+    for (let sweep = 0; sweep < 3; sweep += 1) {
+      for (let i = 1; i < n; i += 1) {
+        const deficit = edgeAngle(i - 1, 1) + angPad - edgeAngle(i, -1);
+        if (deficit > 0) {
+          const push = deficit * Math.max(0.5, camZ - zs[i]);
+          for (let j = i; j < n; j += 1) xs[j] += push;
+        }
+      }
+      recenter();
+    }
+
+    for (let i = 0; i < n; i += 1) {
       out.push({
-        position: [x, 0, z],
-        rotation: [0, -theta, 0],
+        position: [xs[i], 0, zs[i]],
+        rotation: [0, yawAt(xs[i]), 0],
         scale: [1, 1, 1],
       });
     }
@@ -465,6 +531,10 @@
             // wall-clock-equivalent value without ever touching Date.now.
             api.clock.elapsedTime = t_s;
             api.frame = Math.round(t_ms / (1000 / 60));
+            // Publish the frame time on the namespace so time-driven post
+            // passes (tsl-effects film grain) can seek from absolute scene
+            // time instead of the wall clock.
+            if (window.Sigillerie3D) window.Sigillerie3D.frameTime = t_s;
 
             const list = spritesRef.current;
             for (let i = 0; i < list.length; i++) {
@@ -485,10 +555,11 @@
           };
         }
 
-        // First-paint wait. Fonts ready, then mark __ready and __sceneReady
-        // and run a single render so frame 0 is the loaded state. Asset
-        // loading (GLTF/HDRI) will move __sceneReady gating into a later
-        // pass; for now first render is enough.
+        // First-paint wait. Fonts ready, then paint once so sprites mount
+        // and recipes kick off their asset loads, then await every load
+        // registered in window.__sceneAssets.pending (the registry
+        // three-helpers.js and the recipes maintain), repaint frame 0 with
+        // the loaded assets, and only then signal __ready + __sceneReady.
         const markReady = () => {
           if (cancelled) return;
           // Flip bootStatus first so React commits the children and their
@@ -499,24 +570,41 @@
           // Wait two animation frames + a microtask flush so:
           //   - React commits children (1 rAF after setBootStatus)
           //   - Children's useEffects run, registering sprites (next rAF)
-          // Only THEN run __renderFrame(0) to paint the populated scene
-          // and signal __ready.
-          const finalize = () => {
-            if (cancelled) return;
+          // Only THEN run __renderFrame(0) to paint the populated scene.
+          const renderFrame0 = () => {
             if (typeof window !== 'undefined' && typeof window.__renderFrame === 'function') {
               window.__renderFrame(0);
             } else {
               const api = threeRef.current;
+              if (!api) return;
               if (typeof api.draw === 'function') {
                 api.draw();
               } else {
                 api.renderer.render(api.scene, api.camera);
               }
             }
-            if (typeof window !== 'undefined') {
-              window.__ready = true;
-              window.__sceneReady = true;
+          };
+          // Await the asset registry. Loops because a settled load can
+          // register a follow-up load; allSettled so a 404 never wedges
+          // the gate.
+          const settleAssets = (seen) => {
+            if (cancelled) return;
+            const reg = typeof window !== 'undefined' ? window.__sceneAssets : null;
+            const pending = (reg && reg.pending) || [];
+            if (pending.length <= seen) {
+              renderFrame0();
+              if (typeof window !== 'undefined') {
+                window.__ready = true;
+                window.__sceneReady = true;
+              }
+              return;
             }
+            Promise.allSettled(pending.slice()).then(() => settleAssets(pending.length));
+          };
+          const finalize = () => {
+            if (cancelled) return;
+            renderFrame0();
+            settleAssets(0);
           };
           if (typeof requestAnimationFrame === 'function' && !window.__recording) {
             requestAnimationFrame(() => requestAnimationFrame(finalize));

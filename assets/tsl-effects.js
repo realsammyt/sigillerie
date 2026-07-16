@@ -315,9 +315,13 @@ const FilmGrainShader = {
 /**
  * Add film grain to an existing composer. opts: { intensity=0.05, count=4096 }
  *
- * Caller must update the `time` uniform per frame for animated grain. We
- * patch the pass with a `.tick(dt)` helper that does this. If caller
- * never ticks, grain is static (still useful, just less filmic).
+ * The `time` uniform drives the shimmer. The pass gets a seekable
+ * `.tick(t)` helper keyed to ABSOLUTE scene time in seconds: tick(4.0)
+ * lands on the same grain state no matter what ran before, so recorded
+ * frames are reproducible. The composer's render is patched to call tick
+ * with the Stage3D frame time (Sigillerie3D.frameTime, published by
+ * __renderFrame) when available; without one it advances a fixed 1/60 s
+ * step per render call. No wall clock in either path.
  */
 export function addFilmGrain(composer, opts) {
   const o = opts || {};
@@ -325,23 +329,33 @@ export function addFilmGrain(composer, opts) {
   pass.uniforms.intensity.value = o.intensity != null ? o.intensity : 0.05;
   pass.uniforms.count.value = o.count != null ? o.count : 4096.0;
 
-  // expose tick on the pass so recipes can drive the time uniform
-  pass.tick = function (dt) {
-    pass.uniforms.time.value += (dt != null ? dt : 0.016);
+  // expose tick on the pass so recipes can drive the time uniform.
+  // t: absolute seconds. Calling with no argument steps a fixed 1/60 s.
+  pass.tick = function (t) {
+    if (typeof t === 'number' && isFinite(t)) {
+      pass.uniforms.time.value = t;
+    } else {
+      pass.uniforms.time.value += 1 / 60;
+    }
   };
 
   // also auto-tick from composer.render via a wrap (cheap, single closure)
   if (!composer.__tslTickPatched) {
     const originalRender = composer.render.bind(composer);
-    let lastT = (typeof performance !== 'undefined') ? performance.now() : Date.now();
+    let steppedT = 0;
     composer.render = function (deltaTime) {
-      const now = (typeof performance !== 'undefined') ? performance.now() : Date.now();
-      const dt = (now - lastT) / 1000.0;
-      lastT = now;
+      const ns = (typeof window !== 'undefined') ? window.Sigillerie3D : null;
+      let t = (ns && typeof ns.frameTime === 'number') ? ns.frameTime : null;
+      if (t == null) {
+        // No Stage3D frame time on this page. Fixed-step so the grain
+        // still shimmers without ever reading the wall clock.
+        steppedT += 1 / 60;
+        t = steppedT;
+      }
       // tick all passes that expose .tick
       for (let i = 0; i < composer.passes.length; i++) {
         const p = composer.passes[i];
-        if (p && typeof p.tick === 'function') p.tick(dt);
+        if (p && typeof p.tick === 'function') p.tick(t);
       }
       return originalRender(deltaTime);
     };

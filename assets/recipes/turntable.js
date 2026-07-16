@@ -25,7 +25,9 @@ export function createTurntable(threeApi, opts = {}) {
     envIntensity: opts.envIntensity != null ? opts.envIntensity : 1.0,
     groundShadow: opts.groundShadow !== false,
     highlightSweep: opts.highlightSweep !== false,
-    hdriUrl: opts.hdriUrl || 'assets/hdri/studio-soft.hdr',
+    // Default null: the zero-fetch procedural RoomEnvironment fallback is
+    // the default IBL. Pass an .hdr URL to opt into loadHDRI.
+    hdriUrl: opts.hdriUrl || null,
   };
 
   // camera setup, 30 deg fov, slight tilt, look at origin
@@ -46,7 +48,9 @@ export function createTurntable(threeApi, opts = {}) {
   let pmrem = null;
 
   // --- environment (IBL) -----------------------------------------------------
-  // Try HDRI from disk. Fall back to procedural RoomEnvironment.
+  // Procedural RoomEnvironment by default (cfg.hdriUrl null). When the
+  // caller passes an .hdr URL, load it via helpers.loadHDRI and fall back
+  // to RoomEnvironment on failure.
   function setupEnv() {
     const loadHDRI = HELPERS.loadHDRI;
     const finalize = (envTex) => {
@@ -70,12 +74,12 @@ export function createTurntable(threeApi, opts = {}) {
 
   // UX Law: Doherty Threshold (§13). Any wait over 400 ms without feedback
   // breaks flow and erodes trust. RoomEnvironment is a zero-fetch procedural
-  // fallback that resolves synchronously — the scene has valid IBL on first
-  // frame, well inside the 400 ms threshold. The real HDRI path (above) may
-  // exceed 400 ms on a slow connection; that path should set a loading state
-  // (e.g. window.__sceneReady = false) until the texture lands, then clear it.
+  // default that resolves synchronously, so the scene has valid IBL on the
+  // first frame, well inside the 400 ms threshold. The opt-in HDRI path
+  // (above) may exceed 400 ms on a slow connection; loadHDRI registers into
+  // window.__sceneAssets and Stage3D holds __sceneReady until it lands.
   function fallbackRoomEnv() {
-    // RoomEnvironment is in three/examples, assume the loader exposed it
+    // RoomEnvironment ships on the namespace via three3d-loader.js.
     const RoomEnvironment = (window.Sigillerie3D && window.Sigillerie3D.RoomEnvironment) || THREE.RoomEnvironment;
     if (!RoomEnvironment) return;
     pmrem = new THREE.PMREMGenerator(renderer);
@@ -183,14 +187,14 @@ export function createTurntable(threeApi, opts = {}) {
   // --- ground shadow ---------------------------------------------------------
   let ground = null;
   if (cfg.groundShadow && HELPERS.createGroundShadow) {
-    ground = HELPERS.createGroundShadow({
+    // helper signature: createGroundShadow(scene, opts). It adds the mesh
+    // to the scene itself; we only track it for removal on dispose.
+    ground = HELPERS.createGroundShadow(scene, {
       size: 3.2,
       opacity: 0.55,
-      blur: 2.8,
       y: -0.62,
     });
     if (ground) {
-      scene.add(ground);
       sceneAdds.push(ground);
     }
   } else if (cfg.groundShadow) {

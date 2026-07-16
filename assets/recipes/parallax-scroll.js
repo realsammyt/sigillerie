@@ -164,14 +164,35 @@ export function createParallaxScroll(threeApi, opts = {}) {
     const forceCanvas = spec.renderer === 'canvas';
     if (!forceCanvas && uikit && typeof uikit.createPanel === 'function') {
       try {
-        const panel = uikit.createPanel({
-          type: 'text',
-          text: spec.text || '',
-          font: spec.font || 'serif',
-          fontSize: spec.size || 1.0,
-          color: spec.color || '#ffffff',
+        // createPanel signature: createPanel(threeApi, opts). The text rides
+        // in opts.children so BOTH the uikit path and its internal
+        // CanvasTexture fallback render the words (the fallback draws
+        // children onto the canvas). Transparent background: this is a
+        // floating text layer, not a card.
+        // fontSize: uikit root px scale is ~100 px per world unit; 0.12
+        // keeps a size-1.5 headline inside the frustum-sized plane with
+        // margin while the camera dollies toward it.
+        const fontPx = Math.max(12, Math.round((spec.size || 1.0) * 0.12 * w * 100));
+        const panel = uikit.createPanel(threeApi, {
           width: w,
           height: h,
+          background: 'rgba(0, 0, 0, 0)',
+          borderWidth: 0,
+          padding: 0,
+          layout: 'flex-col',
+          justifyContent: 'center',
+          alignItems: 'center',
+          children: [{
+            type: 'text',
+            text: String(spec.text || ''),
+            fontSize: fontPx,
+            color: spec.color || '#ffffff',
+            fontWeight: spec.weight || 'bold',
+            textAlign: spec.align || 'center',
+            // explicit width sidesteps the yoga single-word measurement
+            // collapse, so a one-word headline like 'Headline' renders.
+            width: '100%',
+          }],
         });
         uikitPanels.push(panel);
         // uikit panels expose a Three.js Object3D on .root or .mesh
@@ -316,9 +337,11 @@ export function createParallaxScroll(threeApi, opts = {}) {
   // --- per-frame update ------------------------------------------------------
   // t = absolute seconds from sprite start. sprite_t = 0..1 normalized.
   function update(t, sprite_t) {
-    // tick uikit yoga layout per frame (PARA-1)
+    // tick uikit yoga layout per frame (PARA-1). Thread the scene time so
+    // the panel derives dt from t instead of the wall clock (recording
+    // stays deterministic).
     for (const panel of uikitPanels) {
-      if (panel && typeof panel.update === 'function') panel.update();
+      if (panel && typeof panel.update === 'function') panel.update(t);
     }
 
     let s;

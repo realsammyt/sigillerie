@@ -43,6 +43,7 @@
  */
 
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 // Recording flag is read once, at module load. Late mutation should not
 // flip backends mid-scene.
@@ -118,6 +119,9 @@ const loadHTML = `<!DOCTYPE html>
 // Mount the namespace. Cross-script-tag access for React+Babel siblings.
 const Sigillerie3D = {
   THREE,
+  // RoomEnvironment rides along so recipes get a zero-fetch procedural IBL
+  // default without importing three/addons themselves.
+  RoomEnvironment,
   useWebGPU,
   hasWebGPU,
   isRecording,
@@ -138,4 +142,4 @@ if (typeof window !== 'undefined') {
 }
 
 export default Sigillerie3D;
-export { THREE, useWebGPU, hasWebGPU, isRecording, capabilities, loadWebGPURenderer };
+export { THREE, RoomEnvironment, useWebGPU, hasWebGPU, isRecording, capabilities, loadWebGPURenderer };

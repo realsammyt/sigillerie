@@ -57,8 +57,9 @@
  *     ],
  *   });
  *   threeApi.group.add(panel.root);
- *   // per-frame:
- *   panel.update();
+ *   // per-frame (t = scene seconds from the render callback; threading it
+ *   // keeps recording deterministic, omitting it is interactive-only):
+ *   panel.update(t);
  *   // teardown:
  *   panel.dispose();
  *
@@ -125,6 +126,21 @@ function resolveTheme(name) {
   return THEMES[name] || THEMES.dark;
 }
 
+// THREE.Color silently drops (and console-warns about) the alpha component
+// of rgba()/hsla() strings. uikit carries opacity as a separate property,
+// so split the alpha out here and forward it as backgroundOpacity /
+// borderOpacity while the color goes through alpha-free.
+function splitColorAlpha(input) {
+  if (typeof input !== 'string') return { color: input, alpha: null };
+  const m = input.match(/^\s*(rgb|hsl)a?\(([^)]*)\)\s*$/i);
+  if (!m) return { color: input, alpha: null };
+  const parts = m[2].split(',').map((p) => p.trim());
+  if (parts.length < 4) return { color: input, alpha: null };
+  const a = parseFloat(parts[3]);
+  const color = m[1].toLowerCase() + '(' + parts.slice(0, 3).join(', ') + ')';
+  return { color, alpha: isFinite(a) ? Math.max(0, Math.min(1, a)) : null };
+}
+
 // ---- Public entrypoint ------------------------------------------------
 
 /**
@@ -136,7 +152,7 @@ function resolveTheme(name) {
  *
  * @param {object} threeApi Stage3D's threeApi: { THREE, scene, renderer, ... }
  * @param {object} opts panel spec, see file header for the shape
- * @returns {{ root: THREE.Object3D, update: () => void, dispose: () => void }}
+ * @returns {{ root: THREE.Object3D, update: (t?: number) => void, dispose: () => void }}
  */
 export function createPanel(threeApi, opts) {
   const THREE = (threeApi && threeApi.THREE) || (typeof window !== 'undefined' && window.Sigillerie3D && window.Sigillerie3D.THREE);
@@ -165,6 +181,7 @@ export function createPanel(threeApi, opts) {
     fallbackMesh: null,     // CanvasTexture mesh when uikit unavailable
     disposables: [],        // textures, materials, geometries to free
     disposed: false,
+    lastT: null,            // last threaded scene time (seconds)
     lastTime: typeof performance !== 'undefined' ? performance.now() : 0,
   };
 
@@ -184,11 +201,22 @@ export function createPanel(threeApi, opts) {
 
   return {
     root,
-    update() {
+    // update(t): t is the absolute scene time in seconds from the caller's
+    // render callback. When threaded, dt derives from consecutive t values
+    // and the wall clock is never read, so recording stays deterministic
+    // and seekable. Omitting t is a legacy interactive-only path that falls
+    // back to performance.now().
+    update(t) {
       if (state.disposed) return;
-      const now = typeof performance !== 'undefined' ? performance.now() : state.lastTime + 16.6;
-      const dt = (now - state.lastTime) / 1000;
-      state.lastTime = now;
+      let dt;
+      if (typeof t === 'number' && isFinite(t)) {
+        dt = state.lastT == null ? 1 / 60 : Math.max(0, t - state.lastT);
+        state.lastT = t;
+      } else {
+        const now = typeof performance !== 'undefined' ? performance.now() : state.lastTime + 16.6;
+        dt = (now - state.lastTime) / 1000;
+        state.lastTime = now;
+      }
       if (state.uikitRoot && typeof state.uikitRoot.update === 'function') {
         // uikit's Root.update(delta) ticks layout, animations, hover state.
         try {
@@ -243,6 +271,8 @@ function mountUikit(state, host, uikit) {
 
   // uikit@0.8.x vanilla Root: constructor(camera, renderer, properties, ...)
   // sizeX/sizeY are world units, matching the recipe's width/height contract.
+  const bg = splitColorAlpha(opts.background || theme.surface);
+  const border = splitColorAlpha(opts.borderColor || theme.border);
   const properties = {
     sizeX: opts.width != null ? opts.width : 2,
     sizeY: opts.height != null ? opts.height : 1.2,
@@ -250,11 +280,13 @@ function mountUikit(state, host, uikit) {
     justifyContent: opts.justifyContent || 'flex-start',
     alignItems: opts.alignItems || 'stretch',
     padding: opts.padding != null ? opts.padding : 24,
-    backgroundColor: opts.background || theme.surface,
+    backgroundColor: bg.color,
     borderRadius: opts.borderRadius != null ? opts.borderRadius : 24,
-    borderColor: opts.borderColor || theme.border,
+    borderColor: border.color,
     borderWidth: opts.borderWidth != null ? opts.borderWidth : 0,
   };
+  if (bg.alpha != null) properties.backgroundOpacity = bg.alpha;
+  if (border.alpha != null) properties.borderOpacity = border.alpha;
 
   const rootNode = new Root(
     threeApi.camera,
@@ -284,7 +316,7 @@ function buildUikitChild(spec, ctx) {
     // Passing { text: ..., ... } as the first arg makes uikit stringify the
     // whole object via toString() and you get "[object Object]" rendered.
     const textStr = spec.text != null ? String(spec.text) : '';
-    const node = new Text(textStr, {
+    const textProps = {
       fontSize: spec.fontSize != null ? spec.fontSize : 32,
       color: spec.color || theme.text,
       fontWeight: spec.fontWeight || 'normal',
@@ -295,7 +327,18 @@ function buildUikitChild(spec, ctx) {
       marginBottom: spec.marginBottom,
       marginLeft: spec.marginLeft,
       marginRight: spec.marginRight,
-    });
+    };
+    if (spec.width != null) textProps.width = spec.width;
+    if (spec.height != null) textProps.height = spec.height;
+    // Yoga landmine: a Text whose string has no whitespace break-points can
+    // measure to zero width and the whole subtree silently vanishes (a
+    // panel of ALL single-word texts renders empty; see d6 bisect notes).
+    // Give single-word strings an explicit full-row width so the intrinsic
+    // measurement never collapses.
+    if (textProps.width == null && textStr && !/\s/.test(textStr)) {
+      textProps.width = '100%';
+    }
+    const node = new Text(textStr, textProps);
     return node;
   }
 
@@ -312,6 +355,8 @@ function buildUikitChild(spec, ctx) {
   }
 
   // Default: container, recursive.
+  const bg = splitColorAlpha(spec.background);
+  const border = splitColorAlpha(spec.borderColor || theme.border);
   const containerProps = {
     width: spec.width,
     height: spec.height,
@@ -322,11 +367,13 @@ function buildUikitChild(spec, ctx) {
     margin: spec.margin,
     marginTop: spec.marginTop,
     marginBottom: spec.marginBottom,
-    backgroundColor: spec.background,
+    backgroundColor: bg.color,
     borderRadius: spec.borderRadius,
-    borderColor: spec.borderColor || theme.border,
+    borderColor: border.color,
     flexGrow: spec.flexGrow,
   };
+  if (bg.alpha != null) containerProps.backgroundOpacity = bg.alpha;
+  if (border.alpha != null) containerProps.borderOpacity = border.alpha;
   const node = new Container(containerProps);
   const kids = Array.isArray(spec.children) ? spec.children : [];
   kids.forEach((kidSpec) => {
@@ -445,8 +492,16 @@ function drawChildren(ctx, children, frame) {
       ctx.fillStyle = spec.color || theme.text;
       ctx.font = `${weight} ${fontPx}px ${family}`;
       ctx.textBaseline = 'top';
-      ctx.textAlign = spec.textAlign || (isCol ? 'left' : 'left');
-      const tx = isCol ? x : cursor;
+      const align = spec.textAlign || 'left';
+      ctx.textAlign = align;
+      // anchor x matches the alignment so centered/right text stays inside
+      // the panel instead of hanging off the left edge.
+      let tx;
+      if (isCol) {
+        tx = align === 'center' ? x + w / 2 : (align === 'right' ? x + w : x);
+      } else {
+        tx = cursor;
+      }
       const ty = isCol ? cursor : y;
       const text = String(spec.text != null ? spec.text : '');
       // crude wrap on width when in column mode

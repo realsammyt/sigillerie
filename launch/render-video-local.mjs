@@ -32,11 +32,13 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const LAUNCH_DIR = path.resolve(__dirname, '..');
-const REPO_DIR = path.resolve(LAUNCH_DIR, '../repo');
+// This script lives at launch/<name>.mjs in the repo (the private workspace keeps
+// it under launch/scripts/), so the launch dir is __dirname itself.
+const LAUNCH_DIR = __dirname;
+const REPO_DIR = path.resolve(LAUNCH_DIR, '..');
 const POSTS_DIR = path.join(LAUNCH_DIR, 'posts');
 const RENDERS_DIR = path.join(LAUNCH_DIR, 'renders');
-const SERVE_ROOT = path.resolve(LAUNCH_DIR, '..');
+const SERVE_ROOT = REPO_DIR;
 
 const playwrightEntry = path.join(REPO_DIR, 'node_modules', 'playwright', 'index.mjs');
 const { chromium } = await import(pathToFileURL(playwrightEntry).href);

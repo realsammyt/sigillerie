@@ -21,8 +21,9 @@
  *   - interpolate     numeric range remap with optional easing
  *
  * Recording handshake (read by scripts/render-video.js):
- *   - window.__recording  set true before page load -> Stage forces loop=false
- *                         and parks at duration - 0.001 instead of wrapping
+ *   - window.__recording  set true before page load -> Stage forces loop=false,
+ *                         parks at duration - 0.001 instead of wrapping, hides
+ *                         the player chrome, and fits to the full viewport
  *   - window.__ready      Stage flips this true on first paint after fonts
  *                         load, so the recorder uses that as frame 0
  *
@@ -250,18 +251,19 @@
     const canvasRef = useRef(null);
 
     // Viewport fit: scale the stage canvas to fit the window with letterbox.
-    // Reserve 56px for the controls bar at the bottom.
+    // Reserve 56px for the controls bar at the bottom. Recording renders no
+    // controls, so it gets the full viewport (no baked-in letterbox gap).
     useEffect(() => {
       function fit() {
         const vw = window.innerWidth;
-        const vh = window.innerHeight - 56;
+        const vh = window.innerHeight - (isRecording ? 0 : 56);
         const s = Math.min(vw / width, vh / height);
         setScale(s);
       }
       fit();
       window.addEventListener('resize', fit);
       return () => window.removeEventListener('resize', fit);
-    }, [width, height]);
+    }, [width, height, isRecording]);
 
     // The clock. rAF-driven wall-clock delta when the page owns time.
     // When the 3D layer owns time (recording AND __renderFrame defined),
@@ -391,30 +393,32 @@
             </div>
           </div>
 
-          <div style={stageStyles.controls}>
-            <button
-              style={stageStyles.button}
-              onClick={() => setPlaying((p) => !p)}
-            >
-              {playing ? 'Pause' : 'Play'}
-            </button>
+          {!isRecording && (
+            <div style={stageStyles.controls}>
+              <button
+                style={stageStyles.button}
+                onClick={() => setPlaying((p) => !p)}
+              >
+                {playing ? 'Pause' : 'Play'}
+              </button>
 
-            <button
-              style={stageStyles.button}
-              onClick={() => setTime(0)}
-            >
-              Restart
-            </button>
+              <button
+                style={stageStyles.button}
+                onClick={() => setTime(0)}
+              >
+                Restart
+              </button>
 
-            <div style={stageStyles.timeDisplay}>
-              {time.toFixed(2)}s / {duration.toFixed(2)}s
+              <div style={stageStyles.timeDisplay}>
+                {time.toFixed(2)}s / {duration.toFixed(2)}s
+              </div>
+
+              <div style={stageStyles.scrubber} onMouseDown={handleSeek}>
+                <div style={fillStyle} />
+                <div style={handleStyle} />
+              </div>
             </div>
-
-            <div style={stageStyles.scrubber} onMouseDown={handleSeek}>
-              <div style={fillStyle} />
-              <div style={handleStyle} />
-            </div>
-          </div>
+          )}
         </div>
       </StageContext.Provider>
     );
