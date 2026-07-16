@@ -1,4 +1,4 @@
-// Phase 5 golden test — TODO populate when phase ships.
-// See _planning/SIGILLERIE-BUILD-HARNESS.md §5 for pass criteria.
-console.log('phase-5-ar-routing: stub, not yet implemented');
+// Golden phase-5-ar-routing: pass criteria need a live agent run driving the skill
+// end-to-end (see the harness plan). Static checks cannot stand in for it.
+console.log('golden:phase-5-ar-routing: SKIP (requires live agent harness)');
 process.exit(0);

@@ -30,7 +30,7 @@ Three named lights. Each does one job. None overlap in purpose.
 | **Fill** | opposite side from key | 1-2 | cool complement | soften shadow side without killing it |
 | **Rim / Back** | behind subject | 4-7 | strongest accent color | edge glow, separates subject from background |
 
-Optional 4th: **Sweep spotlight** (tight cone, animated orbit) for moving "lit slice" effect. Reads as cinema-grade motion on glass surfaces. Use for hero animations only — too much for static viewing.
+Optional 4th: **Sweep spotlight** (tight cone, animated orbit) for moving "lit slice" effect. Reads as cinema-grade motion on glass surfaces. Use for hero animations only, too much for static viewing.
 
 Avoid: ambient-only, hemisphere-only, or single directional. All look amateur.
 
@@ -56,7 +56,7 @@ Three passes that turn "rendered three.js" into "looks like After Effects". Appl
 | **Bloom** (UnrealBloomPass) | bright spots glow softly, sells the "premium" feel | `strength: 0.4, radius: 0.7, threshold: 0.85` |
 | **Depth of Field** (BokehPass) | hero in focus, context softly blurred | `focus: <hero distance>, aperture: 0.0002, maxblur: 0.012` |
 | **Vignette** | dark edges focus eye on center | `offset: 0.95, darkness: 1.4` |
-| **Optional: chromatic aberration** | subtle edge color shift, "lens" feel | `0.0008` magnitude max — more than that is parody |
+| **Optional: chromatic aberration** | subtle edge color shift, "lens" feel | `0.0008` magnitude max, more than that is parody |
 
 Apply via `assets/tsl-effects.js` `applyBloom()`, `applyDOF()`, `applyVignette()`. Cost: +30-50ms per frame on Titan-class GPU. Worth it.
 
@@ -68,9 +68,9 @@ Pick by content shape, not by reflex. UI-shaped content (panels with layout, lis
 
 | Approach | Quality | Cost | Use when |
 |---|---|---|---|
-| **`@pmndrs/uikit`** (vanilla) / **`@react-three/uikit`** (R3F) | full flexbox UI in 3D space — panels, text, components, theming, yoga-driven layout | ~150KB + Yoga WASM ~80KB | **DEFAULT for spatial UI**: holo decks, multi-panel scenes, anything resembling a real interface in 3D |
+| **`@pmndrs/uikit`** (vanilla) / **`@react-three/uikit`** (R3F) | full flexbox UI in 3D space: panels, text, components, theming, yoga-driven layout | ~150KB + Yoga WASM ~80KB | **DEFAULT for spatial UI**: holo decks, multi-panel scenes, anything resembling a real interface in 3D |
 | **`troika-three-text`** (SDF) | sharp single-text labels at any zoom | 80KB lib + ~1ms per frame | single text on a 3D object: turntable caption, axis label, hover name tag |
-| **CanvasTexture at 4× resolution** | OK if not camera-approached | proportional to canvas size | tiny static accents only — fallback for ultra-light bundles |
+| **CanvasTexture at 4× resolution** | OK if not camera-approached | proportional to canvas size | tiny static accents only, fallback for ultra-light bundles |
 | **drei `Html` portal** | crisp DOM text positioned in 3D | DOM cost, not in WebGL | text needs to be selectable / accessible / clickable / SEO-visible |
 | **TextGeometry** | extruded 3D type, vertex-shaded | font load + vertex cost | hero-only single-word title with extrusion (rare) |
 
@@ -152,7 +152,7 @@ Each is a failure the critic agent (G4) scans for by name.
 |---|---|
 | Hero animation MP4 | all sections, especially §1, §4, §5 |
 | Spatial slide deck | §1, §2, §3, §6, §8 |
-| AR product preview (`<model-viewer>`) | §3 (material), §6 (camera) — postprocessing handled by model-viewer |
+| AR product preview (`<model-viewer>`) | §3 (material), §6 (camera); postprocessing handled by model-viewer |
 | Data viz in 3D | §1 (hero = data), §6, §7. Skip §4 (DOF kills clarity). |
 | Knowledge graph 3D | §1 (focus node), §7 (color discipline), §6 (slow camera) |
 | Interactive prototype | §1, §2, §3, §6. Skip §4 (perf). |

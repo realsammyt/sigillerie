@@ -1,6 +1,6 @@
 ---
 name: deliverable-types
-description: Generative Audio capability — TODO Phase 8
+description: Generative Audio capability: TODO Phase 8
 status: stub
 ---
 

@@ -279,6 +279,6 @@ Cross-cutting note: each named cliché in any of these catalogs is what the crit
 
 ## The Connection to the Critic
 
-The critic agent runs G4 (anti-slop gate) by scanning the deliverable against named entries in this catalog and the capability-specific catalogs. A flag from the critic always cites the row name. "G4 fail: aggressive gradient bg + default-purple SaaS landing + identical-size card grid." Three names, three rows, three concrete fixes.
+The critic agent runs G4 (anti-AI-slop gate) by scanning the deliverable against named entries in this catalog and the capability-specific catalogs. A flag from the critic always cites the row name. "G4 fail: aggressive gradient bg + default-purple SaaS landing + identical-size card grid." Three names, three rows, three concrete fixes.
 
 This catalog is the shared vocabulary between the producer (who must avoid the patterns) and the critic (who must spot them). Names are the contract.

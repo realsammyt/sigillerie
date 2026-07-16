@@ -58,7 +58,7 @@ Phase 3 is the session's peak. First moment the user sees their brand come to li
 Rules for the reveal:
 
 - **Full HTML render, not a list.** Emit `choosers/phase-3-directions.html` as the output. Three tiles side by side. No markdown bullet recap.
-- **Warm copy per direction.** Each tile opens with a sentence that names the user's chosen vibe words and maps them to the direction's philosophy. Example: "You said 'calm' and 'literary' — this direction answers with white-space discipline inherited from Kenya Hara."
+- **Warm copy per direction.** Each tile opens with a sentence that names the user's chosen vibe words and maps them to the direction's philosophy. Example: "You said 'calm' and 'literary', this direction answers with white-space discipline inherited from Kenya Hara."
 - **One-paragraph rationale per direction.** Explains the design logic: what the kept moodboard images share with this direction, what the flinch image rejects. One paragraph only, no sub-bullets.
 - **No winner signaling until the user picks.** All three tiles render at equal visual weight. Agent does not editorialize a preferred direction before the choose-point resolves.
 
@@ -247,7 +247,7 @@ Severity rules:
 
 Producer preflight reads `gaps` first. If any high-severity gap, producer prompts user before proceeding. Discovery's job ends at hand-off; producer owns delivery quality from there.
 
-Phase 6 close authoring rule: the hand-off message is the session's end — users remember peaks and ends. Make it deliberate. (applies Peak-End Rule: end carries disproportionate memory weight)
+Phase 6 close authoring rule: the hand-off message is the session's end, and users remember peaks and ends. Make it deliberate. (applies Peak-End Rule: end carries disproportionate memory weight)
 
 Rules for the close:
 
